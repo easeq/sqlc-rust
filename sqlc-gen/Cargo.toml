@@ -1,0 +1,25 @@
+[package]
+name = "sqlc-gen"
+version = "0.1.0"
+edition = "2018"
+
+[profile.release]
+lto = true
+
+[dependencies]
+sqlparser = { version = "0.9.0", features = ["serde"] }
+serde = "1.0"
+serde_json = "1.0"
+prost = "0.9.0"
+bytes = "1.1.0"
+syn = "2.0.77"
+quote = "1.0.37"
+prettyplease = "0.2.22"
+convert_case = "0.6.0"
+proc-macro2 = "1.0.86"
+postgres-types = "0.2.7"
+strum = "0.26.3"
+strum_macros = "0.26.4"
+
+[build-dependencies]
+prost-build = "0.9.0"

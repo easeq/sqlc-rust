@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+  "sqlc-gen",
+  "sqlc-derive",
+]
+
