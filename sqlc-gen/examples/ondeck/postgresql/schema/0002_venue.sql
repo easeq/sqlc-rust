@@ -1,4 +1,5 @@
-CREATE TYPE status AS ENUM ('op!en', 'clo@sed');
+-- CREATE TYPE status AS ENUM ('op!en', 'clo@sed');
+CREATE TYPE status AS ENUM ('open', 'closed');
 COMMENT ON TYPE status IS 'Venues can be either open or closed';
 
 CREATE TABLE venues (
@@ -15,4 +16,3 @@ CREATE TABLE venues (
 );
 COMMENT ON TABLE venues IS 'Venues are places where muisc happens';
 COMMENT ON COLUMN venues.slug IS 'This value appears in public URLs';
-

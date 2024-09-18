@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use proc_macro2::{Punct, Spacing, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::fmt;
@@ -36,18 +37,44 @@ pub fn get_newline_tokens() -> TokenStream {
 #[derive(Debug, Clone)]
 pub struct MultiLine(String);
 
-impl ToTokens for MultiLine {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let lines = self.0.lines();
-
-        for line in lines {
-            tokens.extend(get_newline_tokens());
-            for c in line.chars() {
-                tokens.extend(get_punct_from_char_tokens(c));
-            }
+impl MultiLine {
+    fn line_to_tokens(&self, line: &str) -> TokenStream {
+        let mut tokens = TokenStream::new();
+        for c in line.chars() {
+            tokens.extend(get_punct_from_char_tokens(c));
         }
 
-        tokens.extend(get_newline_tokens());
+        tokens
+    }
+
+    fn lines_to_tokens(&self) -> (TokenStream, usize) {
+        let mut tokens = TokenStream::new();
+        let mut total_lines = 0;
+        let lines = self.0.lines();
+        for (i, line) in lines.enumerate() {
+            if i > 0 {
+                tokens.extend(get_newline_tokens());
+            }
+
+            tokens.extend(self.line_to_tokens(line));
+            total_lines += 1;
+        }
+
+        (tokens, total_lines)
+    }
+}
+
+impl ToTokens for MultiLine {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let (lines_tokens, total_lines) = self.lines_to_tokens();
+
+        if total_lines > 1 {
+            tokens.extend(get_newline_tokens());
+            tokens.extend(lines_tokens);
+            tokens.extend(get_newline_tokens());
+        } else {
+            tokens.extend(lines_tokens);
+        }
     }
 }
 
@@ -67,6 +94,7 @@ impl ToTokens for MultiLineString {
 
         tokens.extend(get_punct_from_char_tokens(double_quote_char));
         tokens.extend(get_punct_from_char_tokens(hashtag_char));
+        tokens.extend(get_punct_from_char_tokens(' '));
     }
 }
 
@@ -140,16 +168,12 @@ impl fmt::Display for PgDataType {
     }
 }
 
-#[derive(Default)]
-pub struct CodePartials {
-    pub query_const: TypeConst,
-    pub params_struct: TypeStruct,
-    pub result_struct: TypeStruct,
-    pub query_method: TypeMethod,
+pub trait CodePartial {
+    fn of_type(self: &Self) -> String;
+    fn generate_code(self: &Self) -> TokenStream;
 }
 
-#[derive(Default)]
-pub struct PartialsBuilder {
+struct PartialsBuilder {
     query: plugin::Query,
 }
 
@@ -188,23 +212,24 @@ impl PartialsBuilder {
         TypeStruct::new(self.query.name.clone(), StructType::Row, fields)
     }
 
-    pub fn build(&self) -> CodePartials {
+    pub fn build(&self) -> Vec<Box<dyn CodePartial>> {
         let query_const = TypeConst::new(self.query.name.clone(), self.query.text.clone());
         let params_struct = self.params_struct();
         let result_struct = self.result_struct();
+        let query_method = TypeMethod::new(
+            self.query.name.clone(),
+            self.query.cmd.clone(),
+            query_const.clone(),
+            params_struct.clone(),
+            result_struct.clone(),
+        );
 
-        CodePartials {
-            query_method: TypeMethod::new(
-                self.query.name.clone(),
-                self.query.cmd.clone(),
-                query_const.clone(),
-                params_struct.clone(),
-                result_struct.clone(),
-            ),
-            query_const,
-            params_struct,
-            result_struct,
-        }
+        vec![
+            Box::new(query_const),
+            Box::new(params_struct),
+            Box::new(result_struct),
+            Box::new(query_method),
+        ]
     }
 }
 
@@ -220,7 +245,7 @@ impl CodeBuilder {
 }
 
 impl CodeBuilder {
-    pub fn build_enums(&self) -> Vec<TokenStream> {
+    fn build_enums(&self) -> Vec<TokenStream> {
         let catalog = self.req.catalog.clone().unwrap();
         let schemas = catalog.schemas;
         let enums = schemas
@@ -241,21 +266,7 @@ impl CodeBuilder {
             .collect::<Vec<_>>()
     }
 
-    pub fn build_queries_struct(&self) -> TokenStream {
-        // let queries_struct = TypeStruct::new(
-        //     "queries".to_string(),
-        //     StructType::Queries,
-        //     vec![StructField::new(
-        //         "client".to_string(),
-        //         0,
-        //         PgDataType("postgres::Client".to_string()),
-        //         false,
-        //         true,
-        //     )],
-        // );
-
-        // let ident_queries_struct = get_ident(&queries_struct.name());
-        // let queries_struct_tokens = queries_struct.generate_code();
+    fn build_queries_struct(&self, queries: Vec<TokenStream>) -> TokenStream {
         let data_type = DataType("postgres::Client".to_string());
 
         quote! {
@@ -281,24 +292,15 @@ impl CodeBuilder {
 
                     Self { client }
                 }
+
+                #(#queries)*
             }
         }
     }
 
-    pub fn build_queries(&self) -> Vec<TokenStream> {
-        let build_query =
-            |query: plugin::Query| -> CodePartials { PartialsBuilder::new(query).build() };
-        let print_code = |query: CodePartials| -> TokenStream {
-            let constants = query.query_const.generate_code();
-            let params_struct = query.params_struct.generate_code();
-            let result_struct = query.result_struct.generate_code();
-            let query_method = query.query_method.generate_code();
-            quote! {
-                #constants
-                #params_struct
-                #result_struct
-                #query_method
-            }
+    fn build_queries(&self) -> Vec<TokenStream> {
+        let build_query = |query: plugin::Query| -> Vec<Box<dyn CodePartial>> {
+            PartialsBuilder::new(query).build()
         };
 
         self.req
@@ -306,13 +308,28 @@ impl CodeBuilder {
             .clone()
             .into_iter()
             .map(build_query)
-            .map(print_code)
+            .flatten()
+            .into_group_map_by(|e| e.of_type() == "method")
+            .into_iter()
+            .map(|(is_query_method, values)| {
+                let tokens = values
+                    .into_iter()
+                    .map(|v| v.generate_code())
+                    .collect::<Vec<_>>();
+                if is_query_method {
+                    self.build_queries_struct(tokens)
+                } else {
+                    quote! {
+                        #(#tokens)*
+                    }
+                }
+            })
+            // .flatten()
             .collect::<Vec<_>>()
     }
 
     pub fn generate_code(&self) -> TokenStream {
         let enums_tokens = self.build_enums();
-        let queries_struct = self.build_queries_struct();
         let queries = self.build_queries();
         let generated_comment = MultiLine(
             r#"
@@ -326,7 +343,6 @@ impl CodeBuilder {
         quote! {
             #generated_comment
             #(#enums_tokens)*
-            #queries_struct
             #(#queries)*
         }
     }

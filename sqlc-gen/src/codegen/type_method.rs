@@ -1,6 +1,6 @@
-use super::get_ident;
 use super::type_const::TypeConst;
 use super::type_struct::TypeStruct;
+use super::{get_ident, CodePartial};
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -33,16 +33,16 @@ pub struct TypeMethod {
 }
 
 impl TypeMethod {
-    pub fn new(
-        name: String,
-        query_command: String,
+    pub fn new<S: Into<String>>(
+        name: S,
+        query_command: S,
         query_const: TypeConst,
         params_struct: TypeStruct,
         row_struct: TypeStruct,
     ) -> Self {
         Self {
-            name,
-            query_command,
+            name: name.into(),
+            query_command: query_command.into(),
             query_const,
             params_struct,
             row_struct,
@@ -58,8 +58,12 @@ impl TypeMethod {
     }
 }
 
-impl TypeMethod {
-    pub fn generate_code(&self) -> TokenStream {
+impl CodePartial for TypeMethod {
+    fn of_type(&self) -> String {
+        "method".to_string()
+    }
+
+    fn generate_code(&self) -> TokenStream {
         let ident_name = get_ident(&self.name());
         let ident_params = get_ident(&self.params_struct.name());
         let ident_row = get_ident(&self.row_struct.name());
@@ -84,8 +88,7 @@ impl TypeMethod {
                         let rows = self.client.query(#ident_const_name, &[#fields_list])?;
                         let result: Vec<#ident_row> = vec![];
                         for row in rows {
-                            let row: #ident_row = row.into();
-                            result.push(row);
+                            result.push(row.into());
                         }
 
                         Ok(result)
@@ -104,10 +107,12 @@ impl TypeMethod {
             // _ => panic!("unsupported query annotation command: {:?}", command),
         };
 
-        quote! {
-            impl Queries {
-                #query_method
-            }
-        }
+        quote! { #query_method }
+
+        // quote! {
+        //     impl Queries {
+        //         #query_method
+        //     }
+        // }
     }
 }

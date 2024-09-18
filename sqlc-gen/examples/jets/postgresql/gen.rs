@@ -1,3 +1,19 @@
+const COUNT_PILOTS: &str = r#"SELECT COUNT(*) FROM pilots"#;
+#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
+pub(crate) struct CountPilotsRow {
+    pub(crate) count: i64,
+}
+const LIST_PILOTS: &str = r#"SELECT id, name FROM pilots LIMIT 5"#;
+#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
+pub(crate) struct ListPilotsRow {
+    pub(crate) id: i32,
+    pub(crate) name: String,
+}
+const DELETE_PILOT: &str = r#"DELETE FROM pilots WHERE id = $1"#;
+#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
+pub(crate) struct DeletePilotParams {
+    pub(crate) id: i32,
+}
 pub struct Queries {
     client: postgres::Client,
 }
@@ -22,15 +38,6 @@ impl Queries {
             .unwrap();
         Self { client }
     }
-}
-const COUNT_PILOTS: &str = r#"
-SELECT COUNT(*) FROM pilots
-"#;
-#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
-pub(crate) struct CountPilotsRow {
-    pub(crate) count: i64,
-}
-impl Queries {
     pub fn count_pilots(
         &self,
         params: CountPilotsParams,
@@ -38,16 +45,6 @@ impl Queries {
         let row: CountPilotsRow = self.client.query_one(COUNT_PILOTS, &[])?;
         Ok(row)
     }
-}
-const LIST_PILOTS: &str = r#"
-SELECT id, name FROM pilots LIMIT 5
-"#;
-#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
-pub(crate) struct ListPilotsRow {
-    pub(crate) id: i32,
-    pub(crate) name: String,
-}
-impl Queries {
     pub fn list_pilots(
         &self,
         params: ListPilotsParams,
@@ -55,20 +52,10 @@ impl Queries {
         let rows = self.client.query(LIST_PILOTS, &[])?;
         let result: Vec<ListPilotsRow> = vec![];
         for row in rows {
-            let row: ListPilotsRow = row.into();
-            result.push(row);
+            result.push(row.into());
         }
         Ok(result)
     }
-}
-const DELETE_PILOT: &str = r#"
-DELETE FROM pilots WHERE id = $1
-"#;
-#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
-pub(crate) struct DeletePilotParams {
-    pub(crate) id: i32,
-}
-impl Queries {
     pub fn delete_pilot(&self, params: DeletePilotParams) -> anyhow::Result<()> {
         self.client.execute(DELETE_PILOT, &[&params.id])?;
         Ok(())

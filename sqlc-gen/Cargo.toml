@@ -20,6 +20,7 @@ proc-macro2 = "1.0.86"
 postgres-types = "0.2.7"
 strum = "0.26.3"
 strum_macros = "0.26.4"
+itertools = "0.13.0"
 
 [build-dependencies]
 prost-build = "0.9.0"

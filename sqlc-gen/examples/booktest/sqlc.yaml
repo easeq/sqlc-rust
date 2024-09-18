@@ -6,7 +6,7 @@ plugins:
       - RUST_LOG
     wasm:
       url: file://./../../../target/wasm32-wasi/release/sqlc-gen.wasm
-      sha256: 95665979049e73cf014e1518cbc63e1fb5604da8dd4a395cda2d607adb831f41
+      sha256: 820afbc4ede627c7ad05ba507785e6dee81425a3d27ca5237e94013151c7e7f7
 #
 # - name: js
 #   process:

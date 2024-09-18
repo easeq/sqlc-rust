@@ -3,31 +3,6 @@ pub enum BookType {
     Fiction,
     Nonfiction,
 }
-pub struct Queries {
-    client: postgres::Client,
-}
-impl Queries {
-    pub fn new(
-        host: &str,
-        port: &str,
-        username: &str,
-        password: &str,
-        database_name: &str,
-    ) -> Self {
-        let client = postgres::Client::connect(
-                format!(
-                    "postgresql://{username}:{password}@{host}:{port}/{database_name}",
-                    host = settings.host, port = settings.port, username = settings
-                    .username, password = settings.password, database_name =
-                    database_name,
-                )
-                    .as_str(),
-                postgres::NoTls,
-            )
-            .unwrap();
-        Self { client }
-    }
-}
 const GET_AUTHOR: &str = r#"
 select author_id, name
 from authors
@@ -41,12 +16,6 @@ pub(crate) struct GetAuthorParams {
 pub(crate) struct GetAuthorRow {
     pub(crate) author_id: u16,
     pub(crate) name: String,
-}
-impl Queries {
-    pub fn get_author(&self, params: GetAuthorParams) -> anyhow::Result<GetAuthorRow> {
-        let row: GetAuthorRow = self.client.query_one(GET_AUTHOR, &[&params.author_id])?;
-        Ok(row)
-    }
 }
 const GET_BOOK: &str = r#"
 select book_id, author_id, isbn, book_type, title, year, available, tags
@@ -68,12 +37,6 @@ pub(crate) struct GetBookRow {
     pub(crate) available: String,
     pub(crate) tags: Vec<String>,
 }
-impl Queries {
-    pub fn get_book(&self, params: GetBookParams) -> anyhow::Result<GetBookRow> {
-        let row: GetBookRow = self.client.query_one(GET_BOOK, &[&params.book_id])?;
-        Ok(row)
-    }
-}
 const DELETE_BOOK: &str = r#"
 delete from books
 where book_id = $1
@@ -81,12 +44,6 @@ where book_id = $1
 #[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
 pub(crate) struct DeleteBookParams {
     pub(crate) book_id: u16,
-}
-impl Queries {
-    pub fn delete_book(&self, params: DeleteBookParams) -> anyhow::Result<()> {
-        self.client.execute(DELETE_BOOK, &[&params.book_id])?;
-        Ok(())
-    }
 }
 const BOOKS_BY_TITLE_YEAR: &str = r#"
 select book_id, author_id, isbn, book_type, title, year, available, tags
@@ -109,22 +66,6 @@ pub(crate) struct BooksByTitleYearRow {
     pub(crate) available: String,
     pub(crate) tags: Vec<String>,
 }
-impl Queries {
-    pub fn books_by_title_year(
-        &self,
-        params: BooksByTitleYearParams,
-    ) -> anyhow::Result<Vec<BooksByTitleYearRow>> {
-        let rows = self
-            .client
-            .query(BOOKS_BY_TITLE_YEAR, &[&params.title, &params.year])?;
-        let result: Vec<BooksByTitleYearRow> = vec![];
-        for row in rows {
-            let row: BooksByTitleYearRow = row.into();
-            result.push(row);
-        }
-        Ok(result)
-    }
-}
 const BOOKS_BY_TAGS: &str = r#"
 select book_id, title, name, isbn, tags
 from books
@@ -143,20 +84,6 @@ pub(crate) struct BooksByTagsRow {
     pub(crate) isbn: String,
     pub(crate) tags: Vec<String>,
 }
-impl Queries {
-    pub fn books_by_tags(
-        &self,
-        params: BooksByTagsParams,
-    ) -> anyhow::Result<Vec<BooksByTagsRow>> {
-        let rows = self.client.query(BOOKS_BY_TAGS, &[&params._1])?;
-        let result: Vec<BooksByTagsRow> = vec![];
-        for row in rows {
-            let row: BooksByTagsRow = row.into();
-            result.push(row);
-        }
-        Ok(result)
-    }
-}
 const CREATE_AUTHOR: &str = r#"
 INSERT INTO authors (name) VALUES ($1)
 RETURNING author_id, name
@@ -169,17 +96,6 @@ pub(crate) struct CreateAuthorParams {
 pub(crate) struct CreateAuthorRow {
     pub(crate) author_id: u16,
     pub(crate) name: String,
-}
-impl Queries {
-    pub fn create_author(
-        &self,
-        params: CreateAuthorParams,
-    ) -> anyhow::Result<CreateAuthorRow> {
-        let row: CreateAuthorRow = self
-            .client
-            .query_one(CREATE_AUTHOR, &[&params.name])?;
-        Ok(row)
-    }
 }
 const CREATE_BOOK: &str = r#"
 INSERT INTO books (
@@ -222,7 +138,110 @@ pub(crate) struct CreateBookRow {
     pub(crate) available: String,
     pub(crate) tags: Vec<String>,
 }
+const UPDATE_BOOK: &str = r#"
+UPDATE books
+SET title = $1, tags = $2
+WHERE book_id = $3
+"#;
+#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
+pub(crate) struct UpdateBookParams {
+    pub(crate) title: String,
+    pub(crate) tags: Vec<String>,
+    pub(crate) book_id: u16,
+}
+const UPDATE_BOOK_ISBN: &str = r#"
+UPDATE books
+SET title = $1, tags = $2, isbn = $4
+WHERE book_id = $3
+"#;
+#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
+pub(crate) struct UpdateBookIsbnParams {
+    pub(crate) title: String,
+    pub(crate) tags: Vec<String>,
+    pub(crate) book_id: u16,
+    pub(crate) isbn: String,
+}
+const SAY_HELLO: &str = r#"
+select say_hello
+from say_hello($1)
+"#;
+#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
+pub(crate) struct SayHelloParams {
+    pub(crate) s: String,
+}
+#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
+pub(crate) struct SayHelloRow {
+    pub(crate) say_hello: Option<String>,
+}
+pub struct Queries {
+    client: postgres::Client,
+}
 impl Queries {
+    pub fn new(
+        host: &str,
+        port: &str,
+        username: &str,
+        password: &str,
+        database_name: &str,
+    ) -> Self {
+        let client = postgres::Client::connect(
+                format!(
+                    "postgresql://{username}:{password}@{host}:{port}/{database_name}",
+                    host = settings.host, port = settings.port, username = settings
+                    .username, password = settings.password, database_name =
+                    database_name,
+                )
+                    .as_str(),
+                postgres::NoTls,
+            )
+            .unwrap();
+        Self { client }
+    }
+    pub fn get_author(&self, params: GetAuthorParams) -> anyhow::Result<GetAuthorRow> {
+        let row: GetAuthorRow = self.client.query_one(GET_AUTHOR, &[&params.author_id])?;
+        Ok(row)
+    }
+    pub fn get_book(&self, params: GetBookParams) -> anyhow::Result<GetBookRow> {
+        let row: GetBookRow = self.client.query_one(GET_BOOK, &[&params.book_id])?;
+        Ok(row)
+    }
+    pub fn delete_book(&self, params: DeleteBookParams) -> anyhow::Result<()> {
+        self.client.execute(DELETE_BOOK, &[&params.book_id])?;
+        Ok(())
+    }
+    pub fn books_by_title_year(
+        &self,
+        params: BooksByTitleYearParams,
+    ) -> anyhow::Result<Vec<BooksByTitleYearRow>> {
+        let rows = self
+            .client
+            .query(BOOKS_BY_TITLE_YEAR, &[&params.title, &params.year])?;
+        let result: Vec<BooksByTitleYearRow> = vec![];
+        for row in rows {
+            result.push(row.into());
+        }
+        Ok(result)
+    }
+    pub fn books_by_tags(
+        &self,
+        params: BooksByTagsParams,
+    ) -> anyhow::Result<Vec<BooksByTagsRow>> {
+        let rows = self.client.query(BOOKS_BY_TAGS, &[&params._1])?;
+        let result: Vec<BooksByTagsRow> = vec![];
+        for row in rows {
+            result.push(row.into());
+        }
+        Ok(result)
+    }
+    pub fn create_author(
+        &self,
+        params: CreateAuthorParams,
+    ) -> anyhow::Result<CreateAuthorRow> {
+        let row: CreateAuthorRow = self
+            .client
+            .query_one(CREATE_AUTHOR, &[&params.name])?;
+        Ok(row)
+    }
     pub fn create_book(
         &self,
         params: CreateBookParams,
@@ -243,38 +262,11 @@ impl Queries {
             )?;
         Ok(row)
     }
-}
-const UPDATE_BOOK: &str = r#"
-UPDATE books
-SET title = $1, tags = $2
-WHERE book_id = $3
-"#;
-#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
-pub(crate) struct UpdateBookParams {
-    pub(crate) title: String,
-    pub(crate) tags: Vec<String>,
-    pub(crate) book_id: u16,
-}
-impl Queries {
     pub fn update_book(&self, params: UpdateBookParams) -> anyhow::Result<()> {
         self.client
             .execute(UPDATE_BOOK, &[&params.title, &params.tags, &params.book_id])?;
         Ok(())
     }
-}
-const UPDATE_BOOK_ISBN: &str = r#"
-UPDATE books
-SET title = $1, tags = $2, isbn = $4
-WHERE book_id = $3
-"#;
-#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
-pub(crate) struct UpdateBookIsbnParams {
-    pub(crate) title: String,
-    pub(crate) tags: Vec<String>,
-    pub(crate) book_id: u16,
-    pub(crate) isbn: String,
-}
-impl Queries {
     pub fn update_book_isbn(&self, params: UpdateBookIsbnParams) -> anyhow::Result<()> {
         self.client
             .execute(
@@ -283,20 +275,6 @@ impl Queries {
             )?;
         Ok(())
     }
-}
-const SAY_HELLO: &str = r#"
-select say_hello
-from say_hello($1)
-"#;
-#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
-pub(crate) struct SayHelloParams {
-    pub(crate) s: String,
-}
-#[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
-pub(crate) struct SayHelloRow {
-    pub(crate) say_hello: Option<String>,
-}
-impl Queries {
     pub fn say_hello(&self, params: SayHelloParams) -> anyhow::Result<SayHelloRow> {
         let row: SayHelloRow = self.client.query_one(SAY_HELLO, &[&params.s])?;
         Ok(row)

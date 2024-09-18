@@ -1,12 +1,14 @@
 -- name: ListCities :many
-SELECT *
-FROM city
-ORDER BY name;
+select *
+from city
+order by name
+;
 
 -- name: GetCity :one
-SELECT *
-FROM city
-WHERE slug = $1;
+select *
+from city
+where slug = $1
+;
 
 -- name: CreateCity :one
 -- Create a new city. The slug must be unique.
