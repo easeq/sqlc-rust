@@ -2,6 +2,7 @@
 
 members = [
   "sqlc-gen",
-  "sqlc-derive",
+  "sqlc-core",
+  "sqlc-derive", "examples/authors",
 ]
 

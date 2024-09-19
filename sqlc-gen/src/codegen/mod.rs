@@ -126,14 +126,14 @@ impl ToTokens for PgDataType {
 impl fmt::Display for PgDataType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ident_str = match self.0.as_str() {
-            "smallint" | "int2" | "pg_catalog.int2" => "i16",
-            "serial" | "smallserial" | "serial2" | "pg_catalog.serial2" => "u16",
+            "smallint" | "int2" | "pg_catalog.int2" | "smallserial" | "serial2"
+            | "pg_catalog.serial2" => "i16",
 
-            "integer" | "int" | "int4" | "pg_catalog.int4" => "i32",
-            "serial4" | "pg_catalog.serial4" => "u32",
+            "integer" | "int" | "int4" | "pg_catalog.int4" | "serial" | "serial4"
+            | "pg_catalog.serial4" => "i32",
 
-            "bigint" | "int8" | "pg_catalog.int8" => "i64",
-            "bigserial" | "serial8" | "pg_catalog.serial8" => "u64",
+            "bigint" | "int8" | "pg_catalog.int8" | "bigserial" | "serial8"
+            | "pg_catalog.serial8" => "i64",
 
             "real" | "float4" | "pg_catalog.float4" => "f32",
             "float" | "double precision" | "float8" | "pg_catalog.float8" => "f64",
@@ -275,21 +275,7 @@ impl CodeBuilder {
             }
 
             impl Queries {
-                pub fn new(host: &str, port: &str, username: &str, password: &str, database_name: &str) -> Self {
-                    let client = postgres::Client::connect(
-                        format!(
-                            "postgresql://{username}:{password}@{host}:{port}/{database_name}",
-                            host = settings.host,
-                            port = settings.port,
-                            username = settings.username,
-                            password = settings.password,
-                            database_name = database_name,
-                        )
-                        .as_str(),
-                        postgres::NoTls,
-                    )
-                    .unwrap();
-
+                pub fn new(client: postgres::Client) -> Self {
                     Self { client }
                 }
 
@@ -341,6 +327,7 @@ impl CodeBuilder {
 
         quote! {
             #generated_comment
+            use postgres::{Error, Row};
             #(#enums_tokens)*
             #(#queries)*
         }

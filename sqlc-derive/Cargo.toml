@@ -7,7 +7,7 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-postgres = "0.19.9"
 proc-macro2 = "1.0.86"
 quote = "1.0.37"
+sqlc-core = { version = "0.1.0", path = "../sqlc-core" }
 syn = "2.0.77"

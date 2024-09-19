@@ -40,7 +40,6 @@ impl StructField {
 
     pub fn data_type(&self) -> TokenStream {
         let mut tokens = self.data_type.to_token_stream();
-        // let mut tokens = quote! { #data_type };
 
         if self.is_array {
             let vec_ident = get_ident("Vec");
@@ -92,6 +91,25 @@ impl TypeStruct {
         }
     }
 
+    pub fn exists(&self) -> bool {
+        self.fields.len() > 0
+    }
+
+    pub fn get_as_arg(&self, arg_name: Option<&str>) -> TokenStream {
+        let mut params_arg = quote! {};
+        if let Some(name) = arg_name {
+            if self.exists() {
+                let ident_name = get_ident(name);
+                let ident_params = get_ident(&self.name());
+                params_arg = quote! {
+                    #ident_name: #ident_params
+                }
+            }
+        }
+
+        params_arg
+    }
+
     pub fn name(&self) -> String {
         let name = match &self.struct_type {
             StructType::Params => format!("{}Params", self.name),
@@ -128,7 +146,7 @@ impl TypeStruct {
         let field_type_ident = field.data_type();
 
         quote! {
-            pub(crate) #field_name_ident: #field_type_ident
+            pub #field_name_ident: #field_type_ident
         }
     }
 }
@@ -151,7 +169,7 @@ impl CodePartial for TypeStruct {
                 .collect::<Vec<_>>();
 
             quote! {
-                #[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
+                #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
                 pub(crate) struct #ident_struct {
                     #(#fields),*
                 }
@@ -306,7 +324,7 @@ mod tests {
         assert_eq!(
             type_struct.generate_code().to_string(),
             quote! {
-                #[derive(Debug, Display, sqlc_derive::FromPostgresRow)]
+                #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
                 pub(crate) struct StructNameParams {
                     pub(crate) f_1:  Option<i32>,
                     pub(crate) f_2: i32,

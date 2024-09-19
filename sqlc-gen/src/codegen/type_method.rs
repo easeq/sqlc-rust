@@ -65,7 +65,6 @@ impl CodePartial for TypeMethod {
 
     fn generate_code(&self) -> TokenStream {
         let ident_name = get_ident(&self.name());
-        let ident_params = get_ident(&self.params_struct.name());
         let ident_row = get_ident(&self.row_struct.name());
 
         let ident_const_name = get_ident(&self.query_const.name());
@@ -73,22 +72,24 @@ impl CodePartial for TypeMethod {
 
         let command = self.query_command();
 
+        let params_arg = self.params_struct.get_as_arg(Some("params"));
+
         let query_method = match command {
             QueryCommand::One => {
                 quote! {
-                    pub fn #ident_name(&self, params: #ident_params) -> anyhow::Result<#ident_row> {
-                        let row: #ident_row = self.client.query_one(#ident_const_name, &[#fields_list])?;
-                        Ok(row)
+                    pub(crate) fn #ident_name(&mut self, #params_arg) -> anyhow::Result<#ident_row> {
+                        let row = self.client.query_one(#ident_const_name, &[#fields_list])?;
+                        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
                     }
                 }
             }
             QueryCommand::Many => {
                 quote! {
-                    pub fn #ident_name(&self, params: #ident_params) -> anyhow::Result<Vec<#ident_row>> {
+                    pub(crate) fn #ident_name(&mut self, #params_arg) -> anyhow::Result<Vec<#ident_row>> {
                         let rows = self.client.query(#ident_const_name, &[#fields_list])?;
-                        let result: Vec<#ident_row> = vec![];
+                        let mut result: Vec<#ident_row> = vec![];
                         for row in rows {
-                            result.push(row.into());
+                            result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
                         }
 
                         Ok(result)
@@ -99,20 +100,13 @@ impl CodePartial for TypeMethod {
             | QueryCommand::ExecRows
             | QueryCommand::ExecResult
             | QueryCommand::ExecLastId => quote! {
-                pub fn #ident_name(&self, params: #ident_params) -> anyhow::Result<()> {
+                pub(crate) fn #ident_name(&mut self, #params_arg) -> anyhow::Result<()> {
                     self.client.execute(#ident_const_name, &[#fields_list])?;
                     Ok(())
                 }
             },
-            // _ => panic!("unsupported query annotation command: {:?}", command),
         };
 
         quote! { #query_method }
-
-        // quote! {
-        //     impl Queries {
-        //         #query_method
-        //     }
-        // }
     }
 }
