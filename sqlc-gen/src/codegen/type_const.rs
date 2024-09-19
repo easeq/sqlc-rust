@@ -29,7 +29,7 @@ impl CodePartial for TypeConst {
 
     fn generate_code(&self) -> TokenStream {
         let ident_const = get_ident(&self.name());
-        let query_text = MultiLineString(self.value.clone()).to_token_stream();
+        let query_text = MultiLineString(&self.value).to_token_stream();
 
         quote! {
             const #ident_const: &str = #query_text;
