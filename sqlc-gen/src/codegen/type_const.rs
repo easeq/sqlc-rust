@@ -1,4 +1,4 @@
-use super::{get_ident, CodePartial, MultiLineString};
+use super::{get_ident, MultiLineString};
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -20,12 +20,6 @@ impl TypeConst {
     pub fn name(&self) -> String {
         self.name.to_case(Case::ScreamingSnake)
     }
-}
-
-impl CodePartial for TypeConst {
-    fn of_type(&self) -> String {
-        "const".to_string()
-    }
 
     fn generate_code(&self) -> TokenStream {
         let ident_const = get_ident(&self.name());
@@ -34,6 +28,12 @@ impl CodePartial for TypeConst {
         quote! {
             const #ident_const: &str = #query_text;
         }
+    }
+}
+
+impl ToTokens for TypeConst {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.generate_code());
     }
 }
 

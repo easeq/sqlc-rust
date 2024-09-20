@@ -15,7 +15,7 @@ generate-for-example:
 	file_with_ext=$$(ls sqlc.*) && \
 	file_ext=$${file_with_ext##*.} && \
 	ls sqlc.* | yq -iP ".plugins[0].wasm.sha256=\"$$sha_256\", .plugins[0].wasm.url=\"file://./../../../target/wasm32-wasi/release/sqlc-gen.wasm\"" $$file_with_ext -o $$file_ext  && \
-	sqlc generate && \
+	RUST_LOG=debug sqlc generate && \
 	cd -
 
 generate:

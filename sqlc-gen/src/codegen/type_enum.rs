@@ -1,7 +1,19 @@
-use super::{get_ident, CodePartial};
+use std::{char, collections::HashSet};
+
+use super::get_ident;
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
+
+fn enum_replacer(c: char) -> Option<char> {
+    if ['-', '/', ':', '_'].contains(&c) {
+        Some('_')
+    } else if c.is_alphanumeric() {
+        Some(c)
+    } else {
+        None
+    }
+}
 
 #[derive(Default, Debug, PartialEq)]
 pub struct TypeEnum {
@@ -17,23 +29,27 @@ impl TypeEnum {
         }
     }
 
-    fn name(&self) -> String {
+    pub fn name(&self) -> String {
         self.name.to_case(Case::Pascal)
     }
-}
 
-impl CodePartial for TypeEnum {
-    fn of_type(&self) -> String {
-        "enum".to_string()
-    }
-
+    /// TODO: add #[postgres(name = "<variant string value>")] to generated enum variant
     fn generate_code(&self) -> TokenStream {
         let ident_enum_name = get_ident(&self.name());
+        let mut seen = HashSet::new();
         let variants = self
             .values
             .clone()
             .into_iter()
-            .map(|val| get_ident(&val.to_case(Case::Pascal)))
+            .enumerate()
+            .map(|(i, val)| {
+                let mut value = val.chars().filter_map(enum_replacer).collect::<String>();
+                if seen.get(&value).is_some() || value.is_empty() {
+                    value = format!("value_{}", i);
+                }
+                seen.insert(value.clone());
+                get_ident(&value.to_case(Case::Pascal))
+            })
             .collect::<Vec<_>>();
 
         quote! {
@@ -42,6 +58,12 @@ impl CodePartial for TypeEnum {
                 #(#variants),*
             }
         }
+    }
+}
+
+impl ToTokens for TypeEnum {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.generate_code().to_token_stream());
     }
 }
 

@@ -1,10 +1,12 @@
+use super::get_ident;
+use super::plugin;
 use super::PgDataType;
-use super::{get_ident, CodePartial};
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
+use std::hash::{DefaultHasher, Hash, Hasher};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct StructField {
     pub name: String,
     pub is_array: bool,
@@ -59,9 +61,21 @@ impl StructField {
     }
 }
 
+impl ToTokens for StructField {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let field_name_ident = get_ident(&self.name());
+        let field_type_ident = self.data_type();
+
+        tokens.extend(quote! {
+            pub #field_name_ident: #field_type_ident
+        })
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 pub enum StructType {
     #[default]
+    Default,
     Params,
     Row,
     Queries,
@@ -74,6 +88,7 @@ pub enum StructType {
 #[derive(Default, Debug, Clone)]
 pub struct TypeStruct {
     name: String,
+    pub table: Option<plugin::Identifier>,
     struct_type: StructType,
     pub fields: Vec<StructField>,
 }
@@ -81,37 +96,21 @@ pub struct TypeStruct {
 impl TypeStruct {
     pub fn new<S: Into<String>>(
         name: S,
+        table: Option<plugin::Identifier>,
         struct_type: StructType,
         fields: Vec<StructField>,
     ) -> Self {
         Self {
             name: name.into(),
+            table,
             struct_type,
             fields,
         }
     }
 
-    pub fn exists(&self) -> bool {
-        self.fields.len() > 0
-    }
-
-    pub fn get_as_arg(&self, arg_name: Option<&str>) -> TokenStream {
-        let mut params_arg = quote! {};
-        if let Some(name) = arg_name {
-            if self.exists() {
-                let ident_name = get_ident(name);
-                let ident_params = get_ident(&self.name());
-                params_arg = quote! {
-                    #ident_name: #ident_params
-                }
-            }
-        }
-
-        params_arg
-    }
-
     pub fn name(&self) -> String {
         let name = match &self.struct_type {
+            StructType::Default => format!("{}", self.name),
             StructType::Params => format!("{}Params", self.name),
             StructType::Row => format!("{}Row", self.name),
             StructType::Queries => self.name.clone(),
@@ -123,50 +122,12 @@ impl TypeStruct {
         name.to_case(Case::Pascal)
     }
 
-    pub fn generate_fields_list(&self) -> TokenStream {
-        if self.fields.len() == 0 {
-            quote! {}
-        } else {
-            let fields = self
-                .fields
-                .clone()
-                .into_iter()
-                .map(|field| {
-                    let ident_field_name = get_ident(&field.name());
-                    quote! { &params.#ident_field_name }
-                })
-                .collect::<Vec<_>>();
-
-            quote! { #(#fields),* }
-        }
-    }
-
-    fn generate_struct_field_code(&self, field: StructField) -> TokenStream {
-        let field_name_ident = get_ident(&field.name());
-        let field_type_ident = field.data_type();
-
-        quote! {
-            pub #field_name_ident: #field_type_ident
-        }
-    }
-}
-
-impl CodePartial for TypeStruct {
-    fn of_type(&self) -> String {
-        "struct".to_string()
-    }
-
     fn generate_code(&self) -> TokenStream {
         if self.fields.len() == 0 {
             quote! {}
         } else {
             let ident_struct = get_ident(&self.name());
-            let fields = self
-                .fields
-                .clone()
-                .into_iter()
-                .map(|field| self.generate_struct_field_code(field))
-                .collect::<Vec<_>>();
+            let fields = self.fields.clone().into_iter().collect::<Vec<_>>();
 
             quote! {
                 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
@@ -175,6 +136,12 @@ impl CodePartial for TypeStruct {
                 }
             }
         }
+    }
+}
+
+impl ToTokens for TypeStruct {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.generate_code());
     }
 }
 
@@ -259,6 +226,11 @@ mod tests {
 
         TypeStruct::new(
             name.unwrap_or("struct_name"),
+            Some(plugin::Identifier {
+                catalog: "".to_string(),
+                schema: "".to_string(),
+                name: "".to_string(),
+            }),
             struct_type.unwrap_or_default(),
             fields.unwrap_or(default_fields),
         )
@@ -290,32 +262,6 @@ mod tests {
             .name(),
             "AStructNameB".to_string()
         );
-    }
-
-    #[test]
-    fn test_generate_field_code() {
-        let type_struct = create_type_struct(None, None, None);
-        assert_eq!(
-            type_struct
-                .generate_struct_field_code(type_struct.fields[0].clone())
-                .to_string(),
-            quote! {
-                pub(crate) f_1:  Option<i32>
-            }
-            .to_string()
-        )
-    }
-
-    #[test]
-    fn test_generate_fields_list() {
-        let type_struct = create_type_struct(None, None, None);
-        assert_eq!(
-            type_struct.generate_fields_list().to_string(),
-            quote! {
-                &params.f_1, &params.f_2, &params.f, &params.f_3, &params._3
-            }
-            .to_string()
-        )
     }
 
     #[test]
