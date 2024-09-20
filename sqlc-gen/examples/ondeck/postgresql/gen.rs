@@ -98,86 +98,100 @@ pub(crate) struct Venue {
     pub tags: Option<Vec<String>>,
     pub created_at: String,
 }
-pub(crate) fn create_city(
-    &mut self,
-    arg: CreateCityParams,
-) -> anyhow::Result<CreateCityRow> {
-    let row = self.client.query_one(CREATE_CITY, &[&"arg".name, &"arg".slug])?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+pub struct Queries {
+    client: postgres::Client,
 }
-pub(crate) fn create_venue(&mut self, arg: CreateVenueParams) -> anyhow::Result<i32> {
-    let row = self
-        .client
-        .query_one(
-            CREATE_VENUE,
-            &[
-                &"arg".slug,
-                &"arg".name,
-                &"arg".city,
-                &"arg".spotify_playlist,
-                &"arg".status,
-                &"arg".statuses,
-                &"arg".tags,
-            ],
-        )?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-}
-pub(crate) fn delete_venue(&mut self, slug: String) -> anyhow::Result<()> {
-    self.client.execute(DELETE_VENUE, &[&"slug"])?;
-    Ok(())
-}
-pub(crate) fn get_city(&mut self, slug: String) -> anyhow::Result<GetCityRow> {
-    let row = self.client.query_one(GET_CITY, &[&"slug"])?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-}
-pub(crate) fn get_venue(&mut self, arg: GetVenueParams) -> anyhow::Result<GetVenueRow> {
-    let row = self.client.query_one(GET_VENUE, &[&"arg".slug, &"arg".city])?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-}
-pub(crate) fn list_cities(
-    &mut self,
-    arg: ListCitiesParams,
-) -> anyhow::Result<Vec<ListCitiesRow>> {
-    let rows = self.client.query(LIST_CITIES, &[])?;
-    let mut result: Vec<ListCitiesRow> = vec![];
-    for row in rows {
-        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
+impl Queries {
+    pub fn new(client: postgres::Client) -> Self {
+        Self { client }
     }
-    Ok(result)
-}
-pub(crate) fn list_venues(
-    &mut self,
-    city: String,
-) -> anyhow::Result<Vec<ListVenuesRow>> {
-    let rows = self.client.query(LIST_VENUES, &[&"city"])?;
-    let mut result: Vec<ListVenuesRow> = vec![];
-    for row in rows {
-        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
+    pub(crate) fn create_city(
+        &mut self,
+        arg: CreateCityParams,
+    ) -> anyhow::Result<CreateCityRow> {
+        let row = self.client.query_one(CREATE_CITY, &[&"arg".name, &"arg".slug])?;
+        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
-    Ok(result)
-}
-pub(crate) fn update_city_name(
-    &mut self,
-    arg: UpdateCityNameParams,
-) -> anyhow::Result<()> {
-    self.client.execute(UPDATE_CITY_NAME, &[&"arg".slug, &"arg".name])?;
-    Ok(())
-}
-pub(crate) fn update_venue_name(
-    &mut self,
-    arg: UpdateVenueNameParams,
-) -> anyhow::Result<i32> {
-    let row = self.client.query_one(UPDATE_VENUE_NAME, &[&"arg".slug, &"arg".name])?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-}
-pub(crate) fn venue_count_by_city(
-    &mut self,
-    arg: VenueCountByCityParams,
-) -> anyhow::Result<Vec<VenueCountByCityRow>> {
-    let rows = self.client.query(VENUE_COUNT_BY_CITY, &[])?;
-    let mut result: Vec<VenueCountByCityRow> = vec![];
-    for row in rows {
-        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
+    pub(crate) fn create_venue(
+        &mut self,
+        arg: CreateVenueParams,
+    ) -> anyhow::Result<i32> {
+        let row = self
+            .client
+            .query_one(
+                CREATE_VENUE,
+                &[
+                    &"arg".slug,
+                    &"arg".name,
+                    &"arg".city,
+                    &"arg".spotify_playlist,
+                    &"arg".status,
+                    &"arg".statuses,
+                    &"arg".tags,
+                ],
+            )?;
+        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
-    Ok(result)
+    pub(crate) fn delete_venue(&mut self, slug: String) -> anyhow::Result<()> {
+        self.client.execute(DELETE_VENUE, &[&"slug"])?;
+        Ok(())
+    }
+    pub(crate) fn get_city(&mut self, slug: String) -> anyhow::Result<GetCityRow> {
+        let row = self.client.query_one(GET_CITY, &[&"slug"])?;
+        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    }
+    pub(crate) fn get_venue(
+        &mut self,
+        arg: GetVenueParams,
+    ) -> anyhow::Result<GetVenueRow> {
+        let row = self.client.query_one(GET_VENUE, &[&"arg".slug, &"arg".city])?;
+        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    }
+    pub(crate) fn list_cities(
+        &mut self,
+        arg: ListCitiesParams,
+    ) -> anyhow::Result<Vec<ListCitiesRow>> {
+        let rows = self.client.query(LIST_CITIES, &[])?;
+        let mut result: Vec<ListCitiesRow> = vec![];
+        for row in rows {
+            result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
+        }
+        Ok(result)
+    }
+    pub(crate) fn list_venues(
+        &mut self,
+        city: String,
+    ) -> anyhow::Result<Vec<ListVenuesRow>> {
+        let rows = self.client.query(LIST_VENUES, &[&"city"])?;
+        let mut result: Vec<ListVenuesRow> = vec![];
+        for row in rows {
+            result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
+        }
+        Ok(result)
+    }
+    pub(crate) fn update_city_name(
+        &mut self,
+        arg: UpdateCityNameParams,
+    ) -> anyhow::Result<()> {
+        self.client.execute(UPDATE_CITY_NAME, &[&"arg".slug, &"arg".name])?;
+        Ok(())
+    }
+    pub(crate) fn update_venue_name(
+        &mut self,
+        arg: UpdateVenueNameParams,
+    ) -> anyhow::Result<i32> {
+        let row = self.client.query_one(UPDATE_VENUE_NAME, &[&"arg".slug, &"arg".name])?;
+        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    }
+    pub(crate) fn venue_count_by_city(
+        &mut self,
+        arg: VenueCountByCityParams,
+    ) -> anyhow::Result<Vec<VenueCountByCityRow>> {
+        let rows = self.client.query(VENUE_COUNT_BY_CITY, &[])?;
+        let mut result: Vec<VenueCountByCityRow> = vec![];
+        for row in rows {
+            result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
+        }
+        Ok(result)
+    }
 }

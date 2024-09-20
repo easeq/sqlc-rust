@@ -27,22 +27,33 @@ pub(crate) struct PilotLanguage {
     pub pilot_id: i32,
     pub language_id: i32,
 }
-pub(crate) fn count_pilots(&mut self, arg: CountPilotsParams) -> anyhow::Result<i64> {
-    let row = self.client.query_one(COUNT_PILOTS, &[])?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+pub struct Queries {
+    client: postgres::Client,
 }
-pub(crate) fn delete_pilot(&mut self, id: i32) -> anyhow::Result<()> {
-    self.client.execute(DELETE_PILOT, &[&"id"])?;
-    Ok(())
-}
-pub(crate) fn list_pilots(
-    &mut self,
-    arg: ListPilotsParams,
-) -> anyhow::Result<Vec<ListPilotsRow>> {
-    let rows = self.client.query(LIST_PILOTS, &[])?;
-    let mut result: Vec<ListPilotsRow> = vec![];
-    for row in rows {
-        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
+impl Queries {
+    pub fn new(client: postgres::Client) -> Self {
+        Self { client }
     }
-    Ok(result)
+    pub(crate) fn count_pilots(
+        &mut self,
+        arg: CountPilotsParams,
+    ) -> anyhow::Result<i64> {
+        let row = self.client.query_one(COUNT_PILOTS, &[])?;
+        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    }
+    pub(crate) fn delete_pilot(&mut self, id: i32) -> anyhow::Result<()> {
+        self.client.execute(DELETE_PILOT, &[&"id"])?;
+        Ok(())
+    }
+    pub(crate) fn list_pilots(
+        &mut self,
+        arg: ListPilotsParams,
+    ) -> anyhow::Result<Vec<ListPilotsRow>> {
+        let rows = self.client.query(LIST_PILOTS, &[])?;
+        let mut result: Vec<ListPilotsRow> = vec![];
+        for row in rows {
+            result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
+        }
+        Ok(result)
+    }
 }

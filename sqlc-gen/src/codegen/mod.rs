@@ -459,13 +459,26 @@ impl CodeBuilder {
         )
         .to_token_stream();
 
+        let queries_impl = quote! {
+            pub struct Queries {
+                client: postgres::Client,
+            }
+            impl Queries {
+                pub fn new(client: postgres::Client) -> Self {
+                    Self { client }
+                }
+
+                #(#queries)*
+            }
+        };
+
         quote! {
             #generated_comment
             use postgres::{Error, Row};
             #(#constants)*
             #(#enums)*
             #(#structs)*
-            #(#queries)*
+            #queries_impl
         }
     }
 }

@@ -28,7 +28,15 @@ pub(crate) struct Book {
     pub available: String,
     pub tags: Vec<String>,
 }
-pub(crate) fn get_author(&mut self, author_id: i32) -> anyhow::Result<GetAuthorRow> {
-    let row = self.client.query_one(GET_AUTHOR, &[&"author_id"])?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+pub struct Queries {
+    client: postgres::Client,
+}
+impl Queries {
+    pub fn new(client: postgres::Client) -> Self {
+        Self { client }
+    }
+    pub(crate) fn get_author(&mut self, author_id: i32) -> anyhow::Result<GetAuthorRow> {
+        let row = self.client.query_one(GET_AUTHOR, &[&"author_id"])?;
+        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    }
 }
