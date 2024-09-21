@@ -5,6 +5,14 @@ use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
+pub fn enum_name(name: &str, schema_name: &str, default_schema: &str) -> String {
+    match schema_name == default_schema {
+        true => name.to_string(),
+        false => format!("{}_{name}", schema_name),
+    }
+    .to_case(Case::Pascal)
+}
+
 fn enum_replacer(c: char) -> Option<char> {
     if ['-', '/', ':', '_'].contains(&c) {
         Some('_')
@@ -46,7 +54,6 @@ impl TypeEnum {
         self.name.to_case(Case::Pascal)
     }
 
-    /// TODO: add #[postgres(name = "<variant string value>")] to generated enum variant
     fn generate_code(&self) -> TokenStream {
         let ident_enum_name = get_ident(&self.name());
         let mut seen = HashSet::new();

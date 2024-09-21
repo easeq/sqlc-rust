@@ -24,7 +24,7 @@ pub(crate) struct Book {
     pub book_id: i32,
     pub author_id: i32,
     pub isbn: String,
-    pub book_type: String,
+    pub book_type: BookType,
     pub title: String,
     pub year: i32,
     pub available: String,

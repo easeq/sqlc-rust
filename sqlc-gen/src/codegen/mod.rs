@@ -9,7 +9,7 @@ use std::hash::Hash;
 use std::str::FromStr;
 use syn::Ident;
 use type_const::TypeConst;
-use type_enum::TypeEnum;
+use type_enum::{enum_name, TypeEnum};
 use type_query::{QueryCommand, QueryValue, TypeQuery};
 use type_struct::{StructField, StructType, TypeStruct};
 
@@ -169,48 +169,72 @@ impl ToTokens for PgDataType {
     }
 }
 
-impl fmt::Display for PgDataType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let ident_str = match self.0.as_str() {
+impl PgDataType {
+    pub fn from(s: &str, schemas: Vec<plugin::Schema>, default_schema: String) -> PgDataType {
+        let pg_data_type_string = match s {
             "smallint" | "int2" | "pg_catalog.int2" | "smallserial" | "serial2"
-            | "pg_catalog.serial2" => "i16",
+            | "pg_catalog.serial2" => "i16".to_string(),
 
             "integer" | "int" | "int4" | "pg_catalog.int4" | "serial" | "serial4"
-            | "pg_catalog.serial4" => "i32",
+            | "pg_catalog.serial4" => "i32".to_string(),
 
             "bigint" | "int8" | "pg_catalog.int8" | "bigserial" | "serial8"
-            | "pg_catalog.serial8" => "i64",
+            | "pg_catalog.serial8" => "i64".to_string(),
 
-            "real" | "float4" | "pg_catalog.float4" => "f32",
-            "float" | "double precision" | "float8" | "pg_catalog.float8" => "f64",
+            "real" | "float4" | "pg_catalog.float4" => "f32".to_string(),
+            "float" | "double precision" | "float8" | "pg_catalog.float8" => "f64".to_string(),
 
             // "numeric" | "pg_catalog.numeric" | "money" => "",
-            "boolean" | "bool" | "pg_catalog.bool" => "bool",
+            "boolean" | "bool" | "pg_catalog.bool" => "bool".to_string(),
 
-            "json" | "jsonb" => "serde_json::Value",
+            "json" | "jsonb" => "serde_json::Value".to_string(),
 
-            "bytea" | "blob" | "pg_catalog.bytea" => "Vec<u8>",
+            "bytea" | "blob" | "pg_catalog.bytea" => "Vec<u8>".to_string(),
 
-            "date" => "time::Date",
+            "date" => "time::Date".to_string(),
 
-            "pg_catalog.time" | "pg_catalog.timez" => "time::Time",
+            "pg_catalog.time" | "pg_catalog.timez" => "time::Time".to_string(),
 
-            "pg_catalog.timestamp" => "time::PrimitiveDateTime",
-            "pg_catalog.timestampz" | "timestampz" => "time::PrimitiveDateTime",
+            "pg_catalog.timestamp" => "time::PrimitiveDateTime".to_string(),
+            "pg_catalog.timestampz" | "timestampz" => "time::PrimitiveDateTime".to_string(),
 
-            // "interval" | "pg_catalog.interval" => "",
+            "interval" | "pg_catalog.interval" => "i64".to_string(),
             "text" | "pg_catalog.varchar" | "pg_catalog.bpchar" | "string" | "citext" | "ltree"
-            | "lquery" | "ltxtquery" => "String",
+            | "lquery" | "ltxtquery" => "String".to_string(),
 
-            "uuid" => "uuid::Uuid",
-            "inet" => "cidr::InetCidr",
-            "cidr" => "cidr::InetAddr",
-            "macaddr" | "macaddr8" => "eui48::MacAddress",
+            "uuid" => "uuid::Uuid".to_string(),
+            "inet" => "cidr::InetCidr".to_string(),
+            "cidr" => "cidr::InetAddr".to_string(),
+            "macaddr" | "macaddr8" => "eui48::MacAddress".to_string(),
 
-            _ => "String",
+            _ => {
+                let res = schemas.into_iter().find_map(|schema| {
+                    if schema.name == "pg_catalog" || schema.name == "information_schema" {
+                        None
+                    } else if let Some(matching_enum) =
+                        schema.enums.clone().into_iter().find(|e| s == e.name)
+                    {
+                        Some((matching_enum, schema))
+                    } else {
+                        None
+                    }
+                });
+
+                if let Some((matching_enum, schema)) = res {
+                    enum_name(&matching_enum.name, &schema.name, &default_schema)
+                } else {
+                    "String".to_string()
+                }
+            }
         };
 
-        f.write_str(ident_str)
+        PgDataType(pg_data_type_string)
+    }
+}
+
+impl fmt::Display for PgDataType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
     }
 }
 
@@ -242,10 +266,8 @@ impl CodeBuilder {
                             .clone()
                             .into_iter()
                             .map(|e| {
-                                let mut enum_name = e.name;
-                                if schema.name != catalog.default_schema {
-                                    enum_name = format!("{}_{enum_name}", schema.name);
-                                }
+                                let enum_name =
+                                    enum_name(&e.name, &schema.name, &catalog.default_schema);
 
                                 TypeEnum::new(enum_name, e.vals)
                             })
@@ -295,12 +317,11 @@ impl CodeBuilder {
                                 .columns
                                 .into_iter()
                                 .map(|col| {
-                                    StructField::new(
-                                        col.name,
+                                    StructField::from(
+                                        col,
                                         0,
-                                        PgDataType(col.r#type.unwrap().name),
-                                        col.is_array,
-                                        col.not_null,
+                                        vec![schema.clone()],
+                                        catalog.default_schema.clone(),
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -331,6 +352,8 @@ impl CodeBuilder {
 
     fn build_queries(&self, structs: Vec<TypeStruct>) -> (Vec<TypeQuery>, Vec<TypeStruct>) {
         let catalog = self.req.catalog.clone().unwrap();
+        let schemas = catalog.schemas.clone();
+        let default_schema = catalog.default_schema.clone();
         let mut associated_structs = vec![];
         let mut queries = self
             .req
@@ -343,44 +366,50 @@ impl CodeBuilder {
                 } else {
                     // Query parameter limit, get it from the options
                     let qpl = 3;
-                    let arg: QueryValue;
+                    let mut arg: Option<QueryValue> = None;
                     let params = query.params.clone();
                     if params.len() == 1 && qpl != 0 {
                         let p = params.first().unwrap();
                         let col = p.column.clone().unwrap();
-                        arg = QueryValue::new(
+                        arg = Some(QueryValue::new(
                             escape(&param_name(p)),
-                            Some(col.r#type.unwrap().name.to_string()),
+                            Some(PgDataType::from(
+                                col.r#type.unwrap().name.as_str(),
+                                schemas.clone(),
+                                default_schema.clone(),
+                            )),
                             None,
-                        );
-                    } else {
+                        ));
+                    } else if params.len() > 1 {
                         let fields = params
                             .into_iter()
                             .map(|field| {
-                                let col = field.column.unwrap();
-                                StructField {
-                                    name: col.name,
-                                    number: field.number,
-                                    is_array: col.is_array,
-                                    not_null: col.not_null,
-                                    data_type: PgDataType(col.r#type.unwrap().name),
-                                }
+                                StructField::from(
+                                    field.column.unwrap(),
+                                    field.number,
+                                    catalog.schemas.clone(),
+                                    catalog.default_schema.clone(),
+                                )
                             })
                             .collect::<Vec<_>>();
 
                         let type_struct =
                             TypeStruct::new(query.name.clone(), None, StructType::Params, fields);
-                        arg = QueryValue::new("arg", None, Some(type_struct.clone()));
+                        arg = Some(QueryValue::new("arg", None, Some(type_struct.clone())));
                         associated_structs.push(type_struct);
                     }
 
                     let columns = query.columns.clone();
                     let mut ret: Option<QueryValue> = None;
                     if columns.len() == 1 {
-                        let c = columns.first().unwrap();
+                        let col = columns.first().unwrap();
                         ret = Some(QueryValue::new(
                             "",
-                            Some(c.r#type.clone().unwrap().name.to_string()),
+                            Some(PgDataType::from(
+                                col.r#type.clone().unwrap().name.as_str(),
+                                schemas.clone(),
+                                default_schema.clone(),
+                            )),
                             None,
                         ));
                     } else if QueryCommand::from_str(&query.cmd)
@@ -391,22 +420,31 @@ impl CodeBuilder {
                             if s.fields.len() != columns.len() {
                                 false
                             } else {
-                                s.fields.clone().into_iter().enumerate().all(|(i, field)| {
-                                    let c = columns.get(i).unwrap();
-                                    let same_name =
-                                        field.name() == column_name(c.name.to_string(), i as i32);
+                                s.fields
+                                    .clone()
+                                    .into_iter()
+                                    .zip(columns.clone().into_iter())
+                                    .enumerate()
+                                    .all(|(i, (field, c))| {
+                                        let same_name = field.name()
+                                            == column_name(c.name.to_string(), i as i32);
 
-                                    let same_type = field.data_type.to_string()
-                                        == PgDataType(c.r#type.clone().unwrap().name).to_string();
+                                        let same_type = field.data_type.to_string()
+                                            == PgDataType::from(
+                                                c.r#type.clone().unwrap().name.as_str(),
+                                                schemas.clone(),
+                                                default_schema.clone(),
+                                            )
+                                            .to_string();
 
-                                    let same_table = same_table(
-                                        c.table.clone(),
-                                        s.table.clone(),
-                                        catalog.default_schema.clone(),
-                                    );
+                                        let same_table = same_table(
+                                            c.table.clone(),
+                                            s.table.clone(),
+                                            default_schema.clone(),
+                                        );
 
-                                    same_name && same_type && same_table
-                                })
+                                        same_name && same_type && same_table
+                                    })
                             }
                         });
 
@@ -415,12 +453,13 @@ impl CodeBuilder {
                                 let fields = columns
                                     .into_iter()
                                     .enumerate()
-                                    .map(|(i, col)| StructField {
-                                        name: col.name,
-                                        number: i as i32,
-                                        is_array: col.is_array,
-                                        not_null: col.not_null,
-                                        data_type: PgDataType(col.r#type.unwrap().name),
+                                    .map(|(i, col)| {
+                                        StructField::from(
+                                            col,
+                                            i as i32,
+                                            schemas.clone(),
+                                            default_schema.clone(),
+                                        )
                                     })
                                     .collect::<Vec<_>>();
 

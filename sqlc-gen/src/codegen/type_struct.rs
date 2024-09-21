@@ -32,6 +32,21 @@ impl StructField {
         }
     }
 
+    pub fn from(
+        col: plugin::Column,
+        pos: i32,
+        schemas: Vec<plugin::Schema>,
+        default_schema: String,
+    ) -> Self {
+        Self::new(
+            col.name,
+            pos,
+            PgDataType::from(&col.r#type.unwrap().name, schemas, default_schema),
+            col.is_array,
+            col.not_null,
+        )
+    }
+
     pub fn name(&self) -> String {
         column_name(self.name.clone(), self.number)
     }
@@ -74,11 +89,6 @@ pub enum StructType {
     Default,
     Params,
     Row,
-    Queries,
-    Other {
-        prefix: String,
-        suffix: String,
-    },
 }
 
 #[derive(Default, Debug, Clone)]
@@ -109,10 +119,6 @@ impl TypeStruct {
             StructType::Default => format!("{}", self.name),
             StructType::Params => format!("{}Params", self.name),
             StructType::Row => format!("{}Row", self.name),
-            StructType::Queries => self.name.clone(),
-            StructType::Other { prefix, suffix } => {
-                format!("{}{}{}", prefix, self.name.to_case(Case::Pascal), suffix)
-            }
         };
 
         name.to_case(Case::Pascal)
@@ -155,7 +161,7 @@ mod tests {
         StructField::new(
             name.unwrap_or(""),
             number.unwrap_or(0),
-            data_type.unwrap_or(PgDataType("pg_catalog.int4".to_string())),
+            data_type.unwrap_or(PgDataType::from("pg_catalog.int4", vec![], "".to_string())),
             is_array.unwrap_or_default(),
             not_null.unwrap_or_default(),
         )
@@ -241,22 +247,6 @@ mod tests {
         assert_eq!(
             create_type_struct(None, Some(StructType::Row), None).name(),
             "StructNameRow".to_string()
-        );
-        assert_eq!(
-            create_type_struct(None, Some(StructType::Queries), None).name(),
-            "StructName".to_string()
-        );
-        assert_eq!(
-            create_type_struct(
-                None,
-                Some(StructType::Other {
-                    prefix: "A".to_string(),
-                    suffix: "B".to_string()
-                }),
-                None
-            )
-            .name(),
-            "AStructNameB".to_string()
         );
     }
 

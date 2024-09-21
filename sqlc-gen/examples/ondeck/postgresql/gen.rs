@@ -98,8 +98,8 @@ pub(crate) struct CreateVenueParams {
     pub name: String,
     pub city: String,
     pub spotify_playlist: String,
-    pub status: String,
-    pub statuses: Option<Vec<String>>,
+    pub status: Status,
+    pub statuses: Option<Vec<Status>>,
     pub tags: Option<Vec<String>>,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
@@ -120,8 +120,8 @@ pub(crate) struct UpdateVenueNameParams {
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
 pub(crate) struct Venue {
     pub id: i32,
-    pub status: String,
-    pub statuses: Option<Vec<String>>,
+    pub status: Status,
+    pub statuses: Option<Vec<Status>>,
     pub slug: String,
     pub name: String,
     pub city: String,
@@ -178,10 +178,7 @@ impl Queries {
         let row = self.client.query_one(GET_VENUE, &[&arg.slug, &arg.city])?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
-    pub(crate) fn list_cities(
-        &mut self,
-        arg: ListCitiesParams,
-    ) -> anyhow::Result<Vec<City>> {
+    pub(crate) fn list_cities(&mut self) -> anyhow::Result<Vec<City>> {
         let rows = self.client.query(LIST_CITIES, &[])?;
         let mut result: Vec<City> = vec![];
         for row in rows {
@@ -213,7 +210,6 @@ impl Queries {
     }
     pub(crate) fn venue_count_by_city(
         &mut self,
-        arg: VenueCountByCityParams,
     ) -> anyhow::Result<Vec<VenueCountByCityRow>> {
         let rows = self.client.query(VENUE_COUNT_BY_CITY, &[])?;
         let mut result: Vec<VenueCountByCityRow> = vec![];

@@ -32,17 +32,17 @@ impl QueryCommand {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct QueryValue {
     name: String,
-    typ: Option<String>,
+    typ: Option<PgDataType>,
     type_struct: Option<TypeStruct>,
 }
 
 impl QueryValue {
     pub fn new<S: Into<String>>(
         name: S,
-        typ: Option<String>,
+        typ: Option<PgDataType>,
         type_struct: Option<TypeStruct>,
     ) -> Self {
         Self {
@@ -54,7 +54,7 @@ impl QueryValue {
 
     pub fn get_type(&self) -> String {
         if let Some(typ) = &self.typ {
-            PgDataType(typ.to_string()).to_string()
+            typ.to_string()
         } else if let Some(type_struct) = self.type_struct.clone() {
             type_struct.name()
         } else {
@@ -63,11 +63,12 @@ impl QueryValue {
     }
 
     pub fn generate_fields_list(&self) -> TokenStream {
-        let ident_name = get_ident(&self.name.clone());
         let mut fields_list = quote! {};
         if self.typ.is_some() {
+            let ident_name = get_ident(&self.name.clone());
             fields_list = quote! { &#ident_name };
         } else if let Some(type_struct) = self.type_struct.clone() {
+            let ident_name = get_ident(&self.name.clone());
             let fields = type_struct
                 .fields
                 .clone()
@@ -89,17 +90,19 @@ impl QueryValue {
 
 impl ToTokens for QueryValue {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ident_type = get_ident(&self.get_type());
-
         if !self.name.is_empty() {
+            let ident_type = get_ident(&self.get_type());
             let ident_name = get_ident(&self.name);
             tokens.extend(quote! {
                 #ident_name: #ident_type
             });
-        } else {
+        } else if self.typ.is_some() || self.type_struct.is_some() {
+            let ident_type = get_ident(&self.get_type());
             tokens.extend(quote! {
                 #ident_type
             });
+        } else {
+            tokens.extend(quote! {});
         }
     }
 }
@@ -108,12 +111,17 @@ impl ToTokens for QueryValue {
 pub struct TypeQuery {
     name: String,
     cmd: String,
-    arg: QueryValue,
+    arg: Option<QueryValue>,
     ret: Option<QueryValue>,
 }
 
 impl TypeQuery {
-    pub fn new<S: Into<String>>(name: S, cmd: S, arg: QueryValue, ret: Option<QueryValue>) -> Self {
+    pub fn new<S: Into<String>>(
+        name: S,
+        cmd: S,
+        arg: Option<QueryValue>,
+        ret: Option<QueryValue>,
+    ) -> Self {
         Self {
             name: name.into(),
             cmd: cmd.into(),
@@ -137,11 +145,10 @@ impl TypeQuery {
     fn generate_code(&self) -> TokenStream {
         let ident_name = get_ident(&self.name());
         let ident_const_name = get_ident(&self.constant_name());
-        let fields_list = self.arg.generate_fields_list();
+        let fields_list = self.arg.clone().unwrap_or_default().generate_fields_list();
         let command = self.command();
-        let arg = &self.arg;
+        let arg = self.arg.clone().unwrap_or_default();
 
-        // let params_arg = self.params_struct.get_as_arg(Some("params"));
         let query_method = match command {
             QueryCommand::One => {
                 let ret = self.ret.clone().unwrap_or_default();

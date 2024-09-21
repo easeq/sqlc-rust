@@ -54,10 +54,7 @@ impl Queries {
         let row = self.client.query_one(GET_AUTHOR, &[&id])?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
-    pub(crate) fn list_authors(
-        &mut self,
-        arg: ListAuthorsParams,
-    ) -> anyhow::Result<Vec<Author>> {
+    pub(crate) fn list_authors(&mut self) -> anyhow::Result<Vec<Author>> {
         let rows = self.client.query(LIST_AUTHORS, &[])?;
         let mut result: Vec<Author> = vec![];
         for row in rows {

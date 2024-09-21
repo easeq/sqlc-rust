@@ -34,10 +34,7 @@ impl Queries {
     pub fn new(client: postgres::Client) -> Self {
         Self { client }
     }
-    pub(crate) fn count_pilots(
-        &mut self,
-        arg: CountPilotsParams,
-    ) -> anyhow::Result<i64> {
+    pub(crate) fn count_pilots(&mut self) -> anyhow::Result<i64> {
         let row = self.client.query_one(COUNT_PILOTS, &[])?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
@@ -45,10 +42,7 @@ impl Queries {
         self.client.execute(DELETE_PILOT, &[&id])?;
         Ok(())
     }
-    pub(crate) fn list_pilots(
-        &mut self,
-        arg: ListPilotsParams,
-    ) -> anyhow::Result<Vec<Pilot>> {
+    pub(crate) fn list_pilots(&mut self) -> anyhow::Result<Vec<Pilot>> {
         let rows = self.client.query(LIST_PILOTS, &[])?;
         let mut result: Vec<Pilot> = vec![];
         for row in rows {
