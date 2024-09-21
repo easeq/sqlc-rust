@@ -1,12 +1,12 @@
+use super::column_name;
 use super::get_ident;
 use super::plugin;
 use super::PgDataType;
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use std::hash::{DefaultHasher, Hash, Hasher};
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 pub struct StructField {
     pub name: String,
     pub is_array: bool,
@@ -33,11 +33,7 @@ impl StructField {
     }
 
     pub fn name(&self) -> String {
-        if !self.name.is_empty() {
-            self.name.to_case(Case::Snake)
-        } else {
-            format!("_{}", self.number)
-        }
+        column_name(self.name.clone(), self.number)
     }
 
     pub fn data_type(&self) -> TokenStream {

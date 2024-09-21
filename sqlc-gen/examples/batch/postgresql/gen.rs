@@ -35,8 +35,8 @@ impl Queries {
     pub fn new(client: postgres::Client) -> Self {
         Self { client }
     }
-    pub(crate) fn get_author(&mut self, author_id: i32) -> anyhow::Result<GetAuthorRow> {
-        let row = self.client.query_one(GET_AUTHOR, &[&"author_id"])?;
+    pub(crate) fn get_author(&mut self, author_id: i32) -> anyhow::Result<Author> {
+        let row = self.client.query_one(GET_AUTHOR, &[&author_id])?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
 }

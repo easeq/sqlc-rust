@@ -39,12 +39,13 @@ pub fn get_newline_tokens() -> TokenStream {
     get_punct_from_char_tokens(newline_char)
 }
 
-pub fn column_name(c: &plugin::Column, pos: i32) -> String {
-    if c.name.is_empty() {
-        c.name.clone()
-    } else {
-        format!("column_{}", pos)
-    }
+pub fn column_name(name: String, pos: i32) -> String {
+    let col_name = match name.is_empty() {
+        false => name.clone(),
+        true => format!("_{}", pos),
+    };
+
+    col_name.to_case(convert_case::Case::Snake)
 }
 
 pub fn param_name(p: &plugin::Parameter) -> String {
@@ -72,14 +73,14 @@ pub fn same_table(
     struct_table: Option<plugin::Identifier>,
     default_schema: String,
 ) -> bool {
-    if let Some(tableId) = col_table {
-        let mut schema = tableId.schema;
+    if let Some(table_id) = col_table {
+        let mut schema = table_id.schema;
         if schema.is_empty() {
             schema = default_schema;
         }
 
         if let Some(f) = struct_table {
-            tableId.catalog == f.catalog && schema == f.schema && tableId.name == f.name
+            table_id.catalog == f.catalog && schema == f.schema && table_id.name == f.name
         } else {
             false
         }
@@ -328,8 +329,9 @@ impl CodeBuilder {
         structs
     }
 
-    fn build_queries(&self, structs: Vec<TypeStruct>) -> Vec<TypeQuery> {
+    fn build_queries(&self, structs: Vec<TypeStruct>) -> (Vec<TypeQuery>, Vec<TypeStruct>) {
         let catalog = self.req.catalog.clone().unwrap();
+        let mut associated_structs = vec![];
         let mut queries = self
             .req
             .queries
@@ -368,14 +370,14 @@ impl CodeBuilder {
 
                         let type_struct =
                             TypeStruct::new(query.name.clone(), None, StructType::Params, fields);
-                        arg = QueryValue::new("arg", None, Some(type_struct));
+                        arg = QueryValue::new("arg", None, Some(type_struct.clone()));
+                        associated_structs.push(type_struct);
                     }
 
                     let columns = query.columns.clone();
                     let mut ret: Option<QueryValue> = None;
                     if columns.len() == 1 {
                         let c = columns.first().unwrap();
-                        // let name = column_name(&c, 0).replace("$", "_");
                         ret = Some(QueryValue::new(
                             "",
                             Some(c.r#type.clone().unwrap().name.to_string()),
@@ -391,12 +393,11 @@ impl CodeBuilder {
                             } else {
                                 s.fields.clone().into_iter().enumerate().all(|(i, field)| {
                                     let c = columns.get(i).unwrap();
-                                    let same_name = field.name
-                                        == column_name(c, i as i32)
-                                            .to_case(convert_case::Case::Pascal);
+                                    let same_name =
+                                        field.name() == column_name(c.name.to_string(), i as i32);
+
                                     let same_type = field.data_type.to_string()
-                                        == PgDataType(c.r#type.clone().unwrap().name.to_string())
-                                            .to_string();
+                                        == PgDataType(c.r#type.clone().unwrap().name).to_string();
 
                                     let same_table = same_table(
                                         c.table.clone(),
@@ -423,7 +424,14 @@ impl CodeBuilder {
                                     })
                                     .collect::<Vec<_>>();
 
-                                TypeStruct::new(query.name.clone(), None, StructType::Row, fields)
+                                let type_struct = TypeStruct::new(
+                                    query.name.clone(),
+                                    None,
+                                    StructType::Row,
+                                    fields,
+                                );
+                                associated_structs.push(type_struct.clone());
+                                type_struct
                             }
                             Some(gs) => gs,
                         };
@@ -442,14 +450,14 @@ impl CodeBuilder {
             .collect::<Vec<_>>();
 
         queries.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
-        queries
+        (queries, associated_structs)
     }
 
     pub fn generate_code(&self) -> TokenStream {
         let enums = self.build_enums();
         let constants = self.build_constants();
         let structs = self.build_structs();
-        let queries = self.build_queries(structs.clone());
+        let (queries, associated_structs) = self.build_queries(structs.clone());
 
         let generated_comment = MultiLine(
             r#"
@@ -478,6 +486,7 @@ impl CodeBuilder {
             #(#constants)*
             #(#enums)*
             #(#structs)*
+            #(#associated_structs)*
             #queries_impl
         }
     }

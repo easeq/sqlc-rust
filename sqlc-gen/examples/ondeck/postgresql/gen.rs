@@ -98,6 +98,41 @@ pub(crate) struct Venue {
     pub tags: Option<Vec<String>>,
     pub created_at: String,
 }
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct CreateCityParams {
+    pub name: String,
+    pub slug: String,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct UpdateCityNameParams {
+    pub slug: String,
+    pub name: String,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct GetVenueParams {
+    pub slug: String,
+    pub city: String,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct CreateVenueParams {
+    pub slug: String,
+    pub name: String,
+    pub city: String,
+    pub spotify_playlist: String,
+    pub status: String,
+    pub statuses: Option<Vec<String>>,
+    pub tags: Option<Vec<String>>,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct UpdateVenueNameParams {
+    pub slug: String,
+    pub name: String,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct VenueCountByCityRow {
+    pub city: String,
+    pub count: i64,
+}
 pub struct Queries {
     client: postgres::Client,
 }
@@ -105,11 +140,8 @@ impl Queries {
     pub fn new(client: postgres::Client) -> Self {
         Self { client }
     }
-    pub(crate) fn create_city(
-        &mut self,
-        arg: CreateCityParams,
-    ) -> anyhow::Result<CreateCityRow> {
-        let row = self.client.query_one(CREATE_CITY, &[&"arg".name, &"arg".slug])?;
+    pub(crate) fn create_city(&mut self, arg: CreateCityParams) -> anyhow::Result<City> {
+        let row = self.client.query_one(CREATE_CITY, &[&arg.name, &arg.slug])?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
     pub(crate) fn create_venue(
@@ -121,49 +153,43 @@ impl Queries {
             .query_one(
                 CREATE_VENUE,
                 &[
-                    &"arg".slug,
-                    &"arg".name,
-                    &"arg".city,
-                    &"arg".spotify_playlist,
-                    &"arg".status,
-                    &"arg".statuses,
-                    &"arg".tags,
+                    &arg.slug,
+                    &arg.name,
+                    &arg.city,
+                    &arg.spotify_playlist,
+                    &arg.status,
+                    &arg.statuses,
+                    &arg.tags,
                 ],
             )?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
     pub(crate) fn delete_venue(&mut self, slug: String) -> anyhow::Result<()> {
-        self.client.execute(DELETE_VENUE, &[&"slug"])?;
+        self.client.execute(DELETE_VENUE, &[&slug])?;
         Ok(())
     }
-    pub(crate) fn get_city(&mut self, slug: String) -> anyhow::Result<GetCityRow> {
-        let row = self.client.query_one(GET_CITY, &[&"slug"])?;
+    pub(crate) fn get_city(&mut self, slug: String) -> anyhow::Result<City> {
+        let row = self.client.query_one(GET_CITY, &[&slug])?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
-    pub(crate) fn get_venue(
-        &mut self,
-        arg: GetVenueParams,
-    ) -> anyhow::Result<GetVenueRow> {
-        let row = self.client.query_one(GET_VENUE, &[&"arg".slug, &"arg".city])?;
+    pub(crate) fn get_venue(&mut self, arg: GetVenueParams) -> anyhow::Result<Venue> {
+        let row = self.client.query_one(GET_VENUE, &[&arg.slug, &arg.city])?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
     pub(crate) fn list_cities(
         &mut self,
         arg: ListCitiesParams,
-    ) -> anyhow::Result<Vec<ListCitiesRow>> {
+    ) -> anyhow::Result<Vec<City>> {
         let rows = self.client.query(LIST_CITIES, &[])?;
-        let mut result: Vec<ListCitiesRow> = vec![];
+        let mut result: Vec<City> = vec![];
         for row in rows {
             result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
         }
         Ok(result)
     }
-    pub(crate) fn list_venues(
-        &mut self,
-        city: String,
-    ) -> anyhow::Result<Vec<ListVenuesRow>> {
-        let rows = self.client.query(LIST_VENUES, &[&"city"])?;
-        let mut result: Vec<ListVenuesRow> = vec![];
+    pub(crate) fn list_venues(&mut self, city: String) -> anyhow::Result<Vec<Venue>> {
+        let rows = self.client.query(LIST_VENUES, &[&city])?;
+        let mut result: Vec<Venue> = vec![];
         for row in rows {
             result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
         }
@@ -173,14 +199,14 @@ impl Queries {
         &mut self,
         arg: UpdateCityNameParams,
     ) -> anyhow::Result<()> {
-        self.client.execute(UPDATE_CITY_NAME, &[&"arg".slug, &"arg".name])?;
+        self.client.execute(UPDATE_CITY_NAME, &[&arg.slug, &arg.name])?;
         Ok(())
     }
     pub(crate) fn update_venue_name(
         &mut self,
         arg: UpdateVenueNameParams,
     ) -> anyhow::Result<i32> {
-        let row = self.client.query_one(UPDATE_VENUE_NAME, &[&"arg".slug, &"arg".name])?;
+        let row = self.client.query_one(UPDATE_VENUE_NAME, &[&arg.slug, &arg.name])?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
     pub(crate) fn venue_count_by_city(

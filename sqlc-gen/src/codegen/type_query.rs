@@ -63,7 +63,7 @@ impl QueryValue {
     }
 
     pub fn generate_fields_list(&self) -> TokenStream {
-        let ident_name = self.name.clone();
+        let ident_name = get_ident(&self.name.clone());
         let mut fields_list = quote! {};
         if self.typ.is_some() {
             fields_list = quote! { &#ident_name };

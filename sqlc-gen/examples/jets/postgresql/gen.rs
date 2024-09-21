@@ -42,15 +42,15 @@ impl Queries {
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
     pub(crate) fn delete_pilot(&mut self, id: i32) -> anyhow::Result<()> {
-        self.client.execute(DELETE_PILOT, &[&"id"])?;
+        self.client.execute(DELETE_PILOT, &[&id])?;
         Ok(())
     }
     pub(crate) fn list_pilots(
         &mut self,
         arg: ListPilotsParams,
-    ) -> anyhow::Result<Vec<ListPilotsRow>> {
+    ) -> anyhow::Result<Vec<Pilot>> {
         let rows = self.client.query(LIST_PILOTS, &[])?;
-        let mut result: Vec<ListPilotsRow> = vec![];
+        let mut result: Vec<Pilot> = vec![];
         for row in rows {
             result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
         }
