@@ -6,9 +6,11 @@ select author_id, name, biography
 from authors
 where author_id = $1
 "#;
-#[derive(Debug, Display)]
+#[derive(Debug, Display, postgres_types::ToSql, postgres_type::FromSql)]
 pub enum BookType {
+    #[postgres(name = "FICTION")]
     Fiction,
+    #[postgres(name = "NONFICTION")]
     Nonfiction,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]

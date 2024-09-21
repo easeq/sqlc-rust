@@ -1,5 +1,5 @@
--- CREATE TYPE status AS ENUM ('op!en', 'clo@sed');
-CREATE TYPE status AS ENUM ('open', 'closed');
+CREATE TYPE status AS ENUM ('op!en', 'clo@sed');
+-- CREATE TYPE status AS ENUM ('open', 'closed');
 COMMENT ON TYPE status IS 'Venues can be either open or closed';
 
 CREATE TABLE venues (

@@ -75,13 +75,45 @@ FROM venue
 GROUP BY 1
 ORDER BY 1
 "#;
-#[derive(Debug, Display)]
+#[derive(Debug, Display, postgres_types::ToSql, postgres_type::FromSql)]
 pub enum Status {
+    #[postgres(name = "op!en")]
     Open,
+    #[postgres(name = "clo@sed")]
     Closed,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
 pub(crate) struct City {
+    pub slug: String,
+    pub name: String,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct CreateCityParams {
+    pub name: String,
+    pub slug: String,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct CreateVenueParams {
+    pub slug: String,
+    pub name: String,
+    pub city: String,
+    pub spotify_playlist: String,
+    pub status: String,
+    pub statuses: Option<Vec<String>>,
+    pub tags: Option<Vec<String>>,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct GetVenueParams {
+    pub slug: String,
+    pub city: String,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct UpdateCityNameParams {
+    pub slug: String,
+    pub name: String,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct UpdateVenueNameParams {
     pub slug: String,
     pub name: String,
 }
@@ -97,36 +129,6 @@ pub(crate) struct Venue {
     pub songkick_id: Option<String>,
     pub tags: Option<Vec<String>>,
     pub created_at: String,
-}
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct CreateCityParams {
-    pub name: String,
-    pub slug: String,
-}
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct UpdateCityNameParams {
-    pub slug: String,
-    pub name: String,
-}
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct GetVenueParams {
-    pub slug: String,
-    pub city: String,
-}
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct CreateVenueParams {
-    pub slug: String,
-    pub name: String,
-    pub city: String,
-    pub spotify_playlist: String,
-    pub status: String,
-    pub statuses: Option<Vec<String>>,
-    pub tags: Option<Vec<String>>,
-}
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct UpdateVenueNameParams {
-    pub slug: String,
-    pub name: String,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
 pub(crate) struct VenueCountByCityRow {

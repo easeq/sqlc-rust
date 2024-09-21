@@ -64,9 +64,11 @@ const SAY_HELLO: &str = r#"
 select say_hello
 from say_hello($1)
 "#;
-#[derive(Debug, Display)]
+#[derive(Debug, Display, postgres_types::ToSql, postgres_type::FromSql)]
 pub enum BookType {
+    #[postgres(name = "FICTION")]
     Fiction,
+    #[postgres(name = "NONFICTION")]
     Nonfiction,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
@@ -86,17 +88,17 @@ pub(crate) struct Book {
     pub tags: Vec<String>,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct BooksByTitleYearParams {
-    pub title: String,
-    pub year: i32,
-}
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
 pub(crate) struct BooksByTagsRow {
     pub book_id: i32,
     pub title: String,
     pub name: Option<String>,
     pub isbn: String,
     pub tags: Vec<String>,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct BooksByTitleYearParams {
+    pub title: String,
+    pub year: i32,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
 pub(crate) struct CreateBookParams {
@@ -109,17 +111,17 @@ pub(crate) struct CreateBookParams {
     pub tags: Vec<String>,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct UpdateBookParams {
-    pub title: String,
-    pub tags: Vec<String>,
-    pub book_id: i32,
-}
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
 pub(crate) struct UpdateBookIsbnParams {
     pub title: String,
     pub tags: Vec<String>,
     pub book_id: i32,
     pub isbn: String,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct UpdateBookParams {
+    pub title: String,
+    pub tags: Vec<String>,
+    pub book_id: i32,
 }
 pub struct Queries {
     client: postgres::Client,

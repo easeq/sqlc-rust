@@ -450,14 +450,24 @@ impl CodeBuilder {
             .collect::<Vec<_>>();
 
         queries.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
+        associated_structs.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
+
         (queries, associated_structs)
     }
 
     pub fn generate_code(&self) -> TokenStream {
         let enums = self.build_enums();
         let constants = self.build_constants();
-        let structs = self.build_structs();
+        let mut structs = self.build_structs();
+
         let (queries, associated_structs) = self.build_queries(structs.clone());
+
+        structs.extend(associated_structs);
+        structs.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
+
+        // TODO: below
+        // let (enums, structs) = self.filter_unused_structs(enums, structs, queries);
+        // validate_structs_and_enums
 
         let generated_comment = MultiLine(
             r#"
@@ -486,7 +496,6 @@ impl CodeBuilder {
             #(#constants)*
             #(#enums)*
             #(#structs)*
-            #(#associated_structs)*
             #queries_impl
         }
     }

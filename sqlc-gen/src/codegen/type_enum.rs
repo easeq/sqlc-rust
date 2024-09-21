@@ -15,6 +15,19 @@ fn enum_replacer(c: char) -> Option<char> {
     }
 }
 
+fn generate_enum_variant(i: usize, val: String, seen: &mut HashSet<String>) -> TokenStream {
+    let mut value = val.chars().filter_map(enum_replacer).collect::<String>();
+    if seen.get(&value).is_some() || value.is_empty() {
+        value = format!("value_{}", i);
+    }
+    seen.insert(value.clone());
+    let ident_variant = get_ident(&value.to_case(Case::Pascal));
+    quote! {
+        #[postgres(name=#val)]
+        #ident_variant
+    }
+}
+
 #[derive(Default, Debug, PartialEq)]
 pub struct TypeEnum {
     name: String,
@@ -42,18 +55,11 @@ impl TypeEnum {
             .clone()
             .into_iter()
             .enumerate()
-            .map(|(i, val)| {
-                let mut value = val.chars().filter_map(enum_replacer).collect::<String>();
-                if seen.get(&value).is_some() || value.is_empty() {
-                    value = format!("value_{}", i);
-                }
-                seen.insert(value.clone());
-                get_ident(&value.to_case(Case::Pascal))
-            })
+            .map(|(i, val)| generate_enum_variant(i, val, &mut seen))
             .collect::<Vec<_>>();
 
         quote! {
-            #[derive(Debug, Display)]
+            #[derive(Debug, Display, postgres_types::ToSql, postgres_type::FromSql)]
             pub enum #ident_enum_name {
                 #(#variants),*
             }
