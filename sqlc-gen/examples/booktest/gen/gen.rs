@@ -64,7 +64,7 @@ const SAY_HELLO: &str = r#"
 select say_hello
 from say_hello($1)
 "#;
-#[derive(Debug, Display, postgres_types::ToSql, postgres_type::FromSql)]
+#[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
 pub enum BookType {
     #[postgres(name = "FICTION")]
     Fiction,
@@ -84,7 +84,7 @@ pub(crate) struct Book {
     pub book_type: BookType,
     pub title: String,
     pub year: i32,
-    pub available: String,
+    pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
@@ -107,7 +107,7 @@ pub(crate) struct CreateBookParams {
     pub book_type: BookType,
     pub title: String,
     pub year: i32,
-    pub available: String,
+    pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]

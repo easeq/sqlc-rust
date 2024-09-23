@@ -1,10 +1,15 @@
 -- name: GetAuthor :one
-SELECT * FROM authors
-WHERE id = $1 LIMIT 1;
+select *
+from authors
+where id = $1
+limit 1
+;
 
 -- name: ListAuthors :many
-SELECT * FROM authors
-ORDER BY name;
+select *
+from authors
+order by name
+;
 
 -- name: CreateAuthor :one
 INSERT INTO authors (
@@ -15,5 +20,13 @@ INSERT INTO authors (
 RETURNING *;
 
 -- name: DeleteAuthor :exec
-DELETE FROM authors
-WHERE id = $1;
+delete from authors
+where id = $1
+;
+
+-- name: GetSite :one
+select *
+from site
+where id = $1
+limit 1
+;

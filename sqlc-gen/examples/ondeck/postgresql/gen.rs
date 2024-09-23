@@ -75,7 +75,7 @@ FROM venue
 GROUP BY 1
 ORDER BY 1
 "#;
-#[derive(Debug, Display, postgres_types::ToSql, postgres_type::FromSql)]
+#[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
 pub enum Status {
     #[postgres(name = "op!en")]
     Open,

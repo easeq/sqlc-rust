@@ -66,7 +66,7 @@ impl TypeEnum {
             .collect::<Vec<_>>();
 
         quote! {
-            #[derive(Debug, postgres_derive::ToSql, postgres_derive::FromSql)]
+            #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
             pub enum #ident_enum_name {
                 #(#variants),*
             }
@@ -116,7 +116,7 @@ mod tests {
         assert_eq!(
             create_enum(None, None).generate_code().to_string(),
             quote! {
-                #[derive(Debug, postgres_types::ToSql, postgres_types::FromSql)]
+                #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
                 pub enum EnumName {
                     #[postgres(name="val1")]
                     Val1,

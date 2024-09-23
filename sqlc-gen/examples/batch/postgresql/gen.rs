@@ -6,7 +6,7 @@ select author_id, name, biography
 from authors
 where author_id = $1
 "#;
-#[derive(Debug, Display, postgres_types::ToSql, postgres_type::FromSql)]
+#[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
 pub enum BookType {
     #[postgres(name = "FICTION")]
     Fiction,
@@ -27,7 +27,7 @@ pub(crate) struct Book {
     pub book_type: BookType,
     pub title: String,
     pub year: i32,
-    pub available: String,
+    pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
 pub struct Queries {
