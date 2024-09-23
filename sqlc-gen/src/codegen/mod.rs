@@ -40,12 +40,10 @@ pub fn get_newline_tokens() -> TokenStream {
 }
 
 pub fn column_name(name: String, pos: i32) -> String {
-    let col_name = match name.is_empty() {
-        false => name.clone(),
+    match name.is_empty() {
+        false => name.clone().to_case(convert_case::Case::Snake),
         true => format!("_{}", pos),
-    };
-
-    col_name.to_case(convert_case::Case::Snake)
+    }
 }
 
 pub fn param_name(p: &plugin::Parameter) -> String {
