@@ -1,5 +1,5 @@
 use super::type_struct::TypeStruct;
-use super::{get_ident, PgDataType};
+use super::{get_ident, DataType, PgDataType};
 use convert_case::{Case, Casing};
 use core::panic;
 use proc_macro2::TokenStream;
@@ -52,11 +52,11 @@ impl QueryValue {
         }
     }
 
-    pub fn get_type(&self) -> String {
+    pub fn get_type(&self) -> DataType {
         if let Some(typ) = &self.typ {
-            typ.to_string()
+            typ.as_data_type()
         } else if let Some(type_struct) = self.type_struct.clone() {
-            type_struct.name()
+            type_struct.data_type()
         } else {
             panic!("QueryValue neither has `typ` specified nor `type_struct`");
         }
@@ -91,13 +91,13 @@ impl QueryValue {
 impl ToTokens for QueryValue {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if !self.name.is_empty() {
-            let ident_type = get_ident(&self.get_type());
+            let ident_type = &self.get_type();
             let ident_name = get_ident(&self.name);
             tokens.extend(quote! {
                 #ident_name: #ident_type
             });
         } else if self.typ.is_some() || self.type_struct.is_some() {
-            let ident_type = get_ident(&self.get_type());
+            let ident_type = &self.get_type();
             tokens.extend(quote! {
                 #ident_type
             });

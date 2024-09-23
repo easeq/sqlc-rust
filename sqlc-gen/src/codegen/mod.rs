@@ -149,14 +149,12 @@ pub struct DataType(String);
 
 impl ToTokens for DataType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let parts = self.0.split("::");
-        for (i, part) in parts.enumerate() {
-            if i > 0 {
-                tokens.extend(get_punct_from_char_tokens(':'));
-                tokens.extend(get_punct_from_char_tokens(':'));
-            }
-            tokens.extend(get_ident(part).into_token_stream());
-        }
+        tokens.extend(
+            self.0
+                .chars()
+                .into_iter()
+                .map(|c| get_punct_from_char_tokens(c)),
+        );
     }
 }
 
@@ -165,11 +163,15 @@ pub struct PgDataType(pub String);
 
 impl ToTokens for PgDataType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(DataType(self.to_string()).into_token_stream());
+        tokens.extend(self.as_data_type().into_token_stream());
     }
 }
 
 impl PgDataType {
+    pub fn as_data_type(&self) -> DataType {
+        DataType(self.to_string())
+    }
+
     pub fn from(s: &str, schemas: Vec<plugin::Schema>, default_schema: String) -> PgDataType {
         let pg_data_type_string = match s {
             "smallint" | "int2" | "pg_catalog.int2" | "smallserial" | "serial2"
@@ -196,7 +198,7 @@ impl PgDataType {
             "pg_catalog.time" | "pg_catalog.timez" => "time::Time".to_string(),
 
             "pg_catalog.timestamp" => "time::PrimitiveDateTime".to_string(),
-            "pg_catalog.timestampz" | "timestampz" => "time::PrimitiveDateTime".to_string(),
+            "pg_catalog.timestamptz" | "timestamptz" => "time::OffsetDateTime".to_string(),
 
             "interval" | "pg_catalog.interval" => "i64".to_string(),
             "text" | "pg_catalog.varchar" | "pg_catalog.bpchar" | "string" | "citext" | "ltree"

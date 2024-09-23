@@ -1,7 +1,7 @@
 use super::column_name;
 use super::get_ident;
 use super::plugin;
-use super::PgDataType;
+use super::{DataType, PgDataType};
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -124,11 +124,15 @@ impl TypeStruct {
         name.to_case(Case::Pascal)
     }
 
+    pub fn data_type(&self) -> DataType {
+        DataType(self.name())
+    }
+
     fn generate_code(&self) -> TokenStream {
         if self.fields.len() == 0 {
             quote! {}
         } else {
-            let ident_struct = get_ident(&self.name());
+            let ident_struct = self.data_type();
             let fields = self.fields.clone().into_iter().collect::<Vec<_>>();
 
             quote! {
