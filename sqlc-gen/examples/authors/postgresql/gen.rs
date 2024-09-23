@@ -5,26 +5,10 @@ const GET_AUTHOR: &str = r#"
 SELECT id, name, bio FROM authors
 WHERE id = $1 LIMIT 1
 "#;
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct GetAuthorParams {
-    pub id: i64,
-}
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct GetAuthorRow {
-    pub id: i64,
-    pub name: String,
-    pub bio: Option<String>,
-}
 const LIST_AUTHORS: &str = r#"
 SELECT id, name, bio FROM authors
 ORDER BY name
 "#;
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct ListAuthorsRow {
-    pub id: i64,
-    pub name: String,
-    pub bio: Option<String>,
-}
 const CREATE_AUTHOR: &str = r#"
 INSERT INTO authors (
           name, bio
@@ -33,24 +17,20 @@ INSERT INTO authors (
 )
 RETURNING id, name, bio
 "#;
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct CreateAuthorParams {
-    pub name: String,
-    pub bio: Option<String>,
-}
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct CreateAuthorRow {
-    pub id: i64,
-    pub name: String,
-    pub bio: Option<String>,
-}
 const DELETE_AUTHOR: &str = r#"
 DELETE FROM authors
 WHERE id = $1
 "#;
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct DeleteAuthorParams {
+pub(crate) struct Author {
     pub id: i64,
+    pub name: String,
+    pub bio: Option<String>,
+}
+#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+pub(crate) struct CreateAuthorParams {
+    pub name: String,
+    pub bio: Option<String>,
 }
 pub struct Queries {
     client: postgres::Client,
@@ -59,33 +39,27 @@ impl Queries {
     pub fn new(client: postgres::Client) -> Self {
         Self { client }
     }
-    pub(crate) fn get_author(
+    pub(crate) fn create_author(
         &mut self,
-        params: GetAuthorParams,
-    ) -> anyhow::Result<GetAuthorRow> {
-        let row = self.client.query_one(GET_AUTHOR, &[&params.id])?;
+        arg: CreateAuthorParams,
+    ) -> anyhow::Result<Author> {
+        let row = self.client.query_one(CREATE_AUTHOR, &[&arg.name, &arg.bio])?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
-    pub(crate) fn list_authors(&mut self) -> anyhow::Result<Vec<ListAuthorsRow>> {
+    pub(crate) fn delete_author(&mut self, id: i64) -> anyhow::Result<()> {
+        self.client.execute(DELETE_AUTHOR, &[&id])?;
+        Ok(())
+    }
+    pub(crate) fn get_author(&mut self, id: i64) -> anyhow::Result<Author> {
+        let row = self.client.query_one(GET_AUTHOR, &[&id])?;
+        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    }
+    pub(crate) fn list_authors(&mut self) -> anyhow::Result<Vec<Author>> {
         let rows = self.client.query(LIST_AUTHORS, &[])?;
-        let mut result: Vec<ListAuthorsRow> = vec![];
+        let mut result: Vec<Author> = vec![];
         for row in rows {
             result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
         }
         Ok(result)
-    }
-    pub(crate) fn create_author(
-        &mut self,
-        params: CreateAuthorParams,
-    ) -> anyhow::Result<CreateAuthorRow> {
-        let row = self.client.query_one(CREATE_AUTHOR, &[&params.name, &params.bio])?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) fn delete_author(
-        &mut self,
-        params: DeleteAuthorParams,
-    ) -> anyhow::Result<()> {
-        self.client.execute(DELETE_AUTHOR, &[&params.id])?;
-        Ok(())
     }
 }

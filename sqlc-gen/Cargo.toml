@@ -21,6 +21,8 @@ postgres-types = "0.2.7"
 strum = "0.26.3"
 strum_macros = "0.26.4"
 itertools = "0.13.0"
+pluralizer = "0.4.0"
+check_keyword = "0.3.1"
 
 [build-dependencies]
 prost-build = "0.9.0"

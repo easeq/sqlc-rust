@@ -39,12 +39,10 @@ fn main() -> Result<()> {
     let authors = queries.list_authors().unwrap();
     assert_eq!(authors.len(), 0);
 
-    let author_res_err = queries.get_author(db::GetAuthorParams { id: 1 }).is_err();
+    let author_res_err = queries.get_author(1).is_err();
     assert_eq!(author_res_err, true);
 
-    let delete_res = queries
-        .delete_author(db::DeleteAuthorParams { id: 1 })
-        .is_ok();
+    let delete_res = queries.delete_author(1).is_ok();
     assert_eq!(delete_res, true);
 
     let author1_req = db::CreateAuthorParams {
@@ -56,11 +54,7 @@ fn main() -> Result<()> {
     assert_eq!(author1_res.bio, author1_req.bio.clone());
     assert!(author1_res.id > 0);
 
-    let mut authors_list_prepared = vec![db::ListAuthorsRow {
-        id: author1_res.id,
-        name: author1_res.name.clone(),
-        bio: author1_res.bio.clone(),
-    }];
+    let mut authors_list_prepared = vec![author1_res.clone()];
     let authors = queries.list_authors().unwrap();
     assert_eq!(authors.len(), 1);
     assert_eq!(authors, authors_list_prepared);
@@ -74,24 +68,16 @@ fn main() -> Result<()> {
     assert_eq!(author2_res.bio, author2_req.bio);
     assert!(author2_res.id > 1);
 
-    authors_list_prepared.push(db::ListAuthorsRow {
-        id: author2_res.id,
-        name: author2_res.name,
-        bio: author2_res.bio,
-    });
+    authors_list_prepared.push(author2_res.clone());
 
     let authors = queries.list_authors().unwrap();
     assert_eq!(authors.len(), 2);
     assert_eq!(authors, authors_list_prepared);
 
-    let author = queries.get_author(db::GetAuthorParams { id: 1 }).unwrap();
-    assert_eq!(author.id, author1_res.id);
-    assert_eq!(author.name, author1_res.name);
-    assert_eq!(author.bio, author1_res.bio);
+    let author = queries.get_author(1).unwrap();
+    assert_eq!(author, author1_res);
 
-    queries
-        .delete_author(db::DeleteAuthorParams { id: 1 })
-        .unwrap();
+    queries.delete_author(1).unwrap();
     let authors = queries.list_authors().unwrap();
     assert_eq!(authors.len(), 1);
     assert_eq!(authors, authors_list_prepared[1..]);
