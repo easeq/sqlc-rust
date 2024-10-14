@@ -2,15 +2,12 @@
 /// DO NOT EDIT.
 use tokio_postgres::{Error, Row};
 const GET_AUTHOR: &str = r#"
-select id, name, bio
-from authors
-where id = $1
-limit 1
+SELECT id, name, bio FROM authors
+WHERE id = $1 LIMIT 1
 "#;
 const LIST_AUTHORS: &str = r#"
-select id, name, bio
-from authors
-order by name
+SELECT id, name, bio FROM authors
+ORDER BY name
 "#;
 const CREATE_AUTHOR: &str = r#"
 INSERT INTO authors (
@@ -21,14 +18,8 @@ INSERT INTO authors (
 RETURNING id, name, bio
 "#;
 const DELETE_AUTHOR: &str = r#"
-delete from authors
-where id = $1
-"#;
-const GET_SITE: &str = r#"
-select id, url, status, data, inet, mac, new_id, created_at, updated_at
-from site
-where id = $1
-limit 1
+DELETE FROM authors
+WHERE id = $1
 "#;
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
 pub(crate) struct Author {
@@ -40,18 +31,6 @@ pub(crate) struct Author {
 pub(crate) struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,
-}
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct Site {
-    pub id: uuid::Uuid,
-    pub url: String,
-    pub status: bool,
-    pub data: serde_json::Value,
-    pub inet: cidr::InetCidr,
-    pub mac: eui48::MacAddress,
-    pub new_id: uuid::Uuid,
-    pub created_at: time::OffsetDateTime,
-    pub updated_at: time::OffsetDateTime,
 }
 pub struct Queries {
     client: tokio_postgres::Client,
@@ -73,10 +52,6 @@ impl Queries {
     }
     pub(crate) async fn get_author(&mut self, id: i64) -> anyhow::Result<Author> {
         let row = self.client.query_one(GET_AUTHOR, &[&id]).await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) async fn get_site(&mut self, id: uuid::Uuid) -> anyhow::Result<Site> {
-        let row = self.client.query_one(GET_SITE, &[&id]).await?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
     pub(crate) async fn list_authors(&mut self) -> anyhow::Result<Vec<Author>> {

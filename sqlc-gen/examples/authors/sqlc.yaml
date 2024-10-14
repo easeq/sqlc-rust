@@ -5,8 +5,8 @@ plugins:
       - RUST_BACKTRACE
       - RUST_LOG
     wasm:
-      url: file://./../../../target/wasm32-wasi/release/sqlc-gen.wasm
-      sha256: 74741d8d4f926d0740d7878b7c41e15f2b6e49ff3be5963c0a5ed453fd89db99
+      url: file://./../../../target/wasm32-wasip1/release/sqlc-gen.wasm
+      sha256: 11b3398e9c76537988374fe65093755475fa69f14d6c8b71f9f5843fa38ce148
 #
 # - name: js
 #   process:
@@ -19,6 +19,7 @@ sql:
       - out: postgresql
         plugin: rust-gen
         options:
-          lang: en-US
+          use_async: true
+          use_deadpool: false
     # - out: gen
     #   plugin: js

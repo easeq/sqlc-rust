@@ -4,6 +4,7 @@ use core::panic;
 use itertools::Itertools;
 use proc_macro2::{Punct, Spacing, TokenStream};
 use quote::{format_ident, quote, ToTokens};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::hash::Hash;
 use std::str::FromStr;
@@ -238,14 +239,53 @@ impl fmt::Display for PgDataType {
     }
 }
 
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct Options {
+    use_async: bool,
+    use_deadpool: bool,
+}
+
+impl Options {
+    pub fn use_deadpool(&self) -> bool {
+        self.use_async && self.use_deadpool
+    }
+}
+
 #[derive(Default)]
 pub struct CodeBuilder {
     req: plugin::CodeGenRequest,
+    options: Options,
 }
 
 impl CodeBuilder {
     pub fn new(req: plugin::CodeGenRequest) -> Self {
-        Self { req }
+        let settings = req.settings.clone().expect("could not find sqlc config");
+        let codegen = settings
+            .codegen
+            .expect("codegen settings not defined in sqlc config");
+        let options_str = match std::str::from_utf8(&codegen.options) {
+            Ok(v) => v,
+            Err(e) => panic!("Invalid UTF-8 sequence in codegen options: {}", e),
+        };
+
+        let mut code_builder = Self {
+            req,
+            options: Options::default(),
+        };
+
+        if !options_str.is_empty() {
+            let options: Options = serde_json::from_str(options_str).expect(
+                format!(
+                    "could not deserialize codegen options (valid object: {:?})",
+                    serde_json::to_string(&Options::default())
+                        .expect("could not convert options to json string"),
+                )
+                .as_str(),
+            );
+            code_builder.options = options;
+        }
+
+        code_builder
     }
 }
 
@@ -483,6 +523,8 @@ impl CodeBuilder {
                         query.cmd.clone(),
                         arg,
                         ret,
+                        self.options.use_async,
+                        self.options.use_deadpool(),
                     ))
                 }
             })
@@ -516,12 +558,18 @@ impl CodeBuilder {
         )
         .to_token_stream();
 
+        let pg_module = if self.options.use_async {
+            quote!(tokio_postgres)
+        } else {
+            quote!(postgres)
+        };
+
         let queries_impl = quote! {
             pub struct Queries {
-                client: postgres::Client,
+                client: #pg_module::Client,
             }
             impl Queries {
-                pub fn new(client: postgres::Client) -> Self {
+                pub fn new(client: #pg_module::Client) -> Self {
                     Self { client }
                 }
 
@@ -531,7 +579,7 @@ impl CodeBuilder {
 
         quote! {
             #generated_comment
-            use postgres::{Error, Row};
+            use #pg_module::{Error, Row};
             #(#constants)*
             #(#enums)*
             #(#structs)*

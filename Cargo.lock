@@ -71,6 +71,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "array-init"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d62b7694a562cdf5a74227903507c56ab2cc8bdd1f781ed5cb4cf9c9f810bfc"
+
+[[package]]
 name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -107,6 +113,20 @@ dependencies = [
  "refinery",
  "sqlc-core",
  "sqlc-derive",
+]
+
+[[package]]
+name = "authors-async"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "postgres-types",
+ "postgresql_embedded",
+ "refinery",
+ "sqlc-core",
+ "sqlc-derive",
+ "tokio",
+ "tokio-postgres",
 ]
 
 [[package]]
@@ -1427,9 +1447,12 @@ version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f66ea23a2d0e5734297357705193335e0a957696f34bed2f2faefacb2fec336f"
 dependencies = [
+ "array-init",
  "bytes",
  "fallible-iterator",
  "postgres-protocol",
+ "time",
+ "uuid",
 ]
 
 [[package]]
@@ -1668,6 +1691,8 @@ dependencies = [
  "siphasher 1.0.1",
  "thiserror",
  "time",
+ "tokio",
+ "tokio-postgres",
  "toml",
  "url",
  "walkdir",
@@ -2716,6 +2741,12 @@ name = "utf8parse"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
+
+[[package]]
+name = "uuid"
+version = "1.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81dfa00651efa65069b0b6b651f4aaa31ba9e3c3ce0137aaad053604ee7e0314"
 
 [[package]]
 name = "valuable"

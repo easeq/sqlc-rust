@@ -113,6 +113,8 @@ pub struct TypeQuery {
     cmd: String,
     arg: Option<QueryValue>,
     ret: Option<QueryValue>,
+    use_async: bool,
+    use_deadpool: bool,
 }
 
 impl TypeQuery {
@@ -121,12 +123,16 @@ impl TypeQuery {
         cmd: S,
         arg: Option<QueryValue>,
         ret: Option<QueryValue>,
+        use_async: bool,
+        use_deadpool: bool,
     ) -> Self {
         Self {
             name: name.into(),
             cmd: cmd.into(),
             arg,
             ret,
+            use_async,
+            use_deadpool,
         }
     }
 
@@ -152,45 +158,101 @@ impl TypeQuery {
         let query_method = match command {
             QueryCommand::One => {
                 let ret = self.ret.clone().unwrap_or_default();
-                quote! {
-                    pub(crate) fn #ident_name(&mut self, #arg) -> anyhow::Result<#ret> {
-                        let row = self.client.query_one(#ident_const_name, &[#fields_list])?;
-                        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-                    }
-                }
+                let sig = quote! { fn #ident_name(&mut self, #arg) -> anyhow::Result<#ret> };
+                let fetch_stmt = quote! {
+                    let row = self.client.query_one(#ident_const_name, &[#fields_list])
+                };
+                let fn_body = quote! {
+                    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+                };
+                QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
             }
             QueryCommand::Many => {
                 let ret = self.ret.clone().unwrap_or_default();
-                quote! {
-                    pub(crate) fn #ident_name(&mut self, #arg) -> anyhow::Result<Vec<#ret>> {
-                        let rows = self.client.query(#ident_const_name, &[#fields_list])?;
-                        let mut result: Vec<#ret> = vec![];
-                        for row in rows {
-                            result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-                        }
-
-                        Ok(result)
+                let sig = quote! { fn #ident_name(&mut self, #arg) -> anyhow::Result<Vec<#ret>> };
+                let fetch_stmt = quote! {
+                    let rows = self.client.query(#ident_const_name, &[#fields_list])
+                };
+                let fn_body = quote! {
+                    let mut result: Vec<#ret> = vec![];
+                    for row in rows {
+                        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
                     }
-                }
+
+                    Ok(result)
+                };
+                QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
             }
             QueryCommand::Exec
             | QueryCommand::ExecRows
             | QueryCommand::ExecResult
-            | QueryCommand::ExecLastId => quote! {
-                pub(crate) fn #ident_name(&mut self, #arg) -> anyhow::Result<()> {
-                    self.client.execute(#ident_const_name, &[#fields_list])?;
+            | QueryCommand::ExecLastId => {
+                let sig = quote! { fn #ident_name(&mut self, #arg) -> anyhow::Result<()> };
+                let fetch_stmt = quote! {
+                    self.client.execute(#ident_const_name, &[#fields_list])
+                };
+                let fn_body = quote! {
                     Ok(())
-                }
-            },
-            // _ => quote! {},
+                };
+                QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
+            } // _ => quote! {},
         };
 
-        quote! { #query_method }
+        query_method.to_token_stream()
     }
 }
 
 impl ToTokens for TypeQuery {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(self.generate_code().to_token_stream());
+    }
+}
+
+struct QueryMethod {
+    sig: TokenStream,
+    fetch_stmt: TokenStream,
+    fn_body: TokenStream,
+    use_async: bool,
+}
+
+impl QueryMethod {
+    fn new(
+        sig: TokenStream,
+        fn_body: TokenStream,
+        fetch_stmt: TokenStream,
+        use_async: bool,
+    ) -> Self {
+        Self {
+            sig,
+            fetch_stmt,
+            fn_body,
+            use_async,
+        }
+    }
+}
+
+impl ToTokens for QueryMethod {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let fn_code;
+        let sig = self.sig.clone();
+        let fn_body = self.fn_body.clone();
+        let fetch_stmt = self.fetch_stmt.clone();
+        if self.use_async {
+            fn_code = quote! {
+                pub(crate) async #sig {
+                    #fetch_stmt.await?;
+                    #fn_body
+                }
+            }
+        } else {
+            fn_code = quote! {
+                pub(crate) #sig {
+                    #fetch_stmt?;
+                    #fn_body
+                }
+            }
+        }
+
+        tokens.extend(fn_code);
     }
 }

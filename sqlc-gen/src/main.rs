@@ -31,6 +31,7 @@ pub fn create_codegen_response(content: &str) -> plugin::CodeGenResponse {
 }
 
 pub fn generate_rust_code(req: plugin::CodeGenRequest) -> String {
+    // println!("{:?}", req);
     let tokens = codegen::CodeBuilder::new(req).generate_code();
     let syntax_tree = syn::parse_file(tokens.to_string().as_str()).unwrap();
     return prettyplease::unparse(&syntax_tree);
