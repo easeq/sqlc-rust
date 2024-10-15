@@ -163,7 +163,8 @@ impl TypeQuery {
         let query_method = match command {
             QueryCommand::One => {
                 let ret = self.ret.clone().unwrap_or_default();
-                let sig = quote! { fn #ident_name(&mut self, #arg) -> anyhow::Result<#ret> };
+                let sig =
+                    quote! { fn #ident_name(&mut self, #arg) -> Result<#ret, sqlc_core::Error> };
                 let fetch_stmt = quote! {
                     let row = #client.query_one(#ident_const_name, &[#fields_list])
                 };
@@ -174,7 +175,7 @@ impl TypeQuery {
             }
             QueryCommand::Many => {
                 let ret = self.ret.clone().unwrap_or_default();
-                let sig = quote! { fn #ident_name(&mut self, #arg) -> anyhow::Result<Vec<#ret>> };
+                let sig = quote! { fn #ident_name(&mut self, #arg) -> Result<Vec<#ret>, sqlc_core::Error> };
                 let fetch_stmt = quote! {
                     let rows = #client.query(#ident_const_name, &[#fields_list])
                 };
@@ -192,7 +193,8 @@ impl TypeQuery {
             | QueryCommand::ExecRows
             | QueryCommand::ExecResult
             | QueryCommand::ExecLastId => {
-                let sig = quote! { fn #ident_name(&mut self, #arg) -> anyhow::Result<()> };
+                let sig =
+                    quote! { fn #ident_name(&mut self, #arg) -> Result<(), sqlc_core::Error> };
                 let fetch_stmt = quote! {
                     #client.execute(#ident_const_name, &[#fields_list])
                 };

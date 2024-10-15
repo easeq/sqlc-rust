@@ -241,7 +241,10 @@ impl fmt::Display for PgDataType {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Options {
+    #[serde(default)]
     use_async: bool,
+
+    #[serde(default)]
     use_deadpool: bool,
 }
 
@@ -591,7 +594,6 @@ impl CodeBuilder {
     }
 
     pub fn generate_code(&self) -> TokenStream {
-        let pg_module = self.rust_pg_mod();
         let enums = self.build_enums();
         let constants = self.build_constants();
         let mut structs = self.build_structs();
@@ -616,7 +618,6 @@ impl CodeBuilder {
 
         quote! {
             #generated_comment
-            use #pg_module::{Error, Row};
             #(#constants)*
             #(#enums)*
             #(#structs)*
