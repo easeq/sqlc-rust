@@ -154,13 +154,18 @@ impl TypeQuery {
         let fields_list = self.arg.clone().unwrap_or_default().generate_fields_list();
         let command = self.command();
         let arg = self.arg.clone().unwrap_or_default();
+        let client = if self.use_deadpool {
+            quote!(self.client().await)
+        } else {
+            quote!(self.client)
+        };
 
         let query_method = match command {
             QueryCommand::One => {
                 let ret = self.ret.clone().unwrap_or_default();
                 let sig = quote! { fn #ident_name(&mut self, #arg) -> anyhow::Result<#ret> };
                 let fetch_stmt = quote! {
-                    let row = self.client.query_one(#ident_const_name, &[#fields_list])
+                    let row = #client.query_one(#ident_const_name, &[#fields_list])
                 };
                 let fn_body = quote! {
                     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
@@ -171,7 +176,7 @@ impl TypeQuery {
                 let ret = self.ret.clone().unwrap_or_default();
                 let sig = quote! { fn #ident_name(&mut self, #arg) -> anyhow::Result<Vec<#ret>> };
                 let fetch_stmt = quote! {
-                    let rows = self.client.query(#ident_const_name, &[#fields_list])
+                    let rows = #client.query(#ident_const_name, &[#fields_list])
                 };
                 let fn_body = quote! {
                     let mut result: Vec<#ret> = vec![];
@@ -189,7 +194,7 @@ impl TypeQuery {
             | QueryCommand::ExecLastId => {
                 let sig = quote! { fn #ident_name(&mut self, #arg) -> anyhow::Result<()> };
                 let fetch_stmt = quote! {
-                    self.client.execute(#ident_const_name, &[#fields_list])
+                    #client.execute(#ident_const_name, &[#fields_list])
                 };
                 let fn_body = quote! {
                     Ok(())

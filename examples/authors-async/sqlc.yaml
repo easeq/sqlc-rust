@@ -6,7 +6,7 @@ plugins:
       - RUST_LOG
     wasm:
       url: file://./../../target/wasm32-wasip1/release/sqlc-gen.wasm
-      sha256: 11b3398e9c76537988374fe65093755475fa69f14d6c8b71f9f5843fa38ce148
+      sha256: b9b23fb8d86b9ca561b210c685fd1eb45fda7aef6cbab2f7d001b415c443609f
 
 # - name: js
 #   process:
@@ -20,6 +20,6 @@ sql:
         plugin: rust-gen
         options:
           use_async: true
-          use_deadpool: false
+          use_deadpool: false 
     # - out: gen
     #   plugin: js

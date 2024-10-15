@@ -536,12 +536,68 @@ impl CodeBuilder {
         (queries, associated_structs)
     }
 
+    pub fn rust_pg_mod(&self) -> TokenStream {
+        if self.options.use_async {
+            quote!(tokio_postgres)
+        } else {
+            quote!(postgres)
+        }
+    }
+
+    pub fn build_queries_impl(&self, queries: Vec<TypeQuery>) -> TokenStream {
+        let pg_module = self.rust_pg_mod();
+        let client_fn = if self.options.use_deadpool() {
+            quote! {
+                pub async fn client(&self) -> deadpool::managed::Object<deadpool_postgres::Manager> {
+                    let client = self.pool.get().await.unwrap();
+                    client
+                }
+            }
+        } else {
+            quote!()
+        };
+
+        let new_fn = if self.options.use_deadpool() {
+            quote! {
+                pub fn new(pool: deadpool_postgres::Pool) -> Self {
+                    Self { pool }
+                }
+            }
+        } else {
+            quote! {
+                pub fn new(client: #pg_module::Client) -> Self {
+                    Self { client }
+                }
+            }
+        };
+
+        let pool_or_client_field = if self.options.use_deadpool() {
+            quote!(pool: deadpool_postgres::Pool)
+        } else {
+            quote!(client: #pg_module::Client)
+        };
+
+        quote! {
+            pub struct Queries {
+                #pool_or_client_field
+            }
+
+            impl Queries {
+                #new_fn
+                #client_fn
+                #(#queries)*
+            }
+        }
+    }
+
     pub fn generate_code(&self) -> TokenStream {
+        let pg_module = self.rust_pg_mod();
         let enums = self.build_enums();
         let constants = self.build_constants();
         let mut structs = self.build_structs();
 
         let (queries, associated_structs) = self.build_queries(structs.clone());
+        let queries_impl = self.build_queries_impl(queries);
 
         structs.extend(associated_structs);
         structs.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
@@ -557,25 +613,6 @@ impl CodeBuilder {
 "#,
         )
         .to_token_stream();
-
-        let pg_module = if self.options.use_async {
-            quote!(tokio_postgres)
-        } else {
-            quote!(postgres)
-        };
-
-        let queries_impl = quote! {
-            pub struct Queries {
-                client: #pg_module::Client,
-            }
-            impl Queries {
-                pub fn new(client: #pg_module::Client) -> Self {
-                    Self { client }
-                }
-
-                #(#queries)*
-            }
-        };
 
         quote! {
             #generated_comment
