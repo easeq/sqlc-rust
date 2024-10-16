@@ -1,19 +1,46 @@
 -- name: GetAuthor :one
-SELECT * FROM authors
-WHERE id = $1 LIMIT 1;
+select *
+from authors
+where id = $1
+limit 1
+;
 
 -- name: ListAuthors :many
-SELECT * FROM authors
-ORDER BY name;
+select *
+from authors
+order by name
+;
 
 -- name: CreateAuthor :one
 INSERT INTO authors (
-          name, bio
+  name, bio
 ) VALUES (
   $1, $2
 )
 RETURNING *;
 
+-- name: CreateAuthorFull :one
+INSERT INTO authors (
+  name, 
+  bio,
+  data,
+  attrs,
+  ip_inet,
+  ip_cidr,
+  mac_address,
+  geo_point,
+  geo_rect,
+  geo_path,
+  bit_a,
+  varbit_a,
+  created_at,
+  updated_at
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+)
+RETURNING *;
+
 -- name: DeleteAuthor :exec
-DELETE FROM authors
-WHERE id = $1;
+delete from authors
+where id = $1
+;

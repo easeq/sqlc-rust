@@ -208,6 +208,14 @@ impl PgDataType {
             "cidr" => "cidr::IpCidr".to_string(),
             "macaddr" | "macaddr8" => "eui48::MacAddress".to_string(),
 
+            "hstore" => "std::collections::HashMap<String, Option<String>>".to_string(),
+            "bit" | "varbit" | "pg_catalog.bit" | "pg_catalog.varbit" => {
+                "bit_vec::BitVec".to_string()
+            }
+            "point" => "geo_types::Point<f64>".to_string(),
+            "box" => "geo_types::Rect<f64>".to_string(),
+            "path" => "geo_types::LineString<f64>".to_string(),
+
             _ => {
                 let res = schemas.into_iter().find_map(|schema| {
                     if schema.name == "pg_catalog" || schema.name == "information_schema" {

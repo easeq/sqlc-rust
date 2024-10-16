@@ -1,4 +1,5 @@
 use cfg_block::cfg_block;
+use std::collections::HashMap;
 
 #[cfg(all(feature = "with-postgres", feature = "with-tokio-postgres"))]
 compile_error!(
@@ -34,6 +35,10 @@ from_primitive!(i16);
 from_primitive!(i32);
 from_primitive!(i64);
 from_primitive!(f64);
+from_primitive!(HashMap<String, Option<String>>);
+
+#[cfg(feature = "with-bit-vec-0_6")]
+from_primitive!(bit_vec_06::BitVec);
 
 #[cfg(feature = "with-uuid-0_8")]
 from_primitive!(uuid_0_8::Uuid);
@@ -51,6 +56,18 @@ cfg_block! {
     #[cfg(feature = "with-cidr-0_2")] {
         from_primitive!(cidr_02::IpInet);
         from_primitive!(cidr_02::IpCidr);
+    }
+
+    #[cfg(feature = "with-geo-types-0_6")] {
+        from_primitive!(geo_types_06::Point);
+        from_primitive!(geo_types_06::Rect);
+        from_primitive!(geo_types_06::LineString);
+    }
+
+    #[cfg(feature = "with-geo-types-0_7")] {
+        from_primitive!(geo_types_0_7::Point);
+        from_primitive!(geo_types_0_7::Rect);
+        from_primitive!(geo_types_0_7::LineString);
     }
 
     #[cfg(feature = "with-time-0_2")] {
