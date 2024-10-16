@@ -23,10 +23,3 @@ RETURNING *;
 delete from authors
 where id = $1
 ;
-
--- name: GetSite :one
-select *
-from site
-where id = $1
-limit 1
-;

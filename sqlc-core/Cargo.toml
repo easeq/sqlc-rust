@@ -28,7 +28,7 @@ time-03 = { version = "0.3", package = "time", default-features = false, optiona
 with-postgres = ["postgres"]
 with-tokio-postgres = ["tokio-postgres"]
 with-deadpool = ["deadpool-postgres", "with-tokio-postgres"]
-with-cidr-0_2 = ["postgres-types/with-cidr-0_2"]
+with-cidr-0_2 = ["cidr-02", "postgres-types/with-cidr-0_2"]
 with-eui48-0_4 = ["eui48-04", "postgres/with-eui48-0_4", "tokio-postgres/with-eui48-0_4"]
 with-eui48-1 = ["eui48-1", "postgres/with-eui48-1", "tokio-postgres/with-eui48-1"]
 with-serde_json-1 = ["serde-1", "serde_json-1", "postgres/with-serde_json-1", "tokio-postgres/with-serde_json-1"]

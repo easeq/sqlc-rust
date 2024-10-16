@@ -106,43 +106,58 @@ dependencies = [
 name = "authors"
 version = "0.1.0"
 dependencies = [
- "anyhow",
+ "cidr",
+ "eui48 1.1.0",
  "postgres",
  "postgres-types",
  "postgresql_embedded",
  "refinery",
+ "serde",
+ "serde_json",
  "sqlc-core",
  "sqlc-derive",
+ "time 0.3.36",
+ "uuid 1.10.0",
 ]
 
 [[package]]
 name = "authors-async"
 version = "0.1.0"
 dependencies = [
- "anyhow",
+ "cidr",
+ "eui48 1.1.0",
  "postgres-types",
  "postgresql_embedded",
  "refinery",
+ "serde",
+ "serde_json",
  "sqlc-core",
  "sqlc-derive",
+ "time 0.3.36",
  "tokio",
  "tokio-postgres",
+ "uuid 1.10.0",
 ]
 
 [[package]]
 name = "authors-deadpool"
 version = "0.1.0"
 dependencies = [
- "anyhow",
+ "cidr",
  "deadpool",
  "deadpool-postgres",
+ "eui48 1.1.0",
  "postgres-types",
  "postgresql_embedded",
  "refinery",
+ "serde",
+ "serde_json",
  "sqlc-core",
  "sqlc-derive",
+ "time 0.3.36",
  "tokio",
  "tokio-postgres",
+ "uuid 1.10.0",
 ]
 
 [[package]]
@@ -450,6 +465,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b42b6fa04a440b495c8b04d0e71b707c585f83cb9cb28cf8cd0d976c315e31b4"
 dependencies = [
  "powerfmt",
+ "serde",
 ]
 
 [[package]]
@@ -555,6 +571,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "887418ac5e8d57c2e66e04bdc2fe15f9a5407be20b54a82c86bd0e368b709701"
 dependencies = [
  "regex",
+ "rustc-serialize",
 ]
 
 [[package]]
@@ -1261,6 +1278,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
 dependencies = [
  "hermit-abi",
+ "libc",
+]
+
+[[package]]
+name = "num_threads"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c7398b9c8b70908f6371f47ed36737907c87c52af34c268fed0bf0ceb92ead9"
+dependencies = [
  "libc",
 ]
 
@@ -2662,7 +2688,9 @@ checksum = "5dfd88e563464686c916c7e46e623e520ddc6d79fa6641390f2e3fa86e83e885"
 dependencies = [
  "deranged",
  "itoa",
+ "libc",
  "num-conv",
+ "num_threads",
  "powerfmt",
  "serde",
  "time-core",

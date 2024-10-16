@@ -23,12 +23,6 @@ const DELETE_AUTHOR: &str = r#"
 delete from authors
 where id = $1
 "#;
-const GET_SITE: &str = r#"
-select id, url, status, data, inet, mac, new_id, created_at, updated_at
-from site
-where id = $1
-limit 1
-"#;
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
 pub(crate) struct Author {
     pub id: i64,
@@ -39,18 +33,6 @@ pub(crate) struct Author {
 pub(crate) struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,
-}
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct Site {
-    pub id: uuid::Uuid,
-    pub url: String,
-    pub status: bool,
-    pub data: serde_json::Value,
-    pub inet: cidr::InetCidr,
-    pub mac: eui48::MacAddress,
-    pub new_id: uuid::Uuid,
-    pub created_at: time::OffsetDateTime,
-    pub updated_at: time::OffsetDateTime,
 }
 pub struct Queries {
     client: tokio_postgres::Client,
@@ -78,13 +60,6 @@ impl Queries {
         id: i64,
     ) -> Result<Author, sqlc_core::Error> {
         let row = self.client.query_one(GET_AUTHOR, &[&id]).await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) async fn get_site(
-        &mut self,
-        id: uuid::Uuid,
-    ) -> Result<Site, sqlc_core::Error> {
-        let row = self.client.query_one(GET_SITE, &[&id]).await?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
     pub(crate) async fn list_authors(

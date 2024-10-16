@@ -1,36 +1,18 @@
 use cfg_block::cfg_block;
 
-cfg_block! {
-    #[cfg(all(feature = "with-postgres", feature = "with-tokio-postgres"))] {
-        compile_error!(
+#[cfg(all(feature = "with-postgres", feature = "with-tokio-postgres"))]
+compile_error!(
             "features with-postgres and with-tokio-postgres are mutually exclusive and cannot be enabled together"
         );
-    }
 
-    #[cfg(all(not(feature = "with-postgres"), not(feature = "with-tokio-postgres")))] {
-        compile_error!(
-            "one of with-postgres and with-tokio-postgres features needs to be enabled"
-        );
-    }
+#[cfg(all(not(feature = "with-postgres"), not(feature = "with-tokio-postgres")))]
+compile_error!("one of with-postgres and with-tokio-postgres features needs to be enabled");
 
-    #[cfg(feature = "with-postgres")] {
-        use postgres::{Error as PgError, Row};
-    }
+#[cfg(feature = "with-postgres")]
+use postgres::{Error as PgError, Row};
 
-    #[cfg(feature = "with-tokio-postgres")] {
-        use tokio_postgres::{Error as PgError, Row};
-    }
-}
-
-// cfg_block! {
-//     #[cfg(feature = "default")] {
-//         use postgres::{Row, Error as PgError};
-//     }
-//
-//     #[cfg(not(feature = "default"))] {
-//         use tokio_postgres::{Row, Error as PgError};
-//     }
-// }
+#[cfg(feature = "with-tokio-postgres")]
+use tokio_postgres::{Error as PgError, Row};
 
 pub trait FromPostgresRow: Sized {
     fn from_row(row: &Row) -> Result<Self, PgError>;
@@ -54,35 +36,35 @@ from_primitive!(i64);
 from_primitive!(f64);
 
 #[cfg(feature = "with-uuid-0_8")]
-from_primitive!(uuid::Uuid);
+from_primitive!(uuid_0_8::Uuid);
 
 #[cfg(feature = "with-uuid-1")]
-from_primitive!(uuid::Uuid);
+from_primitive!(uuid_1::Uuid);
 
 #[cfg(feature = "with-eui48-0_4")]
-from_primitive!(eui48::MacAddress);
+from_primitive!(eui48_04::MacAddress);
 
 #[cfg(feature = "with-eui48-1")]
-from_primitive!(eui48::MacAddress);
+from_primitive!(eui48_1::MacAddress);
 
 cfg_block! {
     #[cfg(feature = "with-cidr-0_2")] {
-        from_primitive!(cidr::InetCidr);
-        from_primitive!(cidr::InetAddr);
+        from_primitive!(cidr_02::IpInet);
+        from_primitive!(cidr_02::IpCidr);
     }
 
     #[cfg(feature = "with-time-0_2")] {
-        from_primitive!(time::Time);
-        from_primitive!(time::Date);
-        from_primitive!(time::PrimitiveDateTime);
-        from_primitive!(time::OffsetDateTime);
+        from_primitive!(time_02::Time);
+        from_primitive!(time_02::Date);
+        from_primitive!(time_02::PrimitiveDateTime);
+        from_primitive!(time_02::OffsetDateTime);
     }
 
     #[cfg(feature = "with-time-0_3")] {
-        from_primitive!(time::Time);
-        from_primitive!(time::Date);
-        from_primitive!(time::PrimitiveDateTime);
-        from_primitive!(time::OffsetDateTime);
+        from_primitive!(time_03::Time);
+        from_primitive!(time_03::Date);
+        from_primitive!(time_03::PrimitiveDateTime);
+        from_primitive!(time_03::OffsetDateTime);
     }
 }
 

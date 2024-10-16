@@ -52,6 +52,9 @@ fn main() -> Result<()> {
     let author1_res = queries.create_author(author1_req.clone()).unwrap();
     assert_eq!(author1_res.name, author1_req.name);
     assert_eq!(author1_res.bio, author1_req.bio.clone());
+    assert_eq!(author1_res.uuid, author1_res.uuid.clone());
+    assert_ne!(author1_res.uuid, None);
+    println!("{:?}", author1_res);
     assert!(author1_res.id > 0);
 
     let mut authors_list_prepared = vec![author1_res.clone()];

@@ -204,8 +204,8 @@ impl PgDataType {
             | "lquery" | "ltxtquery" => "String".to_string(),
 
             "uuid" => "uuid::Uuid".to_string(),
-            "inet" => "cidr::InetCidr".to_string(),
-            "cidr" => "cidr::InetAddr".to_string(),
+            "inet" => "cidr::IpInet".to_string(),
+            "cidr" => "cidr::IpCidr".to_string(),
             "macaddr" | "macaddr8" => "eui48::MacAddress".to_string(),
 
             _ => {

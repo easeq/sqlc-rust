@@ -4,13 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.89"
+cidr = "0.2"
 deadpool = "0.12.1"
 deadpool-postgres = "0.14.0"
+eui48 = "1.1.0"
 postgres-types = "0.2.8"
 postgresql_embedded = { version = "0.16.3", features = ["blocking", "bundled"] }
 refinery = { version = "0.8.14", features = ["postgres", "tokio-postgres"] }
-sqlc-core = { version = "0.1.0", path = "../../sqlc-core" }
+serde = "1.0.210"
+serde_json = "1.0.128"
+sqlc-core = { version = "0.1.0", path = "../../sqlc-core", default-features = false, features = ["with-cidr-0_2", "with-eui48-1", "with-serde_json-1", "with-time-0_3", "with-tokio-postgres", "with-uuid-1"] }
 sqlc-derive = { version = "0.1.0", path = "../../sqlc-derive", default-features = false, features = ["with-tokio-postgres"] }
+time = "0.3.36"
 tokio = { version = "1.40.0", features = ["rt", "rt-multi-thread", "macros", "signal"] }
 tokio-postgres = { version = "0.7.12", features = ["with-uuid-1", "with-time-0_3", "array-impls"] }
+uuid = "1.10.0"
