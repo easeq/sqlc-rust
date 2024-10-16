@@ -8,8 +8,8 @@
         "RUST_LOG"
       ],
       "wasm": {
-        "url": "file://./../../../target/wasm32-wasi/release/sqlc-gen.wasm",
-        "sha256": "7c02055c3eba7bcb913da0e9090541314d14da8c350b34891c4a2e5826c23307"
+        "url": "file://./../../../target/wasm32-wasip1/release/sqlc-gen.wasm",
+        "sha256": "8920bd7d234e7705f537979be05780fd08a8285fbae26afec268caad3d064867"
       }
     }
   ],
@@ -23,7 +23,8 @@
           "out": "postgresql",
           "plugin": "rust-gen",
           "options": {
-            "lang": "en-US"
+            "use_async": true,
+            "use_deadpool": false
           }
         }
       ]

@@ -11,3 +11,8 @@ proc-macro2 = "1.0.86"
 quote = "1.0.37"
 sqlc-core = { version = "0.1.0", path = "../sqlc-core" }
 syn = "2.0.77"
+
+[features]
+default = ["with-postgres"]
+with-postgres = ["sqlc-core/with-postgres"]
+with-tokio-postgres = ["sqlc-core/with-tokio-postgres"]

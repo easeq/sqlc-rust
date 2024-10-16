@@ -86,20 +86,20 @@ pub(crate) struct CreateAuthorParams {
     pub bio: Option<String>,
 }
 pub struct Queries {
-    client: postgres::Client,
+    client: tokio_postgres::Client,
 }
 impl Queries {
-    pub fn new(client: postgres::Client) -> Self {
+    pub fn new(client: tokio_postgres::Client) -> Self {
         Self { client }
     }
-    pub(crate) fn create_author(
+    pub(crate) async fn create_author(
         &mut self,
         arg: CreateAuthorParams,
     ) -> Result<Author, sqlc_core::Error> {
-        let row = self.client.query_one(CREATE_AUTHOR, &[&arg.name, &arg.bio])?;
+        let row = self.client.query_one(CREATE_AUTHOR, &[&arg.name, &arg.bio]).await?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
-    pub(crate) fn create_author_full(
+    pub(crate) async fn create_author_full(
         &mut self,
         arg: CreateAuthorFullParams,
     ) -> Result<Author, sqlc_core::Error> {
@@ -123,19 +123,28 @@ impl Queries {
                     &arg.created_at,
                     &arg.updated_at,
                 ],
-            )?;
+            )
+            .await?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
-    pub(crate) fn delete_author(&mut self, id: i64) -> Result<(), sqlc_core::Error> {
-        self.client.execute(DELETE_AUTHOR, &[&id])?;
+    pub(crate) async fn delete_author(
+        &mut self,
+        id: i64,
+    ) -> Result<(), sqlc_core::Error> {
+        self.client.execute(DELETE_AUTHOR, &[&id]).await?;
         Ok(())
     }
-    pub(crate) fn get_author(&mut self, id: i64) -> Result<Author, sqlc_core::Error> {
-        let row = self.client.query_one(GET_AUTHOR, &[&id])?;
+    pub(crate) async fn get_author(
+        &mut self,
+        id: i64,
+    ) -> Result<Author, sqlc_core::Error> {
+        let row = self.client.query_one(GET_AUTHOR, &[&id]).await?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
-    pub(crate) fn list_authors(&mut self) -> Result<Vec<Author>, sqlc_core::Error> {
-        let rows = self.client.query(LIST_AUTHORS, &[])?;
+    pub(crate) async fn list_authors(
+        &mut self,
+    ) -> Result<Vec<Author>, sqlc_core::Error> {
+        let rows = self.client.query(LIST_AUTHORS, &[]).await?;
         let mut result: Vec<Author> = vec![];
         for row in rows {
             result.push(sqlc_core::FromPostgresRow::from_row(&row)?);

@@ -3,6 +3,9 @@
 members = [
   "sqlc-gen",
   "sqlc-core",
-  "sqlc-derive", "examples/authors",
+  "sqlc-derive", 
+  "examples/authors",
+  "examples/authors-async",
+  "examples/authors-deadpool",
 ]
 

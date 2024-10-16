@@ -4,6 +4,7 @@ use core::panic;
 use itertools::Itertools;
 use proc_macro2::{Punct, Spacing, TokenStream};
 use quote::{format_ident, quote, ToTokens};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::hash::Hash;
 use std::str::FromStr;
@@ -40,12 +41,10 @@ pub fn get_newline_tokens() -> TokenStream {
 }
 
 pub fn column_name(name: String, pos: i32) -> String {
-    let col_name = match name.is_empty() {
-        false => name.clone(),
+    match name.is_empty() {
+        false => name.clone().to_case(convert_case::Case::Snake),
         true => format!("_{}", pos),
-    };
-
-    col_name.to_case(convert_case::Case::Snake)
+    }
 }
 
 pub fn param_name(p: &plugin::Parameter) -> String {
@@ -149,14 +148,12 @@ pub struct DataType(String);
 
 impl ToTokens for DataType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let parts = self.0.split("::");
-        for (i, part) in parts.enumerate() {
-            if i > 0 {
-                tokens.extend(get_punct_from_char_tokens(':'));
-                tokens.extend(get_punct_from_char_tokens(':'));
-            }
-            tokens.extend(get_ident(part).into_token_stream());
-        }
+        tokens.extend(
+            self.0
+                .chars()
+                .into_iter()
+                .map(|c| get_punct_from_char_tokens(c)),
+        );
     }
 }
 
@@ -165,11 +162,15 @@ pub struct PgDataType(pub String);
 
 impl ToTokens for PgDataType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(DataType(self.to_string()).into_token_stream());
+        tokens.extend(self.as_data_type().into_token_stream());
     }
 }
 
 impl PgDataType {
+    pub fn as_data_type(&self) -> DataType {
+        DataType(self.to_string())
+    }
+
     pub fn from(s: &str, schemas: Vec<plugin::Schema>, default_schema: String) -> PgDataType {
         let pg_data_type_string = match s {
             "smallint" | "int2" | "pg_catalog.int2" | "smallserial" | "serial2"
@@ -196,16 +197,24 @@ impl PgDataType {
             "pg_catalog.time" | "pg_catalog.timez" => "time::Time".to_string(),
 
             "pg_catalog.timestamp" => "time::PrimitiveDateTime".to_string(),
-            "pg_catalog.timestampz" | "timestampz" => "time::PrimitiveDateTime".to_string(),
+            "pg_catalog.timestamptz" | "timestamptz" => "time::OffsetDateTime".to_string(),
 
             "interval" | "pg_catalog.interval" => "i64".to_string(),
             "text" | "pg_catalog.varchar" | "pg_catalog.bpchar" | "string" | "citext" | "ltree"
             | "lquery" | "ltxtquery" => "String".to_string(),
 
             "uuid" => "uuid::Uuid".to_string(),
-            "inet" => "cidr::InetCidr".to_string(),
-            "cidr" => "cidr::InetAddr".to_string(),
+            "inet" => "cidr::IpInet".to_string(),
+            "cidr" => "cidr::IpCidr".to_string(),
             "macaddr" | "macaddr8" => "eui48::MacAddress".to_string(),
+
+            "hstore" => "std::collections::HashMap<String, Option<String>>".to_string(),
+            "bit" | "varbit" | "pg_catalog.bit" | "pg_catalog.varbit" => {
+                "bit_vec::BitVec".to_string()
+            }
+            "point" => "geo_types::Point<f64>".to_string(),
+            "box" => "geo_types::Rect<f64>".to_string(),
+            "path" => "geo_types::LineString<f64>".to_string(),
 
             _ => {
                 let res = schemas.into_iter().find_map(|schema| {
@@ -238,14 +247,56 @@ impl fmt::Display for PgDataType {
     }
 }
 
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct Options {
+    #[serde(default)]
+    use_async: bool,
+
+    #[serde(default)]
+    use_deadpool: bool,
+}
+
+impl Options {
+    pub fn use_deadpool(&self) -> bool {
+        self.use_async && self.use_deadpool
+    }
+}
+
 #[derive(Default)]
 pub struct CodeBuilder {
     req: plugin::CodeGenRequest,
+    options: Options,
 }
 
 impl CodeBuilder {
     pub fn new(req: plugin::CodeGenRequest) -> Self {
-        Self { req }
+        let settings = req.settings.clone().expect("could not find sqlc config");
+        let codegen = settings
+            .codegen
+            .expect("codegen settings not defined in sqlc config");
+        let options_str = match std::str::from_utf8(&codegen.options) {
+            Ok(v) => v,
+            Err(e) => panic!("Invalid UTF-8 sequence in codegen options: {}", e),
+        };
+
+        let mut code_builder = Self {
+            req,
+            options: Options::default(),
+        };
+
+        if !options_str.is_empty() {
+            let options: Options = serde_json::from_str(options_str).expect(
+                format!(
+                    "could not deserialize codegen options (valid object: {:?})",
+                    serde_json::to_string(&Options::default())
+                        .expect("could not convert options to json string"),
+                )
+                .as_str(),
+            );
+            code_builder.options = options;
+        }
+
+        code_builder
     }
 }
 
@@ -483,6 +534,8 @@ impl CodeBuilder {
                         query.cmd.clone(),
                         arg,
                         ret,
+                        self.options.use_async,
+                        self.options.use_deadpool(),
                     ))
                 }
             })
@@ -494,12 +547,67 @@ impl CodeBuilder {
         (queries, associated_structs)
     }
 
+    pub fn rust_pg_mod(&self) -> TokenStream {
+        if self.options.use_async {
+            quote!(tokio_postgres)
+        } else {
+            quote!(postgres)
+        }
+    }
+
+    pub fn build_queries_impl(&self, queries: Vec<TypeQuery>) -> TokenStream {
+        let pg_module = self.rust_pg_mod();
+        let client_fn = if self.options.use_deadpool() {
+            quote! {
+                pub async fn client(&self) -> deadpool::managed::Object<deadpool_postgres::Manager> {
+                    let client = self.pool.get().await.unwrap();
+                    client
+                }
+            }
+        } else {
+            quote!()
+        };
+
+        let new_fn = if self.options.use_deadpool() {
+            quote! {
+                pub fn new(pool: deadpool_postgres::Pool) -> Self {
+                    Self { pool }
+                }
+            }
+        } else {
+            quote! {
+                pub fn new(client: #pg_module::Client) -> Self {
+                    Self { client }
+                }
+            }
+        };
+
+        let pool_or_client_field = if self.options.use_deadpool() {
+            quote!(pool: deadpool_postgres::Pool)
+        } else {
+            quote!(client: #pg_module::Client)
+        };
+
+        quote! {
+            pub struct Queries {
+                #pool_or_client_field
+            }
+
+            impl Queries {
+                #new_fn
+                #client_fn
+                #(#queries)*
+            }
+        }
+    }
+
     pub fn generate_code(&self) -> TokenStream {
         let enums = self.build_enums();
         let constants = self.build_constants();
         let mut structs = self.build_structs();
 
         let (queries, associated_structs) = self.build_queries(structs.clone());
+        let queries_impl = self.build_queries_impl(queries);
 
         structs.extend(associated_structs);
         structs.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
@@ -516,22 +624,8 @@ impl CodeBuilder {
         )
         .to_token_stream();
 
-        let queries_impl = quote! {
-            pub struct Queries {
-                client: postgres::Client,
-            }
-            impl Queries {
-                pub fn new(client: postgres::Client) -> Self {
-                    Self { client }
-                }
-
-                #(#queries)*
-            }
-        };
-
         quote! {
             #generated_comment
-            use postgres::{Error, Row};
             #(#constants)*
             #(#enums)*
             #(#structs)*
