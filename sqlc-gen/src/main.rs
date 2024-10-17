@@ -1,36 +1,31 @@
-use codegen::plugin;
 use prost::Message;
+use sqlc_sqlc_community_neoeinstein_prost::plugin;
 use std::io;
 use std::io::prelude::*;
-use std::io::Cursor;
 
 pub mod codegen;
 
 pub fn deserialize_codegen_request(
     buf: &[u8],
-) -> Result<plugin::CodeGenRequest, prost::DecodeError> {
-    plugin::CodeGenRequest::decode(&mut Cursor::new(buf))
+) -> Result<plugin::GenerateRequest, prost::DecodeError> {
+    plugin::GenerateRequest::decode(buf)
 }
 
-pub fn serialize_codegen_response(resp: &plugin::CodeGenResponse) -> Vec<u8> {
-    let mut buf = Vec::new();
-    buf.reserve(resp.encoded_len());
-
-    resp.encode(&mut buf).unwrap();
-    buf
+pub fn serialize_codegen_response(resp: &plugin::GenerateResponse) -> Vec<u8> {
+    resp.encode_to_vec()
 }
 
-pub fn create_codegen_response(content: &str) -> plugin::CodeGenResponse {
+pub fn create_codegen_response(content: &str) -> plugin::GenerateResponse {
     let mut file = plugin::File::default();
     file.name = "gen.rs".to_string();
-    file.contents = content.as_bytes().to_vec();
+    file.contents = content.as_bytes().to_vec().into();
 
-    let mut resp = plugin::CodeGenResponse::default();
+    let mut resp = plugin::GenerateResponse::default();
     resp.files.push(file);
     resp
 }
 
-pub fn generate_rust_code(req: plugin::CodeGenRequest) -> String {
+pub fn generate_rust_code(req: plugin::GenerateRequest) -> String {
     // println!("{:?}", req);
     let tokens = codegen::CodeBuilder::new(req).generate_code();
     let syntax_tree = syn::parse_file(tokens.to_string().as_str()).unwrap();
@@ -41,22 +36,22 @@ pub fn generate_rust_code(req: plugin::CodeGenRequest) -> String {
 fn main() -> Result<(), prost::DecodeError> {
     let stdin = io::stdin();
     let mut stdin = stdin.lock();
-    let buffer = stdin.fill_buf().unwrap();
+    let mut buffer: Vec<u8> = Vec::new();
+    stdin.read_to_end(&mut buffer).unwrap();
 
-    let req = match deserialize_codegen_request(&buffer) {
-        Ok(request_deserialized_result) => request_deserialized_result,
-        Err(_e) => std::process::exit(1),
-    };
+    let buffer = stdin.fill_buf().unwrap();
+    // panic!("{:?}", buffer.len());
+
+    let req = deserialize_codegen_request(&buffer)?;
 
     let out = generate_rust_code(req);
 
     let resp = create_codegen_response(&out);
     let out = serialize_codegen_response(&resp);
 
-    let _ = match io::stdout().write_all(&out) {
-        Ok(result) => result,
-        Err(_e) => std::process::exit(1),
-    };
+    let _result = io::stdout()
+        .write_all(&out)
+        .expect("failed to write generated code");
 
     Ok(())
 }
