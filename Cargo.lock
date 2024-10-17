@@ -1771,7 +1771,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "444879275cb4fd84958b1a1d5420d15e6fcf7c235fe47f053c9c2a80aceb6001"
 dependencies = [
  "bytes",
- "prost-derive",
+ "prost-derive 0.9.0",
+]
+
+[[package]]
+name = "prost"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b0487d90e047de87f984913713b85c601c05609aad5b0df4b4573fbf69aa13f"
+dependencies = [
+ "bytes",
+ "prost-derive 0.13.3",
 ]
 
 [[package]]
@@ -1787,8 +1797,8 @@ dependencies = [
  "log",
  "multimap",
  "petgraph",
- "prost",
- "prost-types",
+ "prost 0.9.0",
+ "prost-types 0.9.0",
  "regex",
  "tempfile",
  "which",
@@ -1808,13 +1818,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "prost-derive"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9552f850d5f0964a4e4d0bf306459ac29323ddfbae05e35a7c0d35cb0803cc5"
+dependencies = [
+ "anyhow",
+ "itertools 0.10.5",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
+]
+
+[[package]]
 name = "prost-types"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "534b7a0e836e3c482d2693070f982e39e7611da9695d4d1f5a4b186b51faef0a"
 dependencies = [
  "bytes",
- "prost",
+ "prost 0.9.0",
+]
+
+[[package]]
+name = "prost-types"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4759aa0d3a6232fb8dbdb97b61de2c20047c68aca932c7ed76da9d788508d670"
+dependencies = [
+ "prost 0.13.3",
 ]
 
 [[package]]
@@ -2343,7 +2375,7 @@ dependencies = [
 
 [[package]]
 name = "sqlc-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bit-vec",
  "cfg_block",
@@ -2367,7 +2399,7 @@ dependencies = [
 
 [[package]]
 name = "sqlc-derive"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2377,8 +2409,9 @@ dependencies = [
 
 [[package]]
 name = "sqlc-gen"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
+ "base64",
  "bytes",
  "check_keyword",
  "convert_case",
@@ -2387,15 +2420,26 @@ dependencies = [
  "postgres-types",
  "prettyplease",
  "proc-macro2",
- "prost",
+ "prost 0.13.3",
  "prost-build",
  "quote",
  "serde",
  "serde_json",
+ "sqlc_sqlc_community_neoeinstein-prost",
  "sqlparser",
  "strum",
  "strum_macros",
  "syn 2.0.77",
+]
+
+[[package]]
+name = "sqlc_sqlc_community_neoeinstein-prost"
+version = "0.4.0-20231117054108-cdddfad5b282.1"
+source = "sparse+https://buf.build/gen/cargo/"
+checksum = "fcfd78d5fdd4372e2be3cc89b84eab65d3dcc5fd0cd7774289f0684909c5d9c3"
+dependencies = [
+ "prost 0.13.3",
+ "prost-types 0.13.3",
 ]
 
 [[package]]
