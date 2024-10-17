@@ -23,6 +23,12 @@ sql:
       lang: en-us
 ```
 
+### Setup
+
+- Go to [https://buf.build/sqlc/sqlc/sdks/v1.22.0](https://buf.build/sqlc/sqlc/sdks/v1.22.0) 
+- Follow the instructions for Rust - community/neoeinstein-prost
+
+
 ### Run
 
 The following command generates rust code for all examples

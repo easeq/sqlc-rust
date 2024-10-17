@@ -5,6 +5,7 @@ use itertools::Itertools;
 use proc_macro2::{Punct, Spacing, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use serde::{Deserialize, Serialize};
+use sqlc_sqlc_community_neoeinstein_prost::plugin;
 use std::fmt;
 use std::hash::Hash;
 use std::str::FromStr;
@@ -19,9 +20,8 @@ mod type_enum;
 mod type_query;
 mod type_struct;
 
-pub mod plugin {
-    include!(concat!(env!("OUT_DIR"), "/plugin.rs"));
-}
+// #[path = "./plugin.rs"]
+// pub mod plugin;
 
 pub fn get_ident(value: &str) -> Ident {
     format_ident!("{}", value)
@@ -264,12 +264,12 @@ impl Options {
 
 #[derive(Default)]
 pub struct CodeBuilder {
-    req: plugin::CodeGenRequest,
+    req: plugin::GenerateRequest,
     options: Options,
 }
 
 impl CodeBuilder {
-    pub fn new(req: plugin::CodeGenRequest) -> Self {
+    pub fn new(req: plugin::GenerateRequest) -> Self {
         let settings = req.settings.clone().expect("could not find sqlc config");
         let codegen = settings
             .codegen

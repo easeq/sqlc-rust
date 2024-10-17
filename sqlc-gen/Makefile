@@ -13,7 +13,7 @@ get-outer-examples:
 	echo $(EXAMPLES_OUTER) | make -s prepare-list
 
 generate-for-example:
-	@echo "generating for $$example" && \
+	@echo "generating for $$example_dir" && \
 	cd $$example_dir && \
 	file_with_ext=$$(ls sqlc.*) && \
 	file_ext=$${file_with_ext##*.} && \
