@@ -19,27 +19,6 @@ INSERT INTO authors (
 )
 RETURNING id, uuid, name, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at, updated_at
 "#;
-const CREATE_AUTHOR_FULL: &str = r#"
-INSERT INTO authors (
-  name, 
-  bio,
-  data,
-  attrs,
-  ip_inet,
-  ip_cidr,
-  mac_address,
-  geo_point,
-  geo_rect,
-  geo_path,
-  bit_a,
-  varbit_a,
-  created_at,
-  updated_at
-) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
-)
-RETURNING id, uuid, name, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at, updated_at
-"#;
 const DELETE_AUTHOR: &str = r#"
 delete from authors
 where id = $1
@@ -48,23 +27,6 @@ where id = $1
 pub(crate) struct Author {
     pub id: i64,
     pub uuid: Option<uuid::Uuid>,
-    pub name: String,
-    pub bio: Option<String>,
-    pub data: Option<serde_json::Value>,
-    pub attrs: Option<std::collections::HashMap<String, Option<String>>>,
-    pub ip_inet: cidr::IpInet,
-    pub ip_cidr: cidr::IpCidr,
-    pub mac_address: eui48::MacAddress,
-    pub geo_point: Option<geo_types::Point<f64>>,
-    pub geo_rect: Option<geo_types::Rect<f64>>,
-    pub geo_path: Option<geo_types::LineString<f64>>,
-    pub bit_a: Option<bit_vec::BitVec>,
-    pub varbit_a: Option<bit_vec::BitVec>,
-    pub created_at: time::OffsetDateTime,
-    pub updated_at: time::OffsetDateTime,
-}
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-pub(crate) struct CreateAuthorFullParams {
     pub name: String,
     pub bio: Option<String>,
     pub data: Option<serde_json::Value>,
@@ -97,33 +59,6 @@ impl Queries {
         arg: CreateAuthorParams,
     ) -> Result<Author, sqlc_core::Error> {
         let row = self.client.query_one(CREATE_AUTHOR, &[&arg.name, &arg.bio])?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) fn create_author_full(
-        &mut self,
-        arg: CreateAuthorFullParams,
-    ) -> Result<Author, sqlc_core::Error> {
-        let row = self
-            .client
-            .query_one(
-                CREATE_AUTHOR_FULL,
-                &[
-                    &arg.name,
-                    &arg.bio,
-                    &arg.data,
-                    &arg.attrs,
-                    &arg.ip_inet,
-                    &arg.ip_cidr,
-                    &arg.mac_address,
-                    &arg.geo_point,
-                    &arg.geo_rect,
-                    &arg.geo_path,
-                    &arg.bit_a,
-                    &arg.varbit_a,
-                    &arg.created_at,
-                    &arg.updated_at,
-                ],
-            )?;
         Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
     }
     pub(crate) fn delete_author(&mut self, id: i64) -> Result<(), sqlc_core::Error> {

@@ -26,7 +26,6 @@ pub fn create_codegen_response(content: &str) -> plugin::GenerateResponse {
 }
 
 pub fn generate_rust_code(req: plugin::GenerateRequest) -> String {
-    // println!("{:?}", req);
     let tokens = codegen::CodeBuilder::new(req).generate_code();
     let syntax_tree = syn::parse_file(tokens.to_string().as_str()).unwrap();
     return prettyplease::unparse(&syntax_tree);
@@ -38,9 +37,6 @@ fn main() -> Result<(), prost::DecodeError> {
     let mut stdin = stdin.lock();
     let mut buffer: Vec<u8> = Vec::new();
     stdin.read_to_end(&mut buffer).unwrap();
-
-    let buffer = stdin.fill_buf().unwrap();
-    // panic!("{:?}", buffer.len());
 
     let req = deserialize_codegen_request(&buffer)?;
 
