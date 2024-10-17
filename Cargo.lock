@@ -2375,7 +2375,7 @@ dependencies = [
 
 [[package]]
 name = "sqlc-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bit-vec",
  "cfg_block",
@@ -2399,7 +2399,7 @@ dependencies = [
 
 [[package]]
 name = "sqlc-derive"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2409,7 +2409,7 @@ dependencies = [
 
 [[package]]
 name = "sqlc-gen"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "base64",
  "bytes",
