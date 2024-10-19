@@ -222,6 +222,9 @@ name = "bit-vec"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "349f9b6a179ed607305526ca489b34ad0a41aed5f7980fa90eb03160b69598fb"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bitflags"
@@ -320,6 +323,9 @@ name = "cidr"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bdf600c45bd958cf2945c445264471cca8b6c8e67bc87b71affd6d7e5682621"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "cipher"
@@ -602,6 +608,7 @@ checksum = "887418ac5e8d57c2e66e04bdc2fe15f9a5407be20b54a82c86bd0e368b709701"
 dependencies = [
  "regex",
  "rustc-serialize",
+ "serde",
 ]
 
 [[package]]
@@ -2409,7 +2416,7 @@ dependencies = [
 
 [[package]]
 name = "sqlc-gen"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "base64",
  "bytes",
@@ -3164,6 +3171,9 @@ name = "uuid"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81dfa00651efa65069b0b6b651f4aaa31ba9e3c3ce0137aaad053604ee7e0314"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "valuable"
