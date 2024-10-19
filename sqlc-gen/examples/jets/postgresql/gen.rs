@@ -4,6 +4,7 @@ const COUNT_PILOTS: &str = r#"SELECT COUNT(*) FROM pilots"#;
 const LIST_PILOTS: &str = r#"SELECT id, name FROM pilots LIMIT 5"#;
 const DELETE_PILOT: &str = r#"DELETE FROM pilots WHERE id = $1"#;
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub(crate) struct Jet {
     pub id: i32,
     pub pilot_id: i32,
@@ -12,16 +13,19 @@ pub(crate) struct Jet {
     pub color: String,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub(crate) struct Language {
     pub id: i32,
     pub language: String,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub(crate) struct Pilot {
     pub id: i32,
     pub name: String,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub(crate) struct PilotLanguage {
     pub pilot_id: i32,
     pub language_id: i32,

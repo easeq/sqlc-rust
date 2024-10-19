@@ -13,12 +13,14 @@ pub enum BookType {
     Nonfiction,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub(crate) struct Author {
     pub author_id: i32,
     pub name: String,
     pub biography: Option<serde_json::Value>,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub(crate) struct Book {
     pub book_id: i32,
     pub author_id: i32,

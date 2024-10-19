@@ -20,9 +20,6 @@ mod type_enum;
 mod type_query;
 mod type_struct;
 
-// #[path = "./plugin.rs"]
-// pub mod plugin;
-
 pub fn get_ident(value: &str) -> Ident {
     format_ident!("{}", value)
 }
