@@ -45,6 +45,7 @@ delete from authors
 where id = $1
 "#;
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Author {
     pub id: i64,
     pub uuid: Option<uuid::Uuid>,
@@ -64,6 +65,7 @@ pub(crate) struct Author {
     pub updated_at: time::OffsetDateTime,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct CreateAuthorFullParams {
     pub name: String,
     pub bio: Option<String>,
@@ -81,6 +83,7 @@ pub(crate) struct CreateAuthorFullParams {
     pub updated_at: time::OffsetDateTime,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,
