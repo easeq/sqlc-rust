@@ -32,6 +32,7 @@ fn generate_enum_variant(i: usize, val: String, seen: &mut HashSet<String>) -> T
     let ident_variant = get_ident(&value.to_case(Case::Pascal));
     quote! {
         #[postgres(name=#val)]
+        #[cfg_attr(feature = "serde_support", serde(rename=#val))]
         #ident_variant
     }
 }
@@ -56,6 +57,7 @@ impl TypeEnum {
 
     fn generate_code(&self) -> TokenStream {
         let ident_enum_name = get_ident(&self.name());
+        let type_name = self.name().to_case(Case::Snake);
         let mut seen = HashSet::new();
         let variants = self
             .values
@@ -67,6 +69,8 @@ impl TypeEnum {
 
         quote! {
             #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
+            #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+            #[postgres(name=#type_name)]
             pub enum #ident_enum_name {
                 #(#variants),*
             }

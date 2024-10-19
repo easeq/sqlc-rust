@@ -1,7 +1,16 @@
+DROP TYPE IF EXISTS type_genre;
+CREATE TYPE type_genre as ENUM (
+  'history',
+  'Children',
+  'cLaSSic',
+  'ADVENTURE'
+);
+
 CREATE TABLE authors (
   id   BIGSERIAL PRIMARY KEY,
   uuid uuid DEFAULT gen_random_uuid(),
   name text      NOT NULL,
+  genre type_genre NOT NULL DEFAULT 'ADVENTURE',
   bio  text,
   data json,
   attrs hstore,

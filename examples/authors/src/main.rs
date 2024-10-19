@@ -51,6 +51,7 @@ fn main() -> Result<()> {
     let author_full_req = db::CreateAuthorFullParams {
         name: "Author Full".to_string(),
         bio: None,
+        genre: db::TypeGenre::CLaSSic,
         data: Some(serde_json::json!({
             "age":  50,
             "gender": "male",
@@ -86,11 +87,13 @@ fn main() -> Result<()> {
         created_at: time::OffsetDateTime::now_utc(),
         updated_at: time::OffsetDateTime::now_utc(),
     };
+
     let author_full_res = queries.create_author_full(author_full_req.clone()).unwrap();
     assert_eq!(author_full_res.name, author_full_req.name);
     assert_eq!(author_full_res.bio, author_full_req.bio);
     assert_ne!(author_full_res.uuid, None);
     assert_eq!(author_full_res.data, author_full_req.data);
+    assert_eq!(author_full_res.genre, author_full_req.genre);
     assert_eq!(author_full_res.attrs, author_full_req.attrs);
     assert_eq!(author_full_res.ip_inet, author_full_req.ip_inet);
     assert_eq!(author_full_res.ip_cidr, author_full_req.ip_cidr);
