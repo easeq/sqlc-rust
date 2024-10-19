@@ -137,7 +137,7 @@ impl TypeStruct {
 
             quote! {
                 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-                #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+                #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
                 pub(crate) struct #ident_struct {
                     #(#fields),*
                 }

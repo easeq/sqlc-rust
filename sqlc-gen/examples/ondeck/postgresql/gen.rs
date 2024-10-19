@@ -82,19 +82,19 @@ pub enum Status {
     Closed,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct City {
     pub slug: String,
     pub name: String,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct CreateCityParams {
     pub name: String,
     pub slug: String,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct CreateVenueParams {
     pub slug: String,
     pub name: String,
@@ -105,25 +105,25 @@ pub(crate) struct CreateVenueParams {
     pub tags: Option<Vec<String>>,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct GetVenueParams {
     pub slug: String,
     pub city: String,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct UpdateCityNameParams {
     pub slug: String,
     pub name: String,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct UpdateVenueNameParams {
     pub slug: String,
     pub name: String,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Venue {
     pub id: i32,
     pub status: Status,
@@ -137,7 +137,7 @@ pub(crate) struct Venue {
     pub created_at: String,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct VenueCountByCityRow {
     pub city: String,
     pub count: i64,

@@ -71,13 +71,13 @@ pub enum BookType {
     Nonfiction,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Author {
     pub author_id: i32,
     pub name: String,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Book {
     pub book_id: i32,
     pub author_id: i32,
@@ -89,7 +89,7 @@ pub(crate) struct Book {
     pub tags: Vec<String>,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct BooksByTagsRow {
     pub book_id: i32,
     pub title: String,
@@ -98,13 +98,13 @@ pub(crate) struct BooksByTagsRow {
     pub tags: Vec<String>,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct BooksByTitleYearParams {
     pub title: String,
     pub year: i32,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct CreateBookParams {
     pub author_id: i32,
     pub isbn: String,
@@ -115,7 +115,7 @@ pub(crate) struct CreateBookParams {
     pub tags: Vec<String>,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct UpdateBookIsbnParams {
     pub title: String,
     pub tags: Vec<String>,
@@ -123,7 +123,7 @@ pub(crate) struct UpdateBookIsbnParams {
     pub isbn: String,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct UpdateBookParams {
     pub title: String,
     pub tags: Vec<String>,

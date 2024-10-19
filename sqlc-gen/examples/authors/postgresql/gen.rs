@@ -24,14 +24,14 @@ delete from authors
 where id = $1
 "#;
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Author {
     pub id: i64,
     pub name: String,
     pub bio: Option<String>,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,
