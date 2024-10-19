@@ -64,10 +64,14 @@ select say_hello
 from say_hello($1)
 "#;
 #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[postgres(name = "book_type")]
 pub enum BookType {
     #[postgres(name = "FICTION")]
+    #[cfg_attr(feature = "serde_support", serde(rename = "FICTION"))]
     Fiction,
     #[postgres(name = "NONFICTION")]
+    #[cfg_attr(feature = "serde_support", serde(rename = "NONFICTION"))]
     Nonfiction,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]

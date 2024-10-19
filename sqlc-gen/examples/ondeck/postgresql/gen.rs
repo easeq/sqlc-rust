@@ -75,10 +75,14 @@ GROUP BY 1
 ORDER BY 1
 "#;
 #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
+#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[postgres(name = "status")]
 pub enum Status {
     #[postgres(name = "op!en")]
+    #[cfg_attr(feature = "serde_support", serde(rename = "op!en"))]
     Open,
     #[postgres(name = "clo@sed")]
+    #[cfg_attr(feature = "serde_support", serde(rename = "clo@sed"))]
     Closed,
 }
 #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]

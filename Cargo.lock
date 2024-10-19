@@ -129,6 +129,7 @@ dependencies = [
  "eui48 1.1.0",
  "geo-types 0.7.13",
  "postgres",
+ "postgres-derive",
  "postgres-types",
  "postgresql_embedded",
  "refinery",
@@ -148,6 +149,7 @@ dependencies = [
  "cidr",
  "eui48 1.1.0",
  "geo-types 0.7.13",
+ "postgres-derive",
  "postgres-types",
  "postgresql_embedded",
  "refinery",
@@ -171,6 +173,7 @@ dependencies = [
  "deadpool-postgres",
  "eui48 1.1.0",
  "geo-types 0.7.13",
+ "postgres-derive",
  "postgres-types",
  "postgresql_embedded",
  "refinery",
@@ -1623,6 +1626,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "postgres-derive"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69700ea4603c5ef32d447708e6a19cd3e8ac197a000842e97f527daea5e4175f"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
+]
+
+[[package]]
 name = "postgres-protocol"
 version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1831,7 +1846,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9552f850d5f0964a4e4d0bf306459ac29323ddfbae05e35a7c0d35cb0803cc5"
 dependencies = [
  "anyhow",
- "itertools 0.10.5",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "syn 2.0.77",
@@ -2416,7 +2431,7 @@ dependencies = [
 
 [[package]]
 name = "sqlc-gen"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "base64",
  "bytes",

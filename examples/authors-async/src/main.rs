@@ -63,6 +63,7 @@ async fn main() -> Result<()> {
             "age":  50,
             "gender": "male",
         })),
+        genre: db::TypeGenre::CLaSSic,
         attrs: Some(
             [
                 ("attr_1".to_string(), Some("attr1 value".to_string())),
@@ -102,6 +103,7 @@ async fn main() -> Result<()> {
     assert_eq!(author_full_res.bio, author_full_req.bio);
     assert_ne!(author_full_res.uuid, None);
     assert_eq!(author_full_res.data, author_full_req.data);
+    assert_eq!(author_full_res.genre, author_full_req.genre);
     assert_eq!(author_full_res.attrs, author_full_req.attrs);
     assert_eq!(author_full_res.ip_inet, author_full_req.ip_inet);
     assert_eq!(author_full_res.ip_cidr, author_full_req.ip_cidr);
