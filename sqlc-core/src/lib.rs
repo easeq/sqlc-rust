@@ -3,8 +3,8 @@ use std::collections::HashMap;
 
 #[cfg(all(feature = "with-postgres", feature = "with-tokio-postgres"))]
 compile_error!(
-            "features with-postgres and with-tokio-postgres are mutually exclusive and cannot be enabled together"
-        );
+    "features with-postgres and with-tokio-postgres are mutually exclusive and cannot be enabled together"
+);
 
 #[cfg(all(not(feature = "with-postgres"), not(feature = "with-tokio-postgres")))]
 compile_error!("one of with-postgres and with-tokio-postgres features needs to be enabled");
@@ -51,6 +51,9 @@ from_primitive!(eui48_04::MacAddress);
 
 #[cfg(feature = "with-eui48-1")]
 from_primitive!(eui48_1::MacAddress);
+
+#[cfg(feature = "with-serde_json-1")]
+from_primitive!(serde_json_1::Value);
 
 cfg_block! {
     #[cfg(feature = "with-cidr-0_2")] {
