@@ -2,7 +2,7 @@ build: build.rs src/codegen.proto src/main.rs
 	cargo build --release --target wasm32-wasip1
 
 EXAMPLES = "authors" "batch" "booktest" "jets" "ondeck" 
-EXAMPLES_OUTER = "authors" "authors-async" "authors-deadpool" 
+EXAMPLES_OUTER = "authors" "authors-async" "authors-deadpool" "batch" 
 
 prepare-list:
 	xargs -I_EX printf "%s\n" "_EX" | xargs -n1 echo 

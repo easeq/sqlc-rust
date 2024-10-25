@@ -19,6 +19,60 @@ pub trait FromPostgresRow: Sized {
     fn from_row(row: &Row) -> Result<Self, PgError>;
 }
 
+#[cfg(feature = "with-deadpool")]
+pub trait BatchResult: futures::Stream + Send {
+    type Param;
+
+    fn stmt(&self) -> tokio_postgres::Statement;
+
+    fn current_item(&self) -> Option<Self::Param>;
+
+    fn pool(&self) -> deadpool_postgres::Pool;
+
+    fn inc_index(self: std::pin::Pin<&mut Self>);
+
+    fn set_thunk(
+        self: std::pin::Pin<&mut Self>,
+        thunk: std::pin::Pin<
+            Box<dyn futures::Future<Output = Option<<Self as futures::Stream>::Item>> + Send>,
+        >,
+    );
+
+    fn thunk(
+        self: std::pin::Pin<&mut Self>,
+        arg: Self::Param,
+        stmt: tokio_postgres::Statement,
+        pool: deadpool_postgres::Pool,
+    ) -> std::pin::Pin<
+        Box<dyn futures::Future<Output = Option<<Self as futures::Stream>::Item>> + Send>,
+    >;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<<Self as futures::Stream>::Item>> {
+        if let Some(arg) = self.current_item() {
+            let stmt = self.stmt();
+            let pool = self.pool();
+            let mut fut = self.as_mut().thunk(arg, stmt, pool);
+
+            match fut.as_mut().poll(cx) {
+                std::task::Poll::Ready(None) => std::task::Poll::Ready(None),
+                std::task::Poll::Ready(res) => {
+                    self.inc_index();
+                    std::task::Poll::Ready(res)
+                }
+                std::task::Poll::Pending => {
+                    self.set_thunk(fut);
+                    std::task::Poll::Pending
+                }
+            }
+        } else {
+            std::task::Poll::Ready(None)
+        }
+    }
+}
+
 macro_rules! from_primitive {
     ($t:ty) => {
         impl FromPostgresRow for $t {

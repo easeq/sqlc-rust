@@ -1,0 +1,40 @@
+pub(crate) struct DeleteBookBatchResults
+{
+    __pool : deadpool_postgres :: Pool, __stmt : tokio_postgres :: Statement,\n    __index : usize, __items : Vec < i32 > , __fut : std :: pin ::
+ Pin < Box <
+    dyn futures :: Future < Output = Option < () > > + Send > > , __thunk :
+    Option < std :: pin :: Pin < Box < dyn futures :: Future < Output = Option\n    < () > > + Send > > > ,\n} impl Delet
+eBookBatchResults
+{
+    pub(crate) fn new < Fut, F >\n    (__pool : deadpool_postgres :: Pool, __items : Vec < i32 > , __stmt :\n    tokio_postgres :: Statement, __fut : F,) -> Self where F :\n    FnOnce(deadpo
+ol_postgres :: Pool, tokio_postgres :: Statement, i32) ->
+    Fut, Fut : std :: pin :: Pin < Box < dyn futures :: Future < Output =
+    Option < () >> + Send >> ,\n    { Self { __pool, __items, __stmt, __fut, _
+_index : 0, __thunk : None, } }
+} impl sqlc_core :: BatchParam for DeleteBookBatchResults
+{\n    type Param = i32; fn\n    inc_index(mut self : std :: pin :: Pin < & mut Self >)\n    { self.__index += 1; } fn s
+tmt(& self) -> tokio_postgres :: Statement
+    { self.__stmt.clone() } fn pool(& self) -> deadpool_postgres :: Pool
+    { self.__pool.clone() } fn current_item(& self) -> Option < Self :: Param\n    >\n    {\n
+       if self.__index < self.__items.len()
+        { Some(self.__items [self.__index].clone()) } else { None }
+    }\n} impl sqlc_core :: BatchResult for DeleteBookBatchResults\n{\n    fn\n    set_thunk(mut se
+lf : std :: pin :: Pin < & mut Self > , thunk : Pin < Box
+    < dyn futures :: Future < Output = Option << Self as futures :: Stream >
+    :: Item >> + Send >> ,) { self.__thunk = Some(thunk) } fn\n    thunk(mu
+t self : std :: pin :: Pin < & mut Self > , arg : Self :: Param,
+    stmt : tokio_postgres :: Statement, pool : deadpool_postgres :: Pool,) ->
+    Pin < Box < dyn futures :: Future < Output = Option << Self as
+futures ::
+    Stream > :: Item >> + Send >>
+    {\n        self.__thunk.take().unwrap_or_else(move ||\n        {\n            Box ::\n            pin(async move\n            {\n                let client = poo
+l.clone().get().await.ok() ? ; let row =
+                client.query_one(& stmt, &
+                [& arg.author_id, & arg.isbn, & arg.book_type, & arg.title, &\n                arg.year, & arg.available, & ar
+g.tags,],).await.ok() ? ;
+                Some(sqlc_core :: FromPostgresRow :: from_row(& row).ok() ?)
+            })\n        })\n    }\n} impl futures :: Stream for DeleteBookBatchResults\n{\n    type Item =
+(); fn
+    poll_next(mut self : std :: pin :: Pin < & mut Self > , cx : & mut std ::
+    task :: Context < '_ > ,) -> std :: task :: Poll < Option < Self :: Item\n    >> { BatchResults :: poll_next(self, cx) }\
+n}

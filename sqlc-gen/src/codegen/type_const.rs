@@ -26,7 +26,7 @@ impl TypeConst {
         let query_text = MultiLineString(&self.value).to_token_stream();
 
         quote! {
-            const #ident_const: &str = #query_text;
+            pub(crate) const #ident_const: &str = #query_text;
         }
     }
 }

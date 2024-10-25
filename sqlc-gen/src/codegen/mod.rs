@@ -24,6 +24,14 @@ pub fn get_ident(value: &str) -> Ident {
     format_ident!("{}", value)
 }
 
+pub fn get_batch_results_name(value: &str) -> String {
+    format!("{}BatchResults", value.to_case(convert_case::Case::Pascal))
+}
+
+pub fn get_batch_results_ident(value: &str) -> Ident {
+    format_ident!("{}", get_batch_results_name(value))
+}
+
 pub fn get_punct_from_char(c: char) -> Punct {
     Punct::new(c, Spacing::Joint)
 }
@@ -398,11 +406,15 @@ impl CodeBuilder {
         structs
     }
 
-    fn build_queries(&self, structs: Vec<TypeStruct>) -> (Vec<TypeQuery>, Vec<TypeStruct>) {
+    fn build_queries(
+        &self,
+        structs: Vec<TypeStruct>,
+    ) -> (Vec<TypeQuery>, Vec<TypeStruct>, Vec<TokenStream>) {
         let catalog = self.req.catalog.clone().unwrap();
         let schemas = catalog.schemas.clone();
         let default_schema = catalog.default_schema.clone();
         let mut associated_structs = vec![];
+        let mut batch_result_structs = vec![];
         let mut queries = self
             .req
             .queries
@@ -413,6 +425,9 @@ impl CodeBuilder {
                     None
                 } else {
                     // Query parameter limit, get it from the options
+                    let query_cmd =
+                        QueryCommand::from_str(&query.cmd).expect("invalid query annotation");
+                    let is_batch = query_cmd.is_batch();
                     let qpl = 3;
                     let mut arg: Option<QueryValue> = None;
                     let params = query.params.clone();
@@ -427,6 +442,7 @@ impl CodeBuilder {
                                 default_schema.clone(),
                             )),
                             None,
+                            is_batch,
                         ));
                     } else if params.len() > 1 {
                         let fields = params
@@ -443,7 +459,12 @@ impl CodeBuilder {
 
                         let type_struct =
                             TypeStruct::new(query.name.clone(), None, StructType::Params, fields);
-                        arg = Some(QueryValue::new("arg", None, Some(type_struct.clone())));
+                        arg = Some(QueryValue::new(
+                            "arg",
+                            None,
+                            Some(type_struct.clone()),
+                            is_batch,
+                        ));
                         associated_structs.push(type_struct);
                     }
 
@@ -459,11 +480,9 @@ impl CodeBuilder {
                                 default_schema.clone(),
                             )),
                             None,
+                            is_batch,
                         ));
-                    } else if QueryCommand::from_str(&query.cmd)
-                        .expect("invalid query command")
-                        .has_return_value()
-                    {
+                    } else if query_cmd.has_return_value() {
                         let found_struct = structs.clone().into_iter().find(|s| {
                             if s.fields.len() != columns.len() {
                                 false
@@ -523,7 +542,47 @@ impl CodeBuilder {
                             Some(gs) => gs,
                         };
 
-                        ret = Some(QueryValue::new("", None, Some(gs)));
+
+                        ret = Some(QueryValue::new("", None, Some(gs), is_batch));
+                    }
+
+                    if query_cmd.is_batch() {
+                        let arg_type = arg.clone().unwrap_or_default().get_type_tokens();
+                        let ident = get_batch_results_ident(&query.name);
+                        let fut_ret = if query_cmd.has_return_value() {
+                            if query_cmd.is_one() {
+                                quote!(#ret)
+                            } else {
+                                quote! {
+                                    std::pin::Pin<Box<futures::stream::Iter<std::vec::IntoIter<#ret>>>>
+                                }
+                            } 
+                        } else {
+                            quote!(())
+                        };
+
+                        // let fut_ret_macro_arg = if query_cmd.has_return_value() {
+                        //     fut_ret.clone()
+                        // } else {
+                        //     quote!(None)
+                        // };
+
+                        batch_result_structs.push(quote! {
+                            #[sqlc_derive::batch_param(#arg_type, #fut_ret)]
+                            pub(crate) struct #ident;
+                            // // #[derive(derive_new::new)]
+                            // pub(crate) struct #ident {
+                            //     // pool: deadpool_postgres::Pool,
+                            //     // items: Vec<#arg_type>,
+                            //     // stmt: tokio_postgres::Statement,
+                            //
+                            //     // #[new(value = "0")]
+                            //     // index: usize,
+                            //
+                            //     // #[new(default)]
+                            //     // thunk: Option<std::pin::Pin<Box<dyn futures::Future<Output = Option<#fut_ret>> + Send>>>,
+                            // }
+                        })
                     }
 
                     Some(TypeQuery::new(
@@ -541,7 +600,7 @@ impl CodeBuilder {
         queries.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
         associated_structs.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
 
-        (queries, associated_structs)
+        (queries, associated_structs, batch_result_structs)
     }
 
     pub fn rust_pg_mod(&self) -> TokenStream {
@@ -586,6 +645,7 @@ impl CodeBuilder {
         };
 
         quote! {
+            #[derive(Clone)]
             pub struct Queries {
                 #pool_or_client_field
             }
@@ -603,7 +663,8 @@ impl CodeBuilder {
         let constants = self.build_constants();
         let mut structs = self.build_structs();
 
-        let (queries, associated_structs) = self.build_queries(structs.clone());
+        let (queries, associated_structs, batch_result_structs) =
+            self.build_queries(structs.clone());
         let queries_impl = self.build_queries_impl(queries);
 
         structs.extend(associated_structs);
@@ -626,6 +687,7 @@ impl CodeBuilder {
             #(#constants)*
             #(#enums)*
             #(#structs)*
+            #(#batch_result_structs)*
             #queries_impl
         }
     }
