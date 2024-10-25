@@ -1,11 +1,8 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use quote::format_ident;
 use quote::quote;
-use syn::punctuated::Punctuated;
-use syn::Type;
-use syn::{parse_macro_input, DeriveInput, ItemStruct};
+use syn::{parse_macro_input, DeriveInput};
 
 #[cfg(all(feature = "with-postgres", feature = "with-tokio-postgres"))]
 compile_error!(
@@ -63,6 +60,11 @@ pub fn from_postgres_row(input: TokenStream) -> TokenStream {
 #[cfg(feature = "with-deadpool")]
 #[proc_macro_attribute]
 pub fn batch_param(args: TokenStream, input: TokenStream) -> TokenStream {
+    use quote::format_ident;
+    use syn::punctuated::Punctuated;
+    use syn::ItemStruct;
+    use syn::Type;
+
     let input_struct = parse_macro_input!(input as ItemStruct);
     let ItemStruct {
         attrs, vis, ident, ..
