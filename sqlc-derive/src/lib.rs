@@ -176,7 +176,5 @@ pub fn batch_param(args: TokenStream, input: TokenStream) -> TokenStream {
 
     };
 
-    // panic!("{:?}", expanded.to_string());
-
     expanded.into()
 }
