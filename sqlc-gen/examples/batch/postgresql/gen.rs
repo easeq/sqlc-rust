@@ -41,6 +41,15 @@ pub(crate) struct DeleteBookBatchResults {
     #[batch_result]
     result: (),
 }
+async fn delete_book(
+    pool: deadpool_postgres::Pool,
+    stmt: tokio_postgres::Statement,
+    book_id: i32,
+) -> Result<(), sqlc_core::Error> {
+    let client = pool.clone().get().await?;
+    client.execute(&stmt, &[&book_id]).await?;
+    Ok(())
+}
 #[derive(Clone)]
 pub struct Queries {
     client: tokio_postgres::Client,
@@ -57,13 +66,7 @@ impl Queries {
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             book_id: i32|
-        {
-            Box::pin(async move {
-                let client = pool.clone().get().await.ok()?;
-                client.execute(&stmt, &[&book_id]).await.ok()?;
-                Some(())
-            })
-        });
+        { Box::pin(async move { Some(delete_book(pool, stmt, book_id).await) }) });
         let stmt = self.client.prepare(DELETE_BOOK).await?;
         Ok(DeleteBookBatchResults::new(self.pool.clone(), book_id, stmt, fut))
     }

@@ -244,7 +244,7 @@ impl TypeQuery {
                 };
                 QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
             }
-            QueryCommand::BatchExec => {
+            QueryCommand::BatchMany | QueryCommand::BatchOne | QueryCommand::BatchExec => {
                 let ret = self.get_batch_results_ident();
                 let fn_ident = format_ident!("{}Fn", ret);
                 let arg_name = get_ident(self.arg.clone().unwrap_or_default().name.as_str());
@@ -256,69 +256,7 @@ impl TypeQuery {
                                stmt: tokio_postgres::Statement,
                                #arg_singular_type| {
                         Box::pin(async move {
-                            let client = pool.clone().get().await.ok()?;
-                            client
-                                .execute(&stmt, &[#fields_list])
-                                .await
-                                .ok()?;
-                            Some(())
-                        })
-                    });
-                    let stmt = #client.prepare(#ident_const_name)
-                };
-                let fn_body = quote! {
-                    Ok(#ret::new(self.pool.clone(), #arg_name, stmt, fut))
-                };
-                QueryMethod::new(sig, fn_body, stmt, self.use_async)
-            }
-            QueryCommand::BatchOne => {
-                let ret = self.get_batch_results_ident();
-                let fn_ident = format_ident!("{}Fn", ret);
-                let arg_name = get_ident(self.arg.clone().unwrap_or_default().name.as_str());
-                let arg_singular_type = self.arg.clone().unwrap().generate_code(false);
-                let sig =
-                    quote! { fn #ident_name(&mut self, #arg) -> Result<#ret, sqlc_core::Error> };
-                let stmt = quote! {
-                    let fut: #fn_ident = Box::new(|pool: deadpool_postgres::Pool,
-                               stmt: tokio_postgres::Statement,
-                               #arg_singular_type| {
-                        Box::pin(async move {
-                            let client = pool.clone().get().await.ok()?;
-                            let row = client
-                                .query_one(&stmt, &[#fields_list])
-                                .await
-                                .ok()?;
-                            Some(sqlc_core::FromPostgresRow::from_row(&row).ok()?)
-                        })
-                    });
-                    let stmt = #client.prepare(#ident_const_name)
-                };
-                let fn_body = quote! {
-                    Ok(#ret::new(self.pool.clone(), #arg_name, stmt, fut))
-                };
-                QueryMethod::new(sig, fn_body, stmt, self.use_async)
-            }
-            QueryCommand::BatchMany => {
-                let query_ret = self.ret.clone().unwrap_or_default();
-                let ret = self.get_batch_results_ident();
-                let fn_ident = format_ident!("{}Fn", ret);
-                let arg_name = get_ident(self.arg.clone().unwrap_or_default().name.as_str());
-                let arg_singular_type = self.arg.clone().unwrap().generate_code(false);
-                let sig =
-                    quote! { fn #ident_name(&mut self, #arg) -> Result<#ret, sqlc_core::Error> };
-                let stmt = quote! {
-                    let fut: #fn_ident = Box::new(|pool: deadpool_postgres::Pool,
-                               stmt: tokio_postgres::Statement,
-                               #arg_singular_type| {
-                        Box::pin(async move {
-                            let client = pool.clone().get().await.ok()?;
-
-                            let rows = client.query(&stmt, &[#fields_list]).await.ok()?;
-                            let mut result: Vec<#query_ret> = vec![];
-                            for row in rows {
-                                result.push(sqlc_core::FromPostgresRow::from_row(&row).ok()?);
-                            }
-                            Some(Box::pin(futures::stream::iter(result)))
+                            Some(#ident_name(pool, stmt, #arg_name).await)
                         })
                     });
                     let stmt = #client.prepare(#ident_const_name)

@@ -546,6 +546,15 @@ impl CodeBuilder {
                         ret = Some(QueryValue::new("", None, Some(gs), is_batch));
                     }
 
+                    let type_query = TypeQuery::new(
+                        query.name.clone(),
+                        query.cmd.clone(),
+                        arg.clone(),
+                        ret.clone(),
+                        self.options.use_async,
+                        self.options.use_deadpool(),
+                    );
+
                     if query_cmd.is_batch() {
                         let arg_type = arg.clone().unwrap_or_default().get_type_tokens();
                         let ident = get_batch_results_ident(&query.name);
@@ -554,11 +563,53 @@ impl CodeBuilder {
                                 quote!(#ret)
                             } else {
                                 quote! {
-                                    std::pin::Pin<Box<futures::stream::Iter<std::vec::IntoIter<#ret>>>>
+                                    std::pin::Pin<Box<futures::stream::Iter<std::vec::IntoIter<Result<#ret, sqlc_core::Error>>>>>
                                 }
                             } 
                         } else {
                             quote!(())
+                        };
+
+                        let query_method_ident = get_ident(&type_query.name());
+                        let arg = arg.clone().unwrap();
+                        let named_arg = arg.generate_code(false);
+                        let fields_list = arg.generate_fields_list();
+
+                        let fn_body = match query_cmd {
+                            QueryCommand::BatchExec => {
+                                quote! {
+                                    let client = pool.clone().get().await?;
+                                    client.execute(&stmt, &[#fields_list]).await?;
+                                    Ok(())
+                                }
+                            }
+                            QueryCommand::BatchOne => {
+                                quote! {
+                                    let client = pool.clone().get().await?;
+                                    let row = client
+                                        .query_one(
+                                            &stmt,
+                                            &[#fields_list],
+                                        )
+                                        .await?;
+                                    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+                                }
+                            }
+                            QueryCommand::BatchMany => {
+                                let query_ret = ret.clone().unwrap_or_default();
+                                quote! {
+                                    let client = pool.clone().get().await?;
+                                    let rows = client.query(&stmt, &[#fields_list]).await?; 
+                                    let mut result: Vec<Result<#query_ret, sqlc_core::Error>> = vec![];
+                                    for row in rows {
+
+                                        result.push(Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+                                    }
+
+                                    Ok(Box::pin(futures::stream::iter(result)))
+                                }
+                            }  
+                            _ => unimplemented!()
                         };
 
                         batch_result_structs.push(quote! {
@@ -570,19 +621,17 @@ impl CodeBuilder {
                                 result: #fut_ret,
                             }
 
-                            // #[sqlc_derive::batch_result_type(#arg_type, #fut_ret)]
-                            // pub(crate) struct #ident;
+                            async fn #query_method_ident(
+                                pool: deadpool_postgres::Pool,
+                                stmt: tokio_postgres::Statement,
+                                #named_arg,
+                            ) -> Result<#fut_ret, sqlc_core::Error> {
+                                #fn_body
+                            }
                         })
                     }
 
-                    Some(TypeQuery::new(
-                        query.name.clone(),
-                        query.cmd.clone(),
-                        arg,
-                        ret,
-                        self.options.use_async,
-                        self.options.use_deadpool(),
-                    ))
+                    Some(type_query)
                 }
             })
             .collect::<Vec<_>>();

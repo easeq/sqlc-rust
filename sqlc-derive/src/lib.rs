@@ -92,7 +92,7 @@ pub fn batch_result_type(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut batch_param_type: Option<Type> = None;
     let mut batch_result_type: Option<Type> = None;
     if let syn::Fields::Named(ref mut fields) = input_struct.fields {
-        assert!(fields.named.len() == 2, "#[batch_result_type] struct can only have 2 mandatory struct fields marked with #[batch_param] and #[batch_result] respectively");
+        assert!(fields.named.len() == 2, "#[batch_result_type] struct can have only 2 mandatory struct fields marked with #[batch_param] and #[batch_result] respectively");
 
         for _ in 1..=2 {
             if let Some(pair) = fields.named.pop() {
@@ -127,13 +127,13 @@ pub fn batch_result_type(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     } else {
         panic!(
-            "missing one struct field (named) each marked with #[batch_param] and #[batch_result] respectively"
+            "missing struct named-fields each marked with #[batch_param] and #[batch_result] respectively"
         )
     }
 
     let type_aliases = quote! {
         type #fut_ident =
-            std::pin::Pin<Box<dyn futures::Future<Output = Option<#batch_result_type>> + Send + 'static>>;
+            std::pin::Pin<Box<dyn futures::Future<Output = Option<Result<#batch_result_type, sqlc_core::Error>>> + Send + 'static>>;
         type #fn_ident = Box<
             dyn Fn(
                     deadpool_postgres::Pool,
@@ -202,8 +202,9 @@ pub fn batch_result_type(args: TokenStream, input: TokenStream) -> TokenStream {
                     .unwrap_or_else(move || (self.__fut)(pool.clone(), stmt.clone(), arg.clone()))
             }
         }
+
         impl futures::Stream for #ident {
-            type Item = #batch_result_type;
+            type Item = Result<#batch_result_type, sqlc_core::Error>;
             fn poll_next(
                 self: std::pin::Pin<&mut Self>,
                 cx: &mut std::task::Context<'_>,

@@ -115,12 +115,30 @@ pub(crate) struct DeleteBookBatchResults {
     #[batch_result]
     result: (),
 }
+async fn delete_book(
+    pool: deadpool_postgres::Pool,
+    stmt: tokio_postgres::Statement,
+    book_id: i32,
+) -> Result<(), sqlc_core::Error> {
+    let client = pool.clone().get().await?;
+    client.execute(&stmt, &[&book_id]).await?;
+    Ok(())
+}
 #[sqlc_derive::batch_result_type]
 pub(crate) struct DeleteBookNamedFuncBatchResults {
     #[batch_param]
     param: i32,
     #[batch_result]
     result: (),
+}
+async fn delete_book_named_func(
+    pool: deadpool_postgres::Pool,
+    stmt: tokio_postgres::Statement,
+    book_id: i32,
+) -> Result<(), sqlc_core::Error> {
+    let client = pool.clone().get().await?;
+    client.execute(&stmt, &[&book_id]).await?;
+    Ok(())
 }
 #[sqlc_derive::batch_result_type]
 pub(crate) struct DeleteBookNamedSignBatchResults {
@@ -129,12 +147,41 @@ pub(crate) struct DeleteBookNamedSignBatchResults {
     #[batch_result]
     result: (),
 }
+async fn delete_book_named_sign(
+    pool: deadpool_postgres::Pool,
+    stmt: tokio_postgres::Statement,
+    book_id: i32,
+) -> Result<(), sqlc_core::Error> {
+    let client = pool.clone().get().await?;
+    client.execute(&stmt, &[&book_id]).await?;
+    Ok(())
+}
 #[sqlc_derive::batch_result_type]
 pub(crate) struct BooksByYearBatchResults {
     #[batch_param]
     param: i32,
     #[batch_result]
-    result: std::pin::Pin<Box<futures::stream::Iter<std::vec::IntoIter<Book>>>>,
+    result: std::pin::Pin<
+        Box<futures::stream::Iter<std::vec::IntoIter<Result<Book, sqlc_core::Error>>>>,
+    >,
+}
+async fn books_by_year(
+    pool: deadpool_postgres::Pool,
+    stmt: tokio_postgres::Statement,
+    year: i32,
+) -> Result<
+    std::pin::Pin<
+        Box<futures::stream::Iter<std::vec::IntoIter<Result<Book, sqlc_core::Error>>>>,
+    >,
+    sqlc_core::Error,
+> {
+    let client = pool.clone().get().await?;
+    let rows = client.query(&stmt, &[&year]).await?;
+    let mut result: Vec<Result<Book, sqlc_core::Error>> = vec![];
+    for row in rows {
+        result.push(Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+    }
+    Ok(Box::pin(futures::stream::iter(result)))
 }
 #[sqlc_derive::batch_result_type]
 pub(crate) struct CreateBookBatchResults {
@@ -143,6 +190,28 @@ pub(crate) struct CreateBookBatchResults {
     #[batch_result]
     result: Book,
 }
+async fn create_book(
+    pool: deadpool_postgres::Pool,
+    stmt: tokio_postgres::Statement,
+    arg: CreateBookParams,
+) -> Result<Book, sqlc_core::Error> {
+    let client = pool.clone().get().await?;
+    let row = client
+        .query_one(
+            &stmt,
+            &[
+                &arg.author_id,
+                &arg.isbn,
+                &arg.book_type,
+                &arg.title,
+                &arg.year,
+                &arg.available,
+                &arg.tags,
+            ],
+        )
+        .await?;
+    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+}
 #[sqlc_derive::batch_result_type]
 pub(crate) struct UpdateBookBatchResults {
     #[batch_param]
@@ -150,12 +219,30 @@ pub(crate) struct UpdateBookBatchResults {
     #[batch_result]
     result: (),
 }
+async fn update_book(
+    pool: deadpool_postgres::Pool,
+    stmt: tokio_postgres::Statement,
+    arg: UpdateBookParams,
+) -> Result<(), sqlc_core::Error> {
+    let client = pool.clone().get().await?;
+    client.execute(&stmt, &[&arg.title, &arg.tags, &arg.book_id]).await?;
+    Ok(())
+}
 #[sqlc_derive::batch_result_type]
 pub(crate) struct GetBiographyBatchResults {
     #[batch_param]
     param: i32,
     #[batch_result]
     result: serde_json::Value,
+}
+async fn get_biography(
+    pool: deadpool_postgres::Pool,
+    stmt: tokio_postgres::Statement,
+    author_id: i32,
+) -> Result<serde_json::Value, sqlc_core::Error> {
+    let client = pool.clone().get().await?;
+    let row = client.query_one(&stmt, &[&author_id]).await?;
+    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 #[derive(Clone)]
 pub struct Queries {
@@ -177,17 +264,7 @@ impl Queries {
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             year: i32|
-        {
-            Box::pin(async move {
-                let client = pool.clone().get().await.ok()?;
-                let rows = client.query(&stmt, &[&year]).await.ok()?;
-                let mut result: Vec<Book> = vec![];
-                for row in rows {
-                    result.push(sqlc_core::FromPostgresRow::from_row(&row).ok()?);
-                }
-                Some(Box::pin(futures::stream::iter(result)))
-            })
-        });
+        { Box::pin(async move { Some(books_by_year(pool, stmt, year).await) }) });
         let stmt = self.client().await.prepare(BOOKS_BY_YEAR).await?;
         Ok(BooksByYearBatchResults::new(self.pool.clone(), year, stmt, fut))
     }
@@ -206,27 +283,7 @@ impl Queries {
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             arg: CreateBookParams|
-        {
-            Box::pin(async move {
-                let client = pool.clone().get().await.ok()?;
-                let row = client
-                    .query_one(
-                        &stmt,
-                        &[
-                            &arg.author_id,
-                            &arg.isbn,
-                            &arg.book_type,
-                            &arg.title,
-                            &arg.year,
-                            &arg.available,
-                            &arg.tags,
-                        ],
-                    )
-                    .await
-                    .ok()?;
-                Some(sqlc_core::FromPostgresRow::from_row(&row).ok()?)
-            })
-        });
+        { Box::pin(async move { Some(create_book(pool, stmt, arg).await) }) });
         let stmt = self.client().await.prepare(CREATE_BOOK).await?;
         Ok(CreateBookBatchResults::new(self.pool.clone(), arg, stmt, fut))
     }
@@ -238,13 +295,7 @@ impl Queries {
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             book_id: i32|
-        {
-            Box::pin(async move {
-                let client = pool.clone().get().await.ok()?;
-                client.execute(&stmt, &[&book_id]).await.ok()?;
-                Some(())
-            })
-        });
+        { Box::pin(async move { Some(delete_book(pool, stmt, book_id).await) }) });
         let stmt = self.client().await.prepare(DELETE_BOOK).await?;
         Ok(DeleteBookBatchResults::new(self.pool.clone(), book_id, stmt, fut))
     }
@@ -265,9 +316,7 @@ impl Queries {
             book_id: i32|
         {
             Box::pin(async move {
-                let client = pool.clone().get().await.ok()?;
-                client.execute(&stmt, &[&book_id]).await.ok()?;
-                Some(())
+                Some(delete_book_named_func(pool, stmt, book_id).await)
             })
         });
         let stmt = self.client().await.prepare(DELETE_BOOK_NAMED_FUNC).await?;
@@ -283,9 +332,7 @@ impl Queries {
             book_id: i32|
         {
             Box::pin(async move {
-                let client = pool.clone().get().await.ok()?;
-                client.execute(&stmt, &[&book_id]).await.ok()?;
-                Some(())
+                Some(delete_book_named_sign(pool, stmt, book_id).await)
             })
         });
         let stmt = self.client().await.prepare(DELETE_BOOK_NAMED_SIGN).await?;
@@ -306,13 +353,7 @@ impl Queries {
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             author_id: i32|
-        {
-            Box::pin(async move {
-                let client = pool.clone().get().await.ok()?;
-                let row = client.query_one(&stmt, &[&author_id]).await.ok()?;
-                Some(sqlc_core::FromPostgresRow::from_row(&row).ok()?)
-            })
-        });
+        { Box::pin(async move { Some(get_biography(pool, stmt, author_id).await) }) });
         let stmt = self.client().await.prepare(GET_BIOGRAPHY).await?;
         Ok(GetBiographyBatchResults::new(self.pool.clone(), author_id, stmt, fut))
     }
@@ -324,16 +365,7 @@ impl Queries {
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             arg: UpdateBookParams|
-        {
-            Box::pin(async move {
-                let client = pool.clone().get().await.ok()?;
-                client
-                    .execute(&stmt, &[&arg.title, &arg.tags, &arg.book_id])
-                    .await
-                    .ok()?;
-                Some(())
-            })
-        });
+        { Box::pin(async move { Some(update_book(pool, stmt, arg).await) }) });
         let stmt = self.client().await.prepare(UPDATE_BOOK).await?;
         Ok(UpdateBookBatchResults::new(self.pool.clone(), arg, stmt, fut))
     }
