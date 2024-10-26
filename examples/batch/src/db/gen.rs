@@ -108,23 +108,55 @@ pub(crate) struct UpdateBookParams {
     pub tags: Vec<String>,
     pub book_id: i32,
 }
-#[sqlc_derive::batch_param(i32, ())]
-pub(crate) struct DeleteBookBatchResults;
-#[sqlc_derive::batch_param(i32, ())]
-pub(crate) struct DeleteBookNamedFuncBatchResults;
-#[sqlc_derive::batch_param(i32, ())]
-pub(crate) struct DeleteBookNamedSignBatchResults;
-#[sqlc_derive::batch_param(
-    i32,
-    std::pin::Pin<Box<futures::stream::Iter<std::vec::IntoIter<Book>>>>
-)]
-pub(crate) struct BooksByYearBatchResults;
-#[sqlc_derive::batch_param(CreateBookParams, Book)]
-pub(crate) struct CreateBookBatchResults;
-#[sqlc_derive::batch_param(UpdateBookParams, ())]
-pub(crate) struct UpdateBookBatchResults;
-#[sqlc_derive::batch_param(i32, serde_json::Value)]
-pub(crate) struct GetBiographyBatchResults;
+#[sqlc_derive::batch_result_type]
+pub(crate) struct DeleteBookBatchResults {
+    #[batch_param]
+    param: i32,
+    #[batch_result]
+    result: (),
+}
+#[sqlc_derive::batch_result_type]
+pub(crate) struct DeleteBookNamedFuncBatchResults {
+    #[batch_param]
+    param: i32,
+    #[batch_result]
+    result: (),
+}
+#[sqlc_derive::batch_result_type]
+pub(crate) struct DeleteBookNamedSignBatchResults {
+    #[batch_param]
+    param: i32,
+    #[batch_result]
+    result: (),
+}
+#[sqlc_derive::batch_result_type]
+pub(crate) struct BooksByYearBatchResults {
+    #[batch_param]
+    param: i32,
+    #[batch_result]
+    result: std::pin::Pin<Box<futures::stream::Iter<std::vec::IntoIter<Book>>>>,
+}
+#[sqlc_derive::batch_result_type]
+pub(crate) struct CreateBookBatchResults {
+    #[batch_param]
+    param: CreateBookParams,
+    #[batch_result]
+    result: Book,
+}
+#[sqlc_derive::batch_result_type]
+pub(crate) struct UpdateBookBatchResults {
+    #[batch_param]
+    param: UpdateBookParams,
+    #[batch_result]
+    result: (),
+}
+#[sqlc_derive::batch_result_type]
+pub(crate) struct GetBiographyBatchResults {
+    #[batch_param]
+    param: i32,
+    #[batch_result]
+    result: serde_json::Value,
+}
 #[derive(Clone)]
 pub struct Queries {
     pool: deadpool_postgres::Pool,

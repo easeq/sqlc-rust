@@ -34,8 +34,13 @@ pub(crate) struct Book {
     pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
-#[sqlc_derive::batch_param(i32, ())]
-pub(crate) struct DeleteBookBatchResults;
+#[sqlc_derive::batch_result_type]
+pub(crate) struct DeleteBookBatchResults {
+    #[batch_param]
+    param: i32,
+    #[batch_result]
+    result: (),
+}
 #[derive(Clone)]
 pub struct Queries {
     client: tokio_postgres::Client,

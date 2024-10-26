@@ -561,27 +561,17 @@ impl CodeBuilder {
                             quote!(())
                         };
 
-                        // let fut_ret_macro_arg = if query_cmd.has_return_value() {
-                        //     fut_ret.clone()
-                        // } else {
-                        //     quote!(None)
-                        // };
-
                         batch_result_structs.push(quote! {
-                            #[sqlc_derive::batch_param(#arg_type, #fut_ret)]
-                            pub(crate) struct #ident;
-                            // // #[derive(derive_new::new)]
-                            // pub(crate) struct #ident {
-                            //     // pool: deadpool_postgres::Pool,
-                            //     // items: Vec<#arg_type>,
-                            //     // stmt: tokio_postgres::Statement,
-                            //
-                            //     // #[new(value = "0")]
-                            //     // index: usize,
-                            //
-                            //     // #[new(default)]
-                            //     // thunk: Option<std::pin::Pin<Box<dyn futures::Future<Output = Option<#fut_ret>> + Send>>>,
-                            // }
+                            #[sqlc_derive::batch_result_type]
+                            pub(crate) struct #ident {
+                                #[batch_param]
+                                param: #arg_type,
+                                #[batch_result]
+                                result: #fut_ret,
+                            }
+
+                            // #[sqlc_derive::batch_result_type(#arg_type, #fut_ret)]
+                            // pub(crate) struct #ident;
                         })
                     }
 

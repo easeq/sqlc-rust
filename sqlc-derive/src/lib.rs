@@ -4,6 +4,11 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
+#[cfg(feature = "with-deadpool")]
+const BATCH_PARAM: &str = "batch_param";
+#[cfg(feature = "with-deadpool")]
+const BATCH_RESULT: &str = "batch_result";
+
 #[cfg(all(feature = "with-postgres", feature = "with-tokio-postgres"))]
 compile_error!(
     "with-postgres and with-tokio-postgres are mutually exclusive and cannot be enabled together"
@@ -57,31 +62,74 @@ pub fn from_postgres_row(input: TokenStream) -> TokenStream {
     }
 }
 
+fn get_field_type(field: &syn::Field) -> Option<&str> {
+    field.attrs.iter().find_map(|attr| {
+        if attr.path().is_ident(BATCH_PARAM) {
+            Some(BATCH_PARAM)
+        } else if attr.path().is_ident(BATCH_RESULT) {
+            Some(BATCH_RESULT)
+        } else {
+            None
+        }
+    })
+}
+
 #[cfg(feature = "with-deadpool")]
 #[proc_macro_attribute]
-pub fn batch_param(args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn batch_result_type(args: TokenStream, input: TokenStream) -> TokenStream {
     use quote::format_ident;
-    use syn::punctuated::Punctuated;
+    use syn::parse::Parser;
     use syn::ItemStruct;
     use syn::Type;
 
-    let input_struct = parse_macro_input!(input as ItemStruct);
-    let ItemStruct {
-        attrs, vis, ident, ..
-    } = input_struct;
-    let args_parsed: Vec<syn::Type> =
-        parse_macro_input!(args with Punctuated<Type, syn::token::Comma>::parse_terminated)
-            .into_iter()
-            .collect();
-    if args_parsed.len() != 2 {
-        panic!("sqlc_core::batch_param expects exactly two argument");
-    }
-
-    let batch_param_type = &args_parsed[0];
-    let batch_result_type = &args_parsed[1];
+    let mut input_struct = parse_macro_input!(input as ItemStruct);
+    let ident = input_struct.ident.clone();
+    let _args = parse_macro_input!(args as syn::parse::Nothing);
 
     let fut_ident = format_ident!("{}Fut", ident);
     let fn_ident = format_ident!("{}Fn", ident);
+
+    let mut batch_param_type: Option<Type> = None;
+    let mut batch_result_type: Option<Type> = None;
+    if let syn::Fields::Named(ref mut fields) = input_struct.fields {
+        assert!(fields.named.len() == 2, "#[batch_result_type] struct can only have 2 mandatory struct fields marked with #[batch_param] and #[batch_result] respectively");
+
+        for _ in 1..=2 {
+            if let Some(pair) = fields.named.pop() {
+                let field = pair.value();
+                if let Some(field_type) = get_field_type(&field) {
+                    if field_type == BATCH_PARAM && batch_param_type.is_none() {
+                        batch_param_type = Some(field.ty.clone());
+                    } else if field_type == BATCH_RESULT && batch_result_type.is_none() {
+                        batch_result_type = Some(field.ty.clone());
+                    } else {
+                        panic!("unknown field type in struct marked #[batch_result_type]")
+                    }
+                }
+            }
+        }
+
+        let injected_fields = vec![
+            quote!(__pool: deadpool_postgres::Pool),
+            quote!(__stmt: tokio_postgres::Statement),
+            quote!(__index: usize),
+            quote!(__items: Vec<#batch_param_type>),
+            quote!(__fut: #fn_ident),
+            quote!(__thunk: Option<#fut_ident>),
+        ];
+
+        for field in injected_fields {
+            fields.named.push(
+                syn::Field::parse_named
+                    .parse2(field)
+                    .expect("could not parse batch_result_type field"),
+            );
+        }
+    } else {
+        panic!(
+            "missing one struct field (named) each marked with #[batch_param] and #[batch_result] respectively"
+        )
+    }
 
     let type_aliases = quote! {
         type #fut_ident =
@@ -96,19 +144,7 @@ pub fn batch_param(args: TokenStream, input: TokenStream) -> TokenStream {
         >;
     };
 
-    let modified_struct = quote! {
-        #(#attrs)*
-        #vis struct #ident {
-            __pool: deadpool_postgres::Pool,
-            __stmt: tokio_postgres::Statement,
-            __index: usize,
-            __items: Vec<#batch_param_type>,
-            __fut: #fn_ident,
-            __thunk: Option<#fut_ident>,
-        }
-    }
-    .into();
-
+    let modified_struct = quote!(#input_struct).into();
     let modified_struct = parse_macro_input!(modified_struct as ItemStruct);
 
     let expanded = quote! {
