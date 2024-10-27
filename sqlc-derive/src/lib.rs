@@ -86,9 +86,6 @@ pub fn batch_result_type(args: TokenStream, input: TokenStream) -> TokenStream {
     let ident = input_struct.ident.clone();
     let _args = parse_macro_input!(args as syn::parse::Nothing);
 
-    let fut_ident = format_ident!("{}Fut", ident);
-    let fn_ident = format_ident!("{}Fn", ident);
-
     let mut batch_param_type: Option<Type> = None;
     let mut batch_result_type: Option<Type> = None;
     if let syn::Fields::Named(ref mut fields) = input_struct.fields {
@@ -114,8 +111,8 @@ pub fn batch_result_type(args: TokenStream, input: TokenStream) -> TokenStream {
             quote!(__stmt: tokio_postgres::Statement),
             quote!(__index: usize),
             quote!(__items: Vec<#batch_param_type>),
-            quote!(__fut: #fn_ident),
-            quote!(__thunk: Option<#fut_ident>),
+            quote!(__fut: sqlc_core::BatchResultsFn<#batch_param_type, #batch_result_type>),
+            quote!(__thunk: Option<sqlc_core::BatchResultsFut<#batch_result_type>>),
         ];
 
         for field in injected_fields {
@@ -131,24 +128,10 @@ pub fn batch_result_type(args: TokenStream, input: TokenStream) -> TokenStream {
         )
     }
 
-    let type_aliases = quote! {
-        type #fut_ident =
-            std::pin::Pin<Box<dyn futures::Future<Output = Option<Result<#batch_result_type, sqlc_core::Error>>> + Send + 'static>>;
-        type #fn_ident = Box<
-            dyn Fn(
-                    deadpool_postgres::Pool,
-                    tokio_postgres::Statement,
-                    #batch_param_type,
-                ) -> #fut_ident
-                + Send,
-        >;
-    };
-
     let modified_struct = quote!(#input_struct).into();
     let modified_struct = parse_macro_input!(modified_struct as ItemStruct);
 
     let expanded = quote! {
-        #type_aliases
         #modified_struct
 
         impl #ident {
@@ -156,7 +139,7 @@ pub fn batch_result_type(args: TokenStream, input: TokenStream) -> TokenStream {
                 __pool: deadpool_postgres::Pool,
                 __items: Vec<#batch_param_type>,
                 __stmt: tokio_postgres::Statement,
-                __fut: #fn_ident,
+                __fut: sqlc_core::BatchResultsFn<#batch_param_type, #batch_result_type>,
             ) -> Self {
                 Self {
                     __pool,
@@ -187,8 +170,10 @@ pub fn batch_result_type(args: TokenStream, input: TokenStream) -> TokenStream {
                     None
                 }
             }
-
-            fn set_thunk(mut self: std::pin::Pin<&mut Self>, thunk: #fut_ident) {
+            fn set_thunk(
+                mut self: std::pin::Pin<&mut Self>,
+                thunk: sqlc_core::BatchResultsFut<#batch_result_type>,
+            ) {
                 self.__thunk = Some(Box::pin(thunk))
             }
             fn thunk(
@@ -196,7 +181,7 @@ pub fn batch_result_type(args: TokenStream, input: TokenStream) -> TokenStream {
                 arg: Self::Param,
                 stmt: tokio_postgres::Statement,
                 pool: deadpool_postgres::Pool,
-            ) -> #fut_ident {
+            ) -> sqlc_core::BatchResultsFut<#batch_result_type> {
                 self.__thunk
                     .take()
                     .unwrap_or_else(move || (self.__fut)(pool.clone(), stmt.clone(), arg.clone()))
@@ -214,6 +199,8 @@ pub fn batch_result_type(args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
     };
+
+    // panic!("{:?}", expanded.to_string());
 
     expanded.into()
 }

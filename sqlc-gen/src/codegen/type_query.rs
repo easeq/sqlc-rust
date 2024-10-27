@@ -246,13 +246,26 @@ impl TypeQuery {
             }
             QueryCommand::BatchMany | QueryCommand::BatchOne | QueryCommand::BatchExec => {
                 let ret = self.get_batch_results_ident();
-                let fn_ident = format_ident!("{}Fn", ret);
+                // let fn_ident = format_ident!("{}Fn", ret);
+                let fut_ret = if command.has_return_value() {
+                    let ret = self.ret.clone().unwrap();
+                    if command.is_one() {
+                        quote!(#ret)
+                    } else {
+                        quote! {
+                            std::pin::Pin<Box<futures::stream::Iter<std::vec::IntoIter<Result<#ret, sqlc_core::Error>>>>>
+                        }
+                    }
+                } else {
+                    quote!(())
+                };
+                let arg_type = self.arg.clone().unwrap_or_default().get_type_tokens();
                 let arg_name = get_ident(self.arg.clone().unwrap_or_default().name.as_str());
                 let arg_singular_type = self.arg.clone().unwrap().generate_code(false);
                 let sig =
                     quote! { fn #ident_name(&mut self, #arg) -> Result<#ret, sqlc_core::Error> };
                 let stmt = quote! {
-                    let fut: #fn_ident = Box::new(|pool: deadpool_postgres::Pool,
+                    let fut: sqlc_core::BatchResultsFn<#arg_type, #fut_ret> = Box::new(|pool: deadpool_postgres::Pool,
                                stmt: tokio_postgres::Statement,
                                #arg_singular_type| {
                         Box::pin(async move {

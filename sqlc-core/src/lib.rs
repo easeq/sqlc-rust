@@ -1,5 +1,6 @@
 use cfg_block::cfg_block;
 use std::collections::HashMap;
+use std::ops::DerefMut;
 
 #[cfg(all(feature = "with-postgres", feature = "with-tokio-postgres"))]
 compile_error!(
@@ -17,6 +18,65 @@ use tokio_postgres::{Error as PgError, Row};
 
 pub trait FromPostgresRow: Sized {
     fn from_row(row: &Row) -> Result<Self, PgError>;
+}
+
+cfg_block! {
+    #[cfg(feature = "with-deadpool")] {
+        pub type BatchResultsFut<R> =
+            std::pin::Pin<Box<dyn futures::Future<Output = Option<Result<R, Error>>> + Send + 'static>>;
+        pub type BatchResultsFn<P, R> =
+            Box<dyn Fn(deadpool_postgres::Pool, tokio_postgres::Statement, P) -> BatchResultsFut<R> + Send>;
+
+        // pub struct BatchResults<P, R> {
+        //     __pool: deadpool_postgres::Pool,
+        //     __stmt: tokio_postgres::Statement,
+        //     __index: usize,
+        //     __items: Vec<P>,
+        //     __fut: BatchResultsFn<P, R>,
+        //     __thunk: Option<BatchResultsFut<R>>,
+        // }
+        //
+        // impl<P, R> BatchResults<P, R>
+        // where
+        //     P: Clone + Unpin,
+        //     R: Clone + 'static,
+        // {
+        //     pub(crate) fn new(
+        //         __pool: deadpool_postgres::Pool,
+        //         __items: Vec<P>,
+        //         __stmt: tokio_postgres::Statement,
+        //         __fut: BatchResultsFn<P, R>,
+        //     ) -> Self {
+        //         Self {
+        //             __pool,
+        //             __items,
+        //             __stmt,
+        //             __fut,
+        //             __index: 0,
+        //             __thunk: None,
+        //         }
+        //     }
+        //     fn inc_index(mut self: std::pin::Pin<&mut Self>) {
+        //         self.__index += 1;
+        //     }
+        //     fn stmt(&self) -> tokio_postgres::Statement {
+        //         self.__stmt.clone()
+        //     }
+        //     fn pool(&self) -> deadpool_postgres::Pool {
+        //         self.__pool.clone()
+        //     }
+        //     fn current_item(&self) -> Option<P> {
+        //         if self.__index < self.__items.len() {
+        //             Some(self.__items[self.__index].clone())
+        //         } else {
+        //             None
+        //         }
+        //     }
+        //     fn set_thunk(mut self: std::pin::Pin<&mut Self>, thunk: BatchResultsFut<R>) {
+        //         self.__thunk = Some(Box::pin(thunk))
+        //     }
+        // }
+    }
 }
 
 #[cfg(feature = "with-deadpool")]

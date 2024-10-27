@@ -62,7 +62,7 @@ impl Queries {
         &mut self,
         book_id: Vec<i32>,
     ) -> Result<DeleteBookBatchResults, sqlc_core::Error> {
-        let fut: DeleteBookBatchResultsFn = Box::new(|
+        let fut: sqlc_core::BatchResultsFn<i32, ()> = Box::new(|
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             book_id: i32|

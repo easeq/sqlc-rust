@@ -621,6 +621,7 @@ impl CodeBuilder {
                                 result: #fut_ret,
                             }
 
+                            // #[batch_cb]
                             async fn #query_method_ident(
                                 pool: deadpool_postgres::Pool,
                                 stmt: tokio_postgres::Statement,

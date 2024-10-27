@@ -260,7 +260,16 @@ impl Queries {
         &mut self,
         year: Vec<i32>,
     ) -> Result<BooksByYearBatchResults, sqlc_core::Error> {
-        let fut: BooksByYearBatchResultsFn = Box::new(|
+        let fut: sqlc_core::BatchResultsFn<
+            i32,
+            std::pin::Pin<
+                Box<
+                    futures::stream::Iter<
+                        std::vec::IntoIter<Result<Book, sqlc_core::Error>>,
+                    >,
+                >,
+            >,
+        > = Box::new(|
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             year: i32|
@@ -279,7 +288,7 @@ impl Queries {
         &mut self,
         arg: Vec<CreateBookParams>,
     ) -> Result<CreateBookBatchResults, sqlc_core::Error> {
-        let fut: CreateBookBatchResultsFn = Box::new(|
+        let fut: sqlc_core::BatchResultsFn<CreateBookParams, Book> = Box::new(|
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             arg: CreateBookParams|
@@ -291,7 +300,7 @@ impl Queries {
         &mut self,
         book_id: Vec<i32>,
     ) -> Result<DeleteBookBatchResults, sqlc_core::Error> {
-        let fut: DeleteBookBatchResultsFn = Box::new(|
+        let fut: sqlc_core::BatchResultsFn<i32, ()> = Box::new(|
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             book_id: i32|
@@ -310,7 +319,7 @@ impl Queries {
         &mut self,
         book_id: Vec<i32>,
     ) -> Result<DeleteBookNamedFuncBatchResults, sqlc_core::Error> {
-        let fut: DeleteBookNamedFuncBatchResultsFn = Box::new(|
+        let fut: sqlc_core::BatchResultsFn<i32, ()> = Box::new(|
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             book_id: i32|
@@ -326,7 +335,7 @@ impl Queries {
         &mut self,
         book_id: Vec<i32>,
     ) -> Result<DeleteBookNamedSignBatchResults, sqlc_core::Error> {
-        let fut: DeleteBookNamedSignBatchResultsFn = Box::new(|
+        let fut: sqlc_core::BatchResultsFn<i32, ()> = Box::new(|
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             book_id: i32|
@@ -349,7 +358,7 @@ impl Queries {
         &mut self,
         author_id: Vec<i32>,
     ) -> Result<GetBiographyBatchResults, sqlc_core::Error> {
-        let fut: GetBiographyBatchResultsFn = Box::new(|
+        let fut: sqlc_core::BatchResultsFn<i32, serde_json::Value> = Box::new(|
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             author_id: i32|
@@ -361,7 +370,7 @@ impl Queries {
         &mut self,
         arg: Vec<UpdateBookParams>,
     ) -> Result<UpdateBookBatchResults, sqlc_core::Error> {
-        let fut: UpdateBookBatchResultsFn = Box::new(|
+        let fut: sqlc_core::BatchResultsFn<UpdateBookParams, ()> = Box::new(|
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             arg: UpdateBookParams|
