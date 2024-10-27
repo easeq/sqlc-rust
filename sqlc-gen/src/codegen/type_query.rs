@@ -3,7 +3,6 @@ use super::{get_batch_results_ident, get_ident, DataType, PgDataType};
 use convert_case::{Case, Casing};
 use core::panic;
 use proc_macro2::TokenStream;
-use quote::format_ident;
 use quote::{quote, ToTokens};
 use std::str::FromStr;
 use strum_macros::EnumString;
@@ -245,8 +244,6 @@ impl TypeQuery {
                 QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
             }
             QueryCommand::BatchMany | QueryCommand::BatchOne | QueryCommand::BatchExec => {
-                let ret = self.get_batch_results_ident();
-                // let fn_ident = format_ident!("{}Fn", ret);
                 let fut_ret = if command.has_return_value() {
                     let ret = self.ret.clone().unwrap();
                     if command.is_one() {
@@ -262,8 +259,12 @@ impl TypeQuery {
                 let arg_type = self.arg.clone().unwrap_or_default().get_type_tokens();
                 let arg_name = get_ident(self.arg.clone().unwrap_or_default().name.as_str());
                 let arg_singular_type = self.arg.clone().unwrap().generate_code(false);
-                let sig =
-                    quote! { fn #ident_name(&mut self, #arg) -> Result<#ret, sqlc_core::Error> };
+                let sig = quote! {
+                    fn #ident_name(&mut self, #arg) -> Result<
+                        sqlc_core::BatchResults<#arg_type, #fut_ret>,
+                        sqlc_core::Error
+                    >
+                };
                 let stmt = quote! {
                     let fut: sqlc_core::BatchResultsFn<#arg_type, #fut_ret> = Box::new(|pool: deadpool_postgres::Pool,
                                stmt: tokio_postgres::Statement,
@@ -275,7 +276,7 @@ impl TypeQuery {
                     let stmt = #client.prepare(#ident_const_name)
                 };
                 let fn_body = quote! {
-                    Ok(#ret::new(self.pool.clone(), #arg_name, stmt, fut))
+                    Ok(sqlc_core::BatchResults::new(self.pool.clone(), #arg_name, stmt, fut))
                 };
                 QueryMethod::new(sig, fn_body, stmt, self.use_async)
             } // _ => quote! {},

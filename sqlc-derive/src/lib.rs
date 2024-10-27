@@ -77,7 +77,6 @@ fn get_field_type(field: &syn::Field) -> Option<&str> {
 #[cfg(feature = "with-deadpool")]
 #[proc_macro_attribute]
 pub fn batch_result_type(args: TokenStream, input: TokenStream) -> TokenStream {
-    use quote::format_ident;
     use syn::parse::Parser;
     use syn::ItemStruct;
     use syn::Type;

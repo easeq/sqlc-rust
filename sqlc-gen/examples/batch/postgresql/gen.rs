@@ -34,13 +34,6 @@ pub(crate) struct Book {
     pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
-#[sqlc_derive::batch_result_type]
-pub(crate) struct DeleteBookBatchResults {
-    #[batch_param]
-    param: i32,
-    #[batch_result]
-    result: (),
-}
 async fn delete_book(
     pool: deadpool_postgres::Pool,
     stmt: tokio_postgres::Statement,
@@ -61,13 +54,13 @@ impl Queries {
     pub(crate) async fn delete_book(
         &mut self,
         book_id: Vec<i32>,
-    ) -> Result<DeleteBookBatchResults, sqlc_core::Error> {
+    ) -> Result<sqlc_core::BatchResults<i32, ()>, sqlc_core::Error> {
         let fut: sqlc_core::BatchResultsFn<i32, ()> = Box::new(|
             pool: deadpool_postgres::Pool,
             stmt: tokio_postgres::Statement,
             book_id: i32|
         { Box::pin(async move { Some(delete_book(pool, stmt, book_id).await) }) });
         let stmt = self.client.prepare(DELETE_BOOK).await?;
-        Ok(DeleteBookBatchResults::new(self.pool.clone(), book_id, stmt, fut))
+        Ok(sqlc_core::BatchResults::new(self.pool.clone(), book_id, stmt, fut))
     }
 }

@@ -556,8 +556,6 @@ impl CodeBuilder {
                     );
 
                     if query_cmd.is_batch() {
-                        let arg_type = arg.clone().unwrap_or_default().get_type_tokens();
-                        let ident = get_batch_results_ident(&query.name);
                         let fut_ret = if query_cmd.has_return_value() {
                             if query_cmd.is_one() {
                                 quote!(#ret)
@@ -613,14 +611,6 @@ impl CodeBuilder {
                         };
 
                         batch_result_structs.push(quote! {
-                            #[sqlc_derive::batch_result_type]
-                            pub(crate) struct #ident {
-                                #[batch_param]
-                                param: #arg_type,
-                                #[batch_result]
-                                result: #fut_ret,
-                            }
-
                             // #[batch_cb]
                             async fn #query_method_ident(
                                 pool: deadpool_postgres::Pool,
