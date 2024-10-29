@@ -26,7 +26,6 @@ uuid-1 = { version = "1.0", package = "uuid", optional = true }
 time-02 = { version = "0.2", package = "time", optional = true }
 time-03 = { version = "0.3", package = "time", default-features = false, optional = true }
 futures = { version = "0.3.31", optional = true }
-pin-project-lite = "0.2.15"
 pin-project = "1.1.7"
 
 [features]

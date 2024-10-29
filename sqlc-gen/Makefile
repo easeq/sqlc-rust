@@ -1,6 +1,3 @@
-build: build.rs src/codegen.proto src/main.rs
-	cargo build --release --target wasm32-wasip1
-
 EXAMPLES = "authors" "batch" "booktest" "jets" "ondeck" 
 EXAMPLES_OUTER = "authors" "authors-async" "authors-deadpool" "batch" 
 
@@ -22,7 +19,7 @@ generate-for-example:
 	cd -
 
 generate:
-	sha=$$(make -s build && sha256sum ../target/wasm32-wasip1/release/sqlc-gen.wasm | cut -d' ' -f1) && \
+	sha=$$(sha256sum ../target/wasm32-wasip1/release/sqlc-gen.wasm | cut -d' ' -f1) && \
 	echo "SHA256: $$sha" && \
 	make -s get-examples | xargs -I_EX sh -c "make -s generate-for-example example_dir=examples/_EX sha_256=$$sha url=file://./../../../target/wasm32-wasip1/release/sqlc-gen.wasm" && \
 	make -s get-outer-examples | xargs -I_EX sh -c "make -s generate-for-example example_dir=../examples/_EX sha_256=$$sha url=file://./../../target/wasm32-wasip1/release/sqlc-gen.wasm"
