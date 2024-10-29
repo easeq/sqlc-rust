@@ -9,8 +9,6 @@ compile_error!(
 compile_error!("one of with-postgres and with-tokio-postgres features needs to be enabled");
 
 mod error;
-
-#[path = "./from-postgres-row.rs"]
 mod from_postgres_row;
 
 pub use error::*;
@@ -18,7 +16,6 @@ pub use from_postgres_row::*;
 
 cfg_block! {
     #[cfg(feature = "with-deadpool")] {
-        #[path = "./batch-results.rs"]
         mod batch_results;
         pub use batch_results::*;
     }
