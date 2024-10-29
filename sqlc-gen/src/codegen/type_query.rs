@@ -256,27 +256,18 @@ impl TypeQuery {
                 } else {
                     quote!(())
                 };
-                let arg_type = self.arg.clone().unwrap_or_default().get_type_tokens();
                 let arg_name = get_ident(self.arg.clone().unwrap_or_default().name.as_str());
-                let arg_singular_type = self.arg.clone().unwrap().generate_code(false);
                 let sig = quote! {
                     fn #ident_name(&mut self, #arg) -> Result<
-                        sqlc_core::BatchResults<#arg_type, #fut_ret>,
+                        impl futures::Stream<Item = Result<#fut_ret, sqlc_core::Error>>,
                         sqlc_core::Error
                     >
                 };
                 let stmt = quote! {
-                    let fut: sqlc_core::BatchResultsFn<#arg_type, #fut_ret> = Box::new(|pool: deadpool_postgres::Pool,
-                               stmt: tokio_postgres::Statement,
-                               #arg_singular_type| {
-                        Box::pin(async move {
-                            Some(#ident_name(pool, stmt, #arg_name).await)
-                        })
-                    });
                     let stmt = #client.prepare(#ident_const_name)
                 };
                 let fn_body = quote! {
-                    Ok(sqlc_core::BatchResults::new(self.pool.clone(), #arg_name, stmt, fut))
+                    Ok(sqlc_core::BatchResults::new(self.pool.clone(), #arg_name, stmt, #ident_name))
                 };
                 QueryMethod::new(sig, fn_body, stmt, self.use_async)
             } // _ => quote! {},

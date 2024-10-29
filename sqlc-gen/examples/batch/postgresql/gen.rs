@@ -54,13 +54,11 @@ impl Queries {
     pub(crate) async fn delete_book(
         &mut self,
         book_id: Vec<i32>,
-    ) -> Result<sqlc_core::BatchResults<i32, ()>, sqlc_core::Error> {
-        let fut: sqlc_core::BatchResultsFn<i32, ()> = Box::new(|
-            pool: deadpool_postgres::Pool,
-            stmt: tokio_postgres::Statement,
-            book_id: i32|
-        { Box::pin(async move { Some(delete_book(pool, stmt, book_id).await) }) });
+    ) -> Result<
+        impl futures::Stream<Item = Result<(), sqlc_core::Error>>,
+        sqlc_core::Error,
+    > {
         let stmt = self.client.prepare(DELETE_BOOK).await?;
-        Ok(sqlc_core::BatchResults::new(self.pool.clone(), book_id, stmt, fut))
+        Ok(sqlc_core::BatchResults::new(self.pool.clone(), book_id, stmt, delete_book))
     }
 }

@@ -1,5 +1,4 @@
 use cfg_block::cfg_block;
-use std::collections::HashMap;
 
 #[cfg(all(feature = "with-postgres", feature = "with-tokio-postgres"))]
 compile_error!(
@@ -9,197 +8,18 @@ compile_error!(
 #[cfg(all(not(feature = "with-postgres"), not(feature = "with-tokio-postgres")))]
 compile_error!("one of with-postgres and with-tokio-postgres features needs to be enabled");
 
-#[cfg(feature = "with-postgres")]
-use postgres::{Error as PgError, Row};
+mod error;
 
-#[cfg(feature = "with-tokio-postgres")]
-use tokio_postgres::{Error as PgError, Row};
+#[path = "./from-postgres-row.rs"]
+mod from_postgres_row;
 
-pub trait FromPostgresRow: Sized {
-    fn from_row(row: &Row) -> Result<Self, PgError>;
-}
+pub use error::*;
+pub use from_postgres_row::*;
 
 cfg_block! {
     #[cfg(feature = "with-deadpool")] {
-        pub type BatchResultsFut<R> =
-            std::pin::Pin<Box<dyn futures::Future<Output = Option<Result<R, Error>>> + Send + 'static>>;
-        pub type BatchResultsFn<P, R> =
-            Box<dyn Fn(deadpool_postgres::Pool, tokio_postgres::Statement, P) -> BatchResultsFut<R> + Send>;
-
-        pub struct BatchResults<P, R> {
-            __pool: deadpool_postgres::Pool,
-            __stmt: tokio_postgres::Statement,
-            __index: usize,
-            __items: Vec<P>,
-            __fut: BatchResultsFn<P, R>,
-            __thunk: Option<BatchResultsFut<R>>,
-        }
-
-        impl<P, R> BatchResults<P, R>
-        where
-            P: Clone + Unpin,
-            R: 'static,
-        {
-            pub fn new(
-                __pool: deadpool_postgres::Pool,
-                __items: Vec<P>,
-                __stmt: tokio_postgres::Statement,
-                __fut: BatchResultsFn<P, R>,
-            ) -> Self {
-                Self {
-                    __pool,
-                    __items,
-                    __stmt,
-                    __fut,
-                    __index: 0,
-                    __thunk: None,
-                }
-            }
-            fn inc_index(mut self: std::pin::Pin<&mut Self>) {
-                self.__index += 1;
-            }
-            fn stmt(&self) -> tokio_postgres::Statement {
-                self.__stmt.clone()
-            }
-            fn pool(&self) -> deadpool_postgres::Pool {
-                self.__pool.clone()
-            }
-            fn current_item(&self) -> Option<P> {
-                if self.__index < self.__items.len() {
-                    Some(self.__items[self.__index].clone())
-                } else {
-                    None
-                }
-            }
-            fn set_thunk(mut self: std::pin::Pin<&mut Self>, thunk: BatchResultsFut<R>) {
-                self.__thunk = Some(Box::pin(thunk))
-            }
-            fn thunk(
-                mut self: std::pin::Pin<&mut Self>,
-                arg: P,
-                stmt: tokio_postgres::Statement,
-                pool: deadpool_postgres::Pool,
-            ) -> BatchResultsFut<R> {
-                self.__thunk
-                    .take()
-                    .unwrap_or_else(move || (self.__fut)(pool.clone(), stmt.clone(), arg.clone()))
-            }
-        }
-
-        impl<P, R> futures::Stream for BatchResults<P, R>
-        where
-            P: Clone + Unpin,
-            R: 'static,
-        {
-            type Item = Result<R, Error>;
-            fn poll_next(
-                mut self: std::pin::Pin<&mut Self>,
-                cx: &mut std::task::Context<'_>,
-            ) -> std::task::Poll<Option<Self::Item>> {
-                if let Some(arg) = self.current_item() {
-                    let stmt = self.stmt();
-                    let pool = self.pool();
-                    let mut fut = self.as_mut().thunk(arg, stmt, pool);
-
-                    match fut.as_mut().poll(cx) {
-                        std::task::Poll::Ready(None) => std::task::Poll::Ready(None),
-                        std::task::Poll::Ready(res) => {
-                            self.inc_index();
-                            std::task::Poll::Ready(res)
-                        }
-                        std::task::Poll::Pending => {
-                            self.set_thunk(fut);
-                            std::task::Poll::Pending
-                        }
-                    }
-                } else {
-                    std::task::Poll::Ready(None)
-                }
-            }
-        }
+        #[path = "./batch-results.rs"]
+        mod batch_results;
+        pub use batch_results::*;
     }
-}
-
-macro_rules! from_primitive {
-    ($t:ty) => {
-        impl FromPostgresRow for $t {
-            fn from_row(row: &Row) -> Result<Self, PgError> {
-                Ok(row.try_get::<&str, $t>("0")?)
-            }
-        }
-    };
-}
-
-from_primitive!(bool);
-from_primitive!(String);
-from_primitive!(i16);
-from_primitive!(i32);
-from_primitive!(i64);
-from_primitive!(f64);
-from_primitive!(HashMap<String, Option<String>>);
-
-#[cfg(feature = "with-bit-vec-0_6")]
-from_primitive!(bit_vec_06::BitVec);
-
-#[cfg(feature = "with-uuid-0_8")]
-from_primitive!(uuid_0_8::Uuid);
-
-#[cfg(feature = "with-uuid-1")]
-from_primitive!(uuid_1::Uuid);
-
-#[cfg(feature = "with-eui48-0_4")]
-from_primitive!(eui48_04::MacAddress);
-
-#[cfg(feature = "with-eui48-1")]
-from_primitive!(eui48_1::MacAddress);
-
-#[cfg(feature = "with-serde_json-1")]
-from_primitive!(serde_json_1::Value);
-
-cfg_block! {
-    #[cfg(feature = "with-cidr-0_2")] {
-        from_primitive!(cidr_02::IpInet);
-        from_primitive!(cidr_02::IpCidr);
-    }
-
-    #[cfg(feature = "with-geo-types-0_6")] {
-        from_primitive!(geo_types_06::Point);
-        from_primitive!(geo_types_06::Rect);
-        from_primitive!(geo_types_06::LineString);
-    }
-
-    #[cfg(feature = "with-geo-types-0_7")] {
-        from_primitive!(geo_types_0_7::Point);
-        from_primitive!(geo_types_0_7::Rect);
-        from_primitive!(geo_types_0_7::LineString);
-    }
-
-    #[cfg(feature = "with-time-0_2")] {
-        from_primitive!(time_02::Time);
-        from_primitive!(time_02::Date);
-        from_primitive!(time_02::PrimitiveDateTime);
-        from_primitive!(time_02::OffsetDateTime);
-    }
-
-    #[cfg(feature = "with-time-0_3")] {
-        from_primitive!(time_03::Time);
-        from_primitive!(time_03::Date);
-        from_primitive!(time_03::PrimitiveDateTime);
-        from_primitive!(time_03::OffsetDateTime);
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[cfg(feature = "with-deadpool")]
-    #[error("deadpool-postgres error: {0}")]
-    DeadpoolError(#[from] deadpool_postgres::PoolError),
-
-    #[cfg(feature = "with-postgres")]
-    #[error("postgres error: {0}")]
-    PostgresError(#[from] postgres::Error),
-
-    #[cfg(feature = "with-tokio-postgres")]
-    #[error("tokio-postgres error: {0}")]
-    TokioPostgresError(#[from] tokio_postgres::Error),
 }
