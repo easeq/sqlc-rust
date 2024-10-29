@@ -2346,7 +2346,7 @@ dependencies = [
 
 [[package]]
 name = "sqlc-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bit-vec",
  "cfg_block",
@@ -2372,7 +2372,7 @@ dependencies = [
 
 [[package]]
 name = "sqlc-derive"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "postgres-types",
  "proc-macro2",

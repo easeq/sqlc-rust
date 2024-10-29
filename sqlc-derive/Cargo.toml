@@ -10,7 +10,7 @@ proc-macro = true
 postgres-types = "0.2.8"
 proc-macro2 = "1.0.86"
 quote = "1.0.37"
-sqlc-core = { version = "0.2.0", path = "../sqlc-core" }
+sqlc-core = { version = "0.3.0", path = "../sqlc-core" }
 syn = "2.0.77"
 
 [features]
