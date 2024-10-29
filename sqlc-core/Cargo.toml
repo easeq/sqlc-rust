@@ -1,6 +1,6 @@
 [package]
 name = "sqlc-core"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 
 [dependencies]
@@ -25,12 +25,14 @@ uuid-08 = { version = "0.8", package = "uuid", optional = true }
 uuid-1 = { version = "1.0", package = "uuid", optional = true }
 time-02 = { version = "0.2", package = "time", optional = true }
 time-03 = { version = "0.3", package = "time", default-features = false, optional = true }
+futures = { version = "0.3.31", optional = true }
+pin-project = "1.1.7"
 
 [features]
 # default = ["with-postgres"]
 with-postgres = ["postgres"]
 with-tokio-postgres = ["tokio-postgres"]
-with-deadpool = ["deadpool-postgres", "with-tokio-postgres"]
+with-deadpool = ["futures", "deadpool-postgres", "with-tokio-postgres"]
 with-bit-vec-0_6 = ["bit-vec-06", "postgres/with-bit-vec-0_6", "tokio-postgres/with-bit-vec-0_6"]
 with-cidr-0_2 = ["cidr-02", "postgres-types/with-cidr-0_2"]
 with-eui48-0_4 = ["eui48-04", "postgres/with-eui48-0_4", "tokio-postgres/with-eui48-0_4"]
@@ -42,3 +44,4 @@ with-uuid-0_8 = ["uuid-08", "postgres/with-uuid-0_8", "tokio-postgres/with-uuid-
 with-uuid-1 = ["uuid-1", "postgres/with-uuid-1", "tokio-postgres/with-uuid-1"]
 with-time-0_2 = ["time-02", "postgres/with-time-0_2", "tokio-postgres/with-time-0_2"]
 with-time-0_3 = ["time-03", "postgres/with-time-0_3", "tokio-postgres/with-time-0_3"]
+futures = ["dep:futures"]

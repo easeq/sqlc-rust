@@ -1,6 +1,6 @@
 [package]
 name = "sqlc-gen"
-version = "0.2.3"
+version = "0.3.0"
 edition = "2018"
 
 [profile.release]
@@ -25,6 +25,3 @@ pluralizer = "0.4.0"
 check_keyword = "0.3.1"
 base64 = "0.22.1"
 sqlc_sqlc_community_neoeinstein-prost = { version = "0.4.0-20231002190240-3f2d312ab6fd.1", registry = "buf" }
-
-[build-dependencies]
-prost-build = "0.9.0"

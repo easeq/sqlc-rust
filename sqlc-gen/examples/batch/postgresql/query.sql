@@ -1,28 +1,33 @@
--- name: GetAuthor :one
-select *
-from authors
-where author_id = $1
+-- -- name: GetAuthor :one
+-- select *
+-- from authors
+-- where author_id = $1
+-- ;
+--
+-- -- name: DeleteBookExecResult :execresult
+-- delete from books
+-- where book_id = $1
+-- ;
+-- name: DeleteBook :batchexec
+delete from books
+where book_id = $1
 ;
 
--- -- name: DeleteBookExecResult :execresult
--- DELETE FROM books
--- WHERE book_id = $1;
---
--- -- name: DeleteBook :batchexec
--- DELETE FROM books
--- WHERE book_id = $1;
---
 -- -- name: DeleteBookNamedFunc :batchexec
--- DELETE FROM books
--- WHERE book_id = sqlc.arg (book_id);
+-- delete from books
+-- where book_id = sqlc.arg(book_id)
+-- ;
 --
 -- -- name: DeleteBookNamedSign :batchexec
--- DELETE FROM books
--- WHERE book_id = @book_id;
+-- delete from books
+-- where book_id = @book_id
+-- ;
 --
 -- -- name: BooksByYear :batchmany
--- SELECT * FROM books
--- WHERE year = $1;
+-- select *
+-- from books
+-- where year = $1
+-- ;
 --
 -- -- name: CreateAuthor :one
 -- INSERT INTO authors (name) VALUES ($1)
@@ -54,6 +59,8 @@ where author_id = $1
 -- WHERE book_id = $3;
 --
 -- -- name: GetBiography :batchone
--- SELECT biography FROM authors
--- WHERE author_id = $1;
+-- select biography
+-- from authors
+-- where author_id = $1
+-- ;
 
