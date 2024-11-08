@@ -50,11 +50,9 @@ where
             let pool = this.pool.clone();
 
             if this.thunk.is_none() {
-                this.thunk.as_mut().set(Some((this.callback)(
-                    pool.clone(),
-                    stmt.clone(),
-                    arg.clone(),
-                )));
+                this.thunk
+                    .as_mut()
+                    .set(Some((this.callback)(pool, stmt, arg)));
             }
 
             let mut fut = this.thunk.as_mut().as_pin_mut().unwrap();

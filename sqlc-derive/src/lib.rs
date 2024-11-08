@@ -1,6 +1,7 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
+use quote::format_ident;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
@@ -26,33 +27,26 @@ pub fn from_postgres_row(input: TokenStream) -> TokenStream {
         _ => unimplemented!(),
     };
 
-    #[cfg(feature = "with-postgres")]
-    {
-        let expanded = quote! {
-            impl sqlc_core::FromPostgresRow for #ident {
-                fn from_row(row: &postgres::Row) -> Result<Self, postgres::Error> {
-                    Ok(Self {
-                        #(#fields),*
-                    })
-                }
-            }
-        };
-
-        TokenStream::from(expanded)
+    let module;
+    if cfg!(feature = "with-postgres") {
+        module = format_ident!("postgres");
+    } else if cfg!(feature = "with-tokio-postgres") {
+        module = format_ident!("tokio_postgres");
+    } else if cfg!(feature = "with-deadpool") {
+        module = format_ident!("tokio_postgres");
+    } else {
+        panic!("one of (with-postgres, with-tokio-postgres, with-deadpool) must be enabled");
     }
 
-    #[cfg(feature = "with-tokio-postgres")]
-    {
-        let expanded = quote! {
-            impl sqlc_core::FromPostgresRow for #ident {
-                fn from_row(row: &tokio_postgres::Row) -> Result<Self, tokio_postgres::Error> {
-                    Ok(Self {
-                        #(#fields),*
-                    })
-                }
+    let expanded = quote! {
+        impl sqlc_core::FromPostgresRow for #ident {
+            fn from_row(row: &#module::Row) -> Result<Self, #module::Error> {
+                Ok(Self {
+                    #(#fields),*
+                })
             }
-        };
+        }
+    };
 
-        TokenStream::from(expanded)
-    }
+    TokenStream::from(expanded)
 }
