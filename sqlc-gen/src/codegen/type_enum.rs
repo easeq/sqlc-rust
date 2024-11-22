@@ -8,7 +8,7 @@ use quote::{quote, ToTokens};
 pub fn enum_name(name: &str, schema_name: &str, default_schema: &str) -> String {
     match schema_name == default_schema {
         true => name.to_string(),
-        false => format!("{}_{name}", schema_name),
+        false => format!("{schema_name}_{name}"),
     }
     .to_case(Case::Pascal)
 }
@@ -23,13 +23,13 @@ fn enum_replacer(c: char) -> Option<char> {
     }
 }
 
-fn generate_enum_variant(i: usize, val: String, seen: &mut HashSet<String>) -> TokenStream {
+fn generate_enum_variant(i: usize, val: &str, seen: &mut HashSet<String>) -> TokenStream {
     let mut value = val.chars().filter_map(enum_replacer).collect::<String>();
     if seen.get(&value).is_some() || value.is_empty() {
         value = format!("value_{}", i);
     }
-    seen.insert(value.clone());
     let ident_variant = get_ident(&value.to_case(Case::Pascal));
+    seen.insert(value);
     quote! {
         #[postgres(name=#val)]
         #[cfg_attr(feature = "serde_support", serde(rename=#val))]
@@ -61,8 +61,7 @@ impl TypeEnum {
         let mut seen = HashSet::new();
         let variants = self
             .values
-            .clone()
-            .into_iter()
+            .iter()
             .enumerate()
             .map(|(i, val)| generate_enum_variant(i, val, &mut seen))
             .collect::<Vec<_>>();

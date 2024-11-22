@@ -75,7 +75,7 @@ impl QueryValue {
     pub fn get_type(&self) -> DataType {
         if let Some(typ) = &self.typ {
             typ.as_data_type()
-        } else if let Some(type_struct) = self.type_struct.clone() {
+        } else if let Some(ref type_struct) = self.type_struct {
             type_struct.data_type()
         } else {
             panic!("QueryValue neither has `typ` specified nor `type_struct`");
@@ -90,14 +90,13 @@ impl QueryValue {
     pub fn generate_fields_list(&self) -> TokenStream {
         let mut fields_list = quote! {};
         if self.typ.is_some() {
-            let ident_name = get_ident(&self.name.clone());
+            let ident_name = get_ident(&self.name);
             fields_list = quote! { &#ident_name };
-        } else if let Some(type_struct) = self.type_struct.clone() {
-            let ident_name = get_ident(&self.name.clone());
+        } else if let Some(ref type_struct) = self.type_struct {
+            let ident_name = get_ident(&self.name);
             let fields = type_struct
                 .fields
-                .clone()
-                .into_iter()
+                .iter()
                 .map(|field| {
                     let ident_field_name = get_ident(&field.name());
                     quote! { &#ident_name.#ident_field_name }
@@ -181,10 +180,6 @@ impl TypeQuery {
         self.name.to_case(Case::Snake)
     }
 
-    // pub fn get_batch_results_ident(&self) -> syn::Ident {
-    //     get_batch_results_ident(&self.name.as_str())
-    // }
-    //
     fn command(&self) -> QueryCommand {
         QueryCommand::from_str(&self.cmd).unwrap()
     }
@@ -195,16 +190,7 @@ impl TypeQuery {
         let fields_list = self.arg.clone().unwrap_or_default().generate_fields_list();
         let command = self.command();
         let arg = self.arg.clone().unwrap_or_default();
-        // let client = if self.use_deadpool {
-        //     quote!(self.client().await)
-        // } else {
-        //     quote!(self.client)
-        // };
         let client = quote!(client);
-        // let pg_mod = if self.use_async || self.use_deadpool { quote!(tokio_postgres)
-        // } else {
-        //     quote!(postgres)
-        // };
 
         let sig_fn = quote!(fn #ident_name(client: &impl sqlc_core::DBTX, #arg));
 
@@ -318,7 +304,6 @@ impl TypeQuery {
 
                     }
                     Ok(futures::stream::iter(futs))
-                    // Ok(sqlc_core::BatchResults::new(#client, #arg_name, stmt, #ident_name))
                 };
                 QueryMethod::new(sig, fn_body, stmt, self.use_async)
             } // _ => quote! {},
@@ -360,9 +345,9 @@ impl QueryMethod {
 impl ToTokens for QueryMethod {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let fn_code;
-        let sig = self.sig.clone();
-        let fn_body = self.fn_body.clone();
-        let fetch_stmt = self.fetch_stmt.clone();
+        let sig = &self.sig;
+        let fn_body = &self.fn_body;
+        let fetch_stmt = &self.fetch_stmt;
         if self.use_async {
             fn_code = quote! {
                 pub(crate) async #sig {

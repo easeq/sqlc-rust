@@ -82,14 +82,14 @@ pub(crate) struct CreateBookParams {
 
 pub(crate) async fn create_author(
     client: &impl sqlc_core::DBTX,
-    name: String,
+    name: &str,
 ) -> Result<Author, sqlc_core::Error> {
     let row = client.query_one(CREATE_AUTHOR, &[&name]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) async fn create_book(
     client: &impl sqlc_core::DBTX,
-    arg_list: Vec<CreateBookParams>,
+    arg_list: &[CreateBookParams],
 ) -> Result<impl futures::Stream<Item = Result<Book, sqlc_core::Error>>, sqlc_core::Error> {
     let stmt = client.prepare(CREATE_BOOK).await?;
     let mut futs = vec![];
@@ -111,10 +111,12 @@ pub(crate) async fn create_book(
                     ],
                 )
                 .await?;
-            Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+            let result: Book = sqlc_core::FromPostgresRow::from_row(&row)?;
+            Ok(result)
         });
     }
-    Ok(futures::stream::iter(futs))
+    let stream = futures::stream::iter(futs);
+    Ok(stream.into())
 }
 
 pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
@@ -123,9 +125,7 @@ pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
     let db_client = pool.get().await.expect("failed to get client from pool");
     let client = db_client.deref().deref();
 
-    let a = create_author(client, "Unknown Master".to_string())
-        .await
-        .unwrap();
+    let a = create_author(client, "Unknown Master").await.unwrap();
 
     let new_book_params = vec![
         CreateBookParams {
@@ -166,7 +166,7 @@ pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
         },
     ];
 
-    let new_books = create_book(client, new_book_params.clone())
+    let new_books = create_book(client, &new_book_params)
         .await
         .expect("failed to create batch results")
         .try_collect::<Vec<_>>()

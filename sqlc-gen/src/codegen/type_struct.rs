@@ -6,7 +6,7 @@ use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
     pub name: String,
     pub is_array: bool,
@@ -39,9 +39,9 @@ impl StructField {
         default_schema: &str,
     ) -> Self {
         Self::new(
-            col.name.clone(),
+            &col.name,
             pos,
-            PgDataType::from(&col.r#type.clone().unwrap().name, &schemas, default_schema),
+            PgDataType::from(&col.r#type.as_ref().unwrap().name, &schemas, default_schema),
             col.is_array,
             col.not_null,
         )
@@ -82,6 +82,24 @@ impl ToTokens for StructField {
         })
     }
 }
+
+// impl std::cmp::PartialEq<plugin::Column> for StructField {
+//     fn eq(&self, c: &plugin::Column) -> bool {
+//         let same_name = self.name() == column_name(&c.name, i as i32);
+//
+//         let same_type = self.data_type.to_string()
+//             == PgDataType::from(
+//                 c.r#type.as_ref().unwrap().name.as_str(),
+//                 &schemas,
+//                 &default_schema,
+//             )
+//             .to_string();
+//
+//         let same_table = same_table(c.table.as_ref(), s.table.as_ref(), &default_schema);
+//
+//         same_name && same_type && same_table
+//     }
+// }
 
 #[derive(Default, Debug, Clone)]
 pub enum StructType {
@@ -133,7 +151,7 @@ impl TypeStruct {
             quote! {}
         } else {
             let ident_struct = self.data_type();
-            let fields = self.fields.clone().into_iter().collect::<Vec<_>>();
+            let fields = self.fields.iter().collect::<Vec<_>>();
 
             quote! {
                 #[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
@@ -152,6 +170,12 @@ impl ToTokens for TypeStruct {
         tokens.extend(self.generate_code());
     }
 }
+
+// impl PartialEq for TypeStruct {
+//     fn eq(&self, other: &Self) -> bool {
+//         // if self.fields.len() !=
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
