@@ -33,22 +33,22 @@ impl StructField {
     }
 
     pub fn from(
-        col: plugin::Column,
+        col: &plugin::Column,
         pos: i32,
-        schemas: Vec<plugin::Schema>,
-        default_schema: String,
+        schemas: &[plugin::Schema],
+        default_schema: &str,
     ) -> Self {
         Self::new(
-            col.name,
+            col.name.clone(),
             pos,
-            PgDataType::from(&col.r#type.unwrap().name, schemas, default_schema),
+            PgDataType::from(&col.r#type.clone().unwrap().name, &schemas, default_schema),
             col.is_array,
             col.not_null,
         )
     }
 
     pub fn name(&self) -> String {
-        column_name(self.name.clone(), self.number)
+        column_name(&self.name, self.number)
     }
 
     pub fn data_type(&self) -> TokenStream {
@@ -136,8 +136,9 @@ impl TypeStruct {
             let fields = self.fields.clone().into_iter().collect::<Vec<_>>();
 
             quote! {
-                #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+                #[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
                 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+                #[cfg_attr(feature = "hash", derive(Eq, Hash))]
                 pub(crate) struct #ident_struct {
                     #(#fields),*
                 }
@@ -166,7 +167,7 @@ mod tests {
         StructField::new(
             name.unwrap_or(""),
             number.unwrap_or(0),
-            data_type.unwrap_or(PgDataType::from("pg_catalog.int4", vec![], "".to_string())),
+            data_type.unwrap_or(PgDataType::from("pg_catalog.int4", &[], "")),
             is_array.unwrap_or_default(),
             not_null.unwrap_or_default(),
         )
@@ -261,7 +262,7 @@ mod tests {
         assert_eq!(
             type_struct.generate_code().to_string(),
             quote! {
-                #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+                #[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
                 pub(crate) struct StructNameParams {
                     pub(crate) f_1:  Option<i32>,
                     pub(crate) f_2: i32,

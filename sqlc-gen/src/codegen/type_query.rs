@@ -117,6 +117,7 @@ impl QueryValue {
             let ident_type = self.get_type_tokens();
             let ident_name = get_ident(&self.name);
             let arg_toks = if is_batch {
+                let ident_name = get_ident(format!("{}_list", self.name).as_str());
                 quote! {
                     #ident_name: Vec<#ident_type>
                 }
@@ -180,10 +181,10 @@ impl TypeQuery {
         self.name.to_case(Case::Snake)
     }
 
-    pub fn get_batch_results_ident(&self) -> syn::Ident {
-        get_batch_results_ident(&self.name.as_str())
-    }
-
+    // pub fn get_batch_results_ident(&self) -> syn::Ident {
+    //     get_batch_results_ident(&self.name.as_str())
+    // }
+    //
     fn command(&self) -> QueryCommand {
         QueryCommand::from_str(&self.cmd).unwrap()
     }
@@ -194,17 +195,23 @@ impl TypeQuery {
         let fields_list = self.arg.clone().unwrap_or_default().generate_fields_list();
         let command = self.command();
         let arg = self.arg.clone().unwrap_or_default();
-        let client = if self.use_deadpool {
-            quote!(self.client().await)
-        } else {
-            quote!(self.client)
-        };
+        // let client = if self.use_deadpool {
+        //     quote!(self.client().await)
+        // } else {
+        //     quote!(self.client)
+        // };
+        let client = quote!(client);
+        // let pg_mod = if self.use_async || self.use_deadpool { quote!(tokio_postgres)
+        // } else {
+        //     quote!(postgres)
+        // };
+
+        let sig_fn = quote!(fn #ident_name(client: &impl sqlc_core::DBTX, #arg));
 
         let query_method = match command {
             QueryCommand::One => {
                 let ret = self.ret.clone().unwrap_or_default();
-                let sig =
-                    quote! { fn #ident_name(&mut self, #arg) -> Result<#ret, sqlc_core::Error> };
+                let sig = quote! { #sig_fn -> Result<#ret, sqlc_core::Error> };
                 let fetch_stmt = quote! {
                     let row = #client.query_one(#ident_const_name, &[#fields_list])
                 };
@@ -215,7 +222,7 @@ impl TypeQuery {
             }
             QueryCommand::Many => {
                 let ret = self.ret.clone().unwrap_or_default();
-                let sig = quote! { fn #ident_name(&mut self, #arg) -> Result<Vec<#ret>, sqlc_core::Error> };
+                let sig = quote! { #sig_fn -> Result<Vec<#ret>, sqlc_core::Error> };
                 let fetch_stmt = quote! {
                     let rows = #client.query(#ident_const_name, &[#fields_list])
                 };
@@ -233,8 +240,7 @@ impl TypeQuery {
             | QueryCommand::ExecRows
             | QueryCommand::ExecResult
             | QueryCommand::ExecLastId => {
-                let sig =
-                    quote! { fn #ident_name(&mut self, #arg) -> Result<(), sqlc_core::Error> };
+                let sig = quote! { #sig_fn -> Result<(), sqlc_core::Error> };
                 let fetch_stmt = quote! {
                     #client.execute(#ident_const_name, &[#fields_list])
                 };
@@ -256,9 +262,11 @@ impl TypeQuery {
                 } else {
                     quote!(())
                 };
-                let arg_name = get_ident(self.arg.clone().unwrap_or_default().name.as_str());
+                let arg_name_str = self.arg.clone().unwrap_or_default().name;
+                let arg_name = get_ident(&arg_name_str);
+                let arg_list = get_ident(format!("{}_list", arg_name_str).as_str());
                 let sig = quote! {
-                    fn #ident_name(&mut self, #arg) -> Result<
+                    fn #ident_name(client: &impl sqlc_core::DBTX, #arg) -> Result<
                         impl futures::Stream<Item = Result<#fut_ret, sqlc_core::Error>>,
                         sqlc_core::Error
                     >
@@ -266,8 +274,51 @@ impl TypeQuery {
                 let stmt = quote! {
                     let stmt = #client.prepare(#ident_const_name)
                 };
+                let fn_res = match command {
+                    QueryCommand::BatchExec => {
+                        quote! {
+                            client.execute(&stmt, &[#fields_list]).await?;
+                            Ok(())
+                        }
+                    }
+                    QueryCommand::BatchOne => {
+                        quote! {
+                            let row = client
+                                .query_one(
+                                    &stmt,
+                                    &[#fields_list],
+                                )
+                                .await?;
+                            Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+                        }
+                    }
+                    QueryCommand::BatchMany => {
+                        let query_ret = self.ret.clone().unwrap_or_default();
+                        quote! {
+                            let rows = client.query(&stmt, &[#fields_list]).await?;
+                            let mut result: Vec<Result<#query_ret, sqlc_core::Error>> = vec![];
+                            for row in rows {
+
+                                result.push(Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+                            }
+
+                            Ok(Box::pin(futures::stream::iter(result)))
+                        }
+                    }
+                    _ => unimplemented!(),
+                };
                 let fn_body = quote! {
-                    Ok(sqlc_core::BatchResults::new(self.pool.clone(), #arg_name, stmt, #ident_name))
+                    let mut futs = vec![];
+                    for #arg_name in #arg_list {
+                        let stmt = stmt.clone();
+                        let client = &client;
+                        futs.push(async move {
+                            #fn_res
+                        });
+
+                    }
+                    Ok(futures::stream::iter(futs))
+                    // Ok(sqlc_core::BatchResults::new(#client, #arg_name, stmt, #ident_name))
                 };
                 QueryMethod::new(sig, fn_body, stmt, self.use_async)
             } // _ => quote! {},

@@ -70,6 +70,7 @@ impl TypeEnum {
         quote! {
             #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
             #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+            #[cfg_attr(feature = "hash", derive(Eq, Hash))]
             #[postgres(name=#type_name)]
             pub enum #ident_enum_name {
                 #(#variants),*

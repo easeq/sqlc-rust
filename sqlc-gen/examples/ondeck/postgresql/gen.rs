@@ -76,6 +76,7 @@ ORDER BY 1
 "#;
 #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 #[postgres(name = "status")]
 pub enum Status {
     #[postgres(name = "op!en")]
@@ -85,20 +86,23 @@ pub enum Status {
     #[cfg_attr(feature = "serde_support", serde(rename = "clo@sed"))]
     Closed,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct City {
     pub slug: String,
     pub name: String,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct CreateCityParams {
     pub name: String,
     pub slug: String,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct CreateVenueParams {
     pub slug: String,
     pub name: String,
@@ -108,26 +112,30 @@ pub(crate) struct CreateVenueParams {
     pub statuses: Option<Vec<Status>>,
     pub tags: Option<Vec<String>>,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct GetVenueParams {
     pub slug: String,
     pub city: String,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct UpdateCityNameParams {
     pub slug: String,
     pub name: String,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct UpdateVenueNameParams {
     pub slug: String,
     pub name: String,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct Venue {
     pub id: i32,
     pub status: Status,
@@ -140,113 +148,103 @@ pub(crate) struct Venue {
     pub tags: Option<Vec<String>>,
     pub created_at: String,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct VenueCountByCityRow {
     pub city: String,
     pub count: i64,
 }
-#[derive(Clone)]
-pub struct Queries {
-    client: tokio_postgres::Client,
+pub(crate) async fn create_city(
+    client: &impl sqlc_core::DBTX,
+    arg: CreateCityParams,
+) -> Result<City, sqlc_core::Error> {
+    let row = client.query_one(CREATE_CITY, &[&arg.name, &arg.slug]).await?;
+    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
-impl Queries {
-    pub fn new(client: tokio_postgres::Client) -> Self {
-        Self { client }
+pub(crate) async fn create_venue(
+    client: &impl sqlc_core::DBTX,
+    arg: CreateVenueParams,
+) -> Result<i32, sqlc_core::Error> {
+    let row = client
+        .query_one(
+            CREATE_VENUE,
+            &[
+                &arg.slug,
+                &arg.name,
+                &arg.city,
+                &arg.spotify_playlist,
+                &arg.status,
+                &arg.statuses,
+                &arg.tags,
+            ],
+        )
+        .await?;
+    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+}
+pub(crate) async fn delete_venue(
+    client: &impl sqlc_core::DBTX,
+    slug: String,
+) -> Result<(), sqlc_core::Error> {
+    client.execute(DELETE_VENUE, &[&slug]).await?;
+    Ok(())
+}
+pub(crate) async fn get_city(
+    client: &impl sqlc_core::DBTX,
+    slug: String,
+) -> Result<City, sqlc_core::Error> {
+    let row = client.query_one(GET_CITY, &[&slug]).await?;
+    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+}
+pub(crate) async fn get_venue(
+    client: &impl sqlc_core::DBTX,
+    arg: GetVenueParams,
+) -> Result<Venue, sqlc_core::Error> {
+    let row = client.query_one(GET_VENUE, &[&arg.slug, &arg.city]).await?;
+    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+}
+pub(crate) async fn list_cities(
+    client: &impl sqlc_core::DBTX,
+) -> Result<Vec<City>, sqlc_core::Error> {
+    let rows = client.query(LIST_CITIES, &[]).await?;
+    let mut result: Vec<City> = vec![];
+    for row in rows {
+        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
     }
-    pub(crate) async fn create_city(
-        &mut self,
-        arg: CreateCityParams,
-    ) -> Result<City, sqlc_core::Error> {
-        let row = self.client.query_one(CREATE_CITY, &[&arg.name, &arg.slug]).await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    Ok(result)
+}
+pub(crate) async fn list_venues(
+    client: &impl sqlc_core::DBTX,
+    city: String,
+) -> Result<Vec<Venue>, sqlc_core::Error> {
+    let rows = client.query(LIST_VENUES, &[&city]).await?;
+    let mut result: Vec<Venue> = vec![];
+    for row in rows {
+        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
     }
-    pub(crate) async fn create_venue(
-        &mut self,
-        arg: CreateVenueParams,
-    ) -> Result<i32, sqlc_core::Error> {
-        let row = self
-            .client
-            .query_one(
-                CREATE_VENUE,
-                &[
-                    &arg.slug,
-                    &arg.name,
-                    &arg.city,
-                    &arg.spotify_playlist,
-                    &arg.status,
-                    &arg.statuses,
-                    &arg.tags,
-                ],
-            )
-            .await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    Ok(result)
+}
+pub(crate) async fn update_city_name(
+    client: &impl sqlc_core::DBTX,
+    arg: UpdateCityNameParams,
+) -> Result<(), sqlc_core::Error> {
+    client.execute(UPDATE_CITY_NAME, &[&arg.slug, &arg.name]).await?;
+    Ok(())
+}
+pub(crate) async fn update_venue_name(
+    client: &impl sqlc_core::DBTX,
+    arg: UpdateVenueNameParams,
+) -> Result<i32, sqlc_core::Error> {
+    let row = client.query_one(UPDATE_VENUE_NAME, &[&arg.slug, &arg.name]).await?;
+    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+}
+pub(crate) async fn venue_count_by_city(
+    client: &impl sqlc_core::DBTX,
+) -> Result<Vec<VenueCountByCityRow>, sqlc_core::Error> {
+    let rows = client.query(VENUE_COUNT_BY_CITY, &[]).await?;
+    let mut result: Vec<VenueCountByCityRow> = vec![];
+    for row in rows {
+        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
     }
-    pub(crate) async fn delete_venue(
-        &mut self,
-        slug: String,
-    ) -> Result<(), sqlc_core::Error> {
-        self.client.execute(DELETE_VENUE, &[&slug]).await?;
-        Ok(())
-    }
-    pub(crate) async fn get_city(
-        &mut self,
-        slug: String,
-    ) -> Result<City, sqlc_core::Error> {
-        let row = self.client.query_one(GET_CITY, &[&slug]).await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) async fn get_venue(
-        &mut self,
-        arg: GetVenueParams,
-    ) -> Result<Venue, sqlc_core::Error> {
-        let row = self.client.query_one(GET_VENUE, &[&arg.slug, &arg.city]).await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) async fn list_cities(&mut self) -> Result<Vec<City>, sqlc_core::Error> {
-        let rows = self.client.query(LIST_CITIES, &[]).await?;
-        let mut result: Vec<City> = vec![];
-        for row in rows {
-            result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-        }
-        Ok(result)
-    }
-    pub(crate) async fn list_venues(
-        &mut self,
-        city: String,
-    ) -> Result<Vec<Venue>, sqlc_core::Error> {
-        let rows = self.client.query(LIST_VENUES, &[&city]).await?;
-        let mut result: Vec<Venue> = vec![];
-        for row in rows {
-            result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-        }
-        Ok(result)
-    }
-    pub(crate) async fn update_city_name(
-        &mut self,
-        arg: UpdateCityNameParams,
-    ) -> Result<(), sqlc_core::Error> {
-        self.client.execute(UPDATE_CITY_NAME, &[&arg.slug, &arg.name]).await?;
-        Ok(())
-    }
-    pub(crate) async fn update_venue_name(
-        &mut self,
-        arg: UpdateVenueNameParams,
-    ) -> Result<i32, sqlc_core::Error> {
-        let row = self
-            .client
-            .query_one(UPDATE_VENUE_NAME, &[&arg.slug, &arg.name])
-            .await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) async fn venue_count_by_city(
-        &mut self,
-    ) -> Result<Vec<VenueCountByCityRow>, sqlc_core::Error> {
-        let rows = self.client.query(VENUE_COUNT_BY_CITY, &[]).await?;
-        let mut result: Vec<VenueCountByCityRow> = vec![];
-        for row in rows {
-            result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-        }
-        Ok(result)
-    }
+    Ok(result)
 }
