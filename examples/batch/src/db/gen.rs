@@ -62,6 +62,7 @@ where author_id = $1
 "#;
 #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 #[postgres(name = "book_type")]
 pub enum BookType {
     #[postgres(name = "FICTION")]
@@ -71,15 +72,17 @@ pub enum BookType {
     #[cfg_attr(feature = "serde_support", serde(rename = "NONFICTION"))]
     Nonfiction,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct Author {
     pub author_id: i32,
     pub name: String,
     pub biography: Option<serde_json::Value>,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct Book {
     pub book_id: i32,
     pub author_id: i32,
@@ -90,8 +93,9 @@ pub(crate) struct Book {
     pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct CreateBookParams {
     pub author_id: i32,
     pub isbn: String,
@@ -101,231 +105,193 @@ pub(crate) struct CreateBookParams {
     pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct UpdateBookParams {
     pub title: String,
     pub tags: Vec<String>,
     pub book_id: i32,
 }
-async fn delete_book(
-    pool: deadpool_postgres::Pool,
-    stmt: tokio_postgres::Statement,
-    book_id: i32,
-) -> Result<(), sqlc_core::Error> {
-    let client = pool.clone().get().await?;
-    client.execute(&stmt, &[&book_id]).await?;
-    Ok(())
-}
-async fn delete_book_named_func(
-    pool: deadpool_postgres::Pool,
-    stmt: tokio_postgres::Statement,
-    book_id: i32,
-) -> Result<(), sqlc_core::Error> {
-    let client = pool.clone().get().await?;
-    client.execute(&stmt, &[&book_id]).await?;
-    Ok(())
-}
-async fn delete_book_named_sign(
-    pool: deadpool_postgres::Pool,
-    stmt: tokio_postgres::Statement,
-    book_id: i32,
-) -> Result<(), sqlc_core::Error> {
-    let client = pool.clone().get().await?;
-    client.execute(&stmt, &[&book_id]).await?;
-    Ok(())
-}
-async fn books_by_year(
-    pool: deadpool_postgres::Pool,
-    stmt: tokio_postgres::Statement,
-    year: i32,
+pub(crate) async fn books_by_year(
+    client: &impl sqlc_core::DBTX,
+    year_list: Vec<i32>,
 ) -> Result<
-    std::pin::Pin<
-        Box<futures::stream::Iter<std::vec::IntoIter<Result<Book, sqlc_core::Error>>>>,
+    impl futures::Stream<
+        Item = Result<
+            std::pin::Pin<
+                Box<
+                    futures::stream::Iter<
+                        std::vec::IntoIter<Result<Book, sqlc_core::Error>>,
+                    >,
+                >,
+            >,
+            sqlc_core::Error,
+        >,
     >,
     sqlc_core::Error,
 > {
-    let client = pool.clone().get().await?;
-    let rows = client.query(&stmt, &[&year]).await?;
-    let mut result: Vec<Result<Book, sqlc_core::Error>> = vec![];
-    for row in rows {
-        result.push(Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+    let stmt = client.prepare(BOOKS_BY_YEAR).await?;
+    let mut futs = vec![];
+    for year in year_list {
+        let stmt = stmt.clone();
+        let client = &client;
+        futs.push(async move {
+            let rows = client.query(&stmt, &[&year]).await?;
+            let mut result: Vec<Result<Book, sqlc_core::Error>> = vec![];
+            for row in rows {
+                result.push(Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+            }
+            Ok(Box::pin(futures::stream::iter(result)))
+        });
     }
-    Ok(Box::pin(futures::stream::iter(result)))
+    Ok(futures::stream::iter(futs))
 }
-async fn create_book(
-    pool: deadpool_postgres::Pool,
-    stmt: tokio_postgres::Statement,
-    arg: CreateBookParams,
-) -> Result<Book, sqlc_core::Error> {
-    let client = pool.clone().get().await?;
-    let row = client
-        .query_one(
-            &stmt,
-            &[
-                &arg.author_id,
-                &arg.isbn,
-                &arg.book_type,
-                &arg.title,
-                &arg.year,
-                &arg.available,
-                &arg.tags,
-            ],
-        )
-        .await?;
+pub(crate) async fn create_author(
+    client: &impl sqlc_core::DBTX,
+    name: String,
+) -> Result<Author, sqlc_core::Error> {
+    let row = client.query_one(CREATE_AUTHOR, &[&name]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
-async fn update_book(
-    pool: deadpool_postgres::Pool,
-    stmt: tokio_postgres::Statement,
-    arg: UpdateBookParams,
+pub(crate) async fn create_book(
+    client: &impl sqlc_core::DBTX,
+    arg_list: Vec<CreateBookParams>,
+) -> Result<
+    impl futures::Stream<Item = Result<Book, sqlc_core::Error>>,
+    sqlc_core::Error,
+> {
+    let stmt = client.prepare(CREATE_BOOK).await?;
+    let mut futs = vec![];
+    for arg in arg_list {
+        let stmt = stmt.clone();
+        let client = &client;
+        futs.push(async move {
+            let row = client
+                .query_one(
+                    &stmt,
+                    &[
+                        &arg.author_id,
+                        &arg.isbn,
+                        &arg.book_type,
+                        &arg.title,
+                        &arg.year,
+                        &arg.available,
+                        &arg.tags,
+                    ],
+                )
+                .await?;
+            Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+        });
+    }
+    Ok(futures::stream::iter(futs))
+}
+pub(crate) async fn delete_book(
+    client: &impl sqlc_core::DBTX,
+    book_id_list: Vec<i32>,
+) -> Result<
+    impl futures::Stream<Item = Result<(), sqlc_core::Error>>,
+    sqlc_core::Error,
+> {
+    let stmt = client.prepare(DELETE_BOOK).await?;
+    let mut futs = vec![];
+    for book_id in book_id_list {
+        let stmt = stmt.clone();
+        let client = &client;
+        futs.push(async move {
+            client.execute(&stmt, &[&book_id]).await?;
+            Ok(())
+        });
+    }
+    Ok(futures::stream::iter(futs))
+}
+pub(crate) async fn delete_book_exec_result(
+    client: &impl sqlc_core::DBTX,
+    book_id: i32,
 ) -> Result<(), sqlc_core::Error> {
-    let client = pool.clone().get().await?;
-    client.execute(&stmt, &[&arg.title, &arg.tags, &arg.book_id]).await?;
+    client.execute(DELETE_BOOK_EXEC_RESULT, &[&book_id]).await?;
     Ok(())
 }
-async fn get_biography(
-    pool: deadpool_postgres::Pool,
-    stmt: tokio_postgres::Statement,
+pub(crate) async fn delete_book_named_func(
+    client: &impl sqlc_core::DBTX,
+    book_id_list: Vec<i32>,
+) -> Result<
+    impl futures::Stream<Item = Result<(), sqlc_core::Error>>,
+    sqlc_core::Error,
+> {
+    let stmt = client.prepare(DELETE_BOOK_NAMED_FUNC).await?;
+    let mut futs = vec![];
+    for book_id in book_id_list {
+        let stmt = stmt.clone();
+        let client = &client;
+        futs.push(async move {
+            client.execute(&stmt, &[&book_id]).await?;
+            Ok(())
+        });
+    }
+    Ok(futures::stream::iter(futs))
+}
+pub(crate) async fn delete_book_named_sign(
+    client: &impl sqlc_core::DBTX,
+    book_id_list: Vec<i32>,
+) -> Result<
+    impl futures::Stream<Item = Result<(), sqlc_core::Error>>,
+    sqlc_core::Error,
+> {
+    let stmt = client.prepare(DELETE_BOOK_NAMED_SIGN).await?;
+    let mut futs = vec![];
+    for book_id in book_id_list {
+        let stmt = stmt.clone();
+        let client = &client;
+        futs.push(async move {
+            client.execute(&stmt, &[&book_id]).await?;
+            Ok(())
+        });
+    }
+    Ok(futures::stream::iter(futs))
+}
+pub(crate) async fn get_author(
+    client: &impl sqlc_core::DBTX,
     author_id: i32,
-) -> Result<serde_json::Value, sqlc_core::Error> {
-    let client = pool.clone().get().await?;
-    let row = client.query_one(&stmt, &[&author_id]).await?;
+) -> Result<Author, sqlc_core::Error> {
+    let row = client.query_one(GET_AUTHOR, &[&author_id]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
-#[derive(Clone)]
-pub struct Queries {
-    pool: deadpool_postgres::Pool,
+pub(crate) async fn get_biography(
+    client: &impl sqlc_core::DBTX,
+    author_id_list: Vec<i32>,
+) -> Result<
+    impl futures::Stream<Item = Result<serde_json::Value, sqlc_core::Error>>,
+    sqlc_core::Error,
+> {
+    let stmt = client.prepare(GET_BIOGRAPHY).await?;
+    let mut futs = vec![];
+    for author_id in author_id_list {
+        let stmt = stmt.clone();
+        let client = &client;
+        futs.push(async move {
+            let row = client.query_one(&stmt, &[&author_id]).await?;
+            Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+        });
+    }
+    Ok(futures::stream::iter(futs))
 }
-impl Queries {
-    pub fn new(pool: deadpool_postgres::Pool) -> Self {
-        Self { pool }
+pub(crate) async fn update_book(
+    client: &impl sqlc_core::DBTX,
+    arg_list: Vec<UpdateBookParams>,
+) -> Result<
+    impl futures::Stream<Item = Result<(), sqlc_core::Error>>,
+    sqlc_core::Error,
+> {
+    let stmt = client.prepare(UPDATE_BOOK).await?;
+    let mut futs = vec![];
+    for arg in arg_list {
+        let stmt = stmt.clone();
+        let client = &client;
+        futs.push(async move {
+            client.execute(&stmt, &[&arg.title, &arg.tags, &arg.book_id]).await?;
+            Ok(())
+        });
     }
-    pub async fn client(&self) -> deadpool::managed::Object<deadpool_postgres::Manager> {
-        let client = self.pool.get().await.unwrap();
-        client
-    }
-    pub(crate) async fn books_by_year(
-        &mut self,
-        year: Vec<i32>,
-    ) -> Result<
-        impl futures::Stream<
-            Item = Result<
-                std::pin::Pin<
-                    Box<
-                        futures::stream::Iter<
-                            std::vec::IntoIter<Result<Book, sqlc_core::Error>>,
-                        >,
-                    >,
-                >,
-                sqlc_core::Error,
-            >,
-        >,
-        sqlc_core::Error,
-    > {
-        let stmt = self.client().await.prepare(BOOKS_BY_YEAR).await?;
-        Ok(sqlc_core::BatchResults::new(self.pool.clone(), year, stmt, books_by_year))
-    }
-    pub(crate) async fn create_author(
-        &mut self,
-        name: String,
-    ) -> Result<Author, sqlc_core::Error> {
-        let row = self.client().await.query_one(CREATE_AUTHOR, &[&name]).await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) async fn create_book(
-        &mut self,
-        arg: Vec<CreateBookParams>,
-    ) -> Result<
-        impl futures::Stream<Item = Result<Book, sqlc_core::Error>>,
-        sqlc_core::Error,
-    > {
-        let stmt = self.client().await.prepare(CREATE_BOOK).await?;
-        Ok(sqlc_core::BatchResults::new(self.pool.clone(), arg, stmt, create_book))
-    }
-    pub(crate) async fn delete_book(
-        &mut self,
-        book_id: Vec<i32>,
-    ) -> Result<
-        impl futures::Stream<Item = Result<(), sqlc_core::Error>>,
-        sqlc_core::Error,
-    > {
-        let stmt = self.client().await.prepare(DELETE_BOOK).await?;
-        Ok(sqlc_core::BatchResults::new(self.pool.clone(), book_id, stmt, delete_book))
-    }
-    pub(crate) async fn delete_book_exec_result(
-        &mut self,
-        book_id: i32,
-    ) -> Result<(), sqlc_core::Error> {
-        self.client().await.execute(DELETE_BOOK_EXEC_RESULT, &[&book_id]).await?;
-        Ok(())
-    }
-    pub(crate) async fn delete_book_named_func(
-        &mut self,
-        book_id: Vec<i32>,
-    ) -> Result<
-        impl futures::Stream<Item = Result<(), sqlc_core::Error>>,
-        sqlc_core::Error,
-    > {
-        let stmt = self.client().await.prepare(DELETE_BOOK_NAMED_FUNC).await?;
-        Ok(
-            sqlc_core::BatchResults::new(
-                self.pool.clone(),
-                book_id,
-                stmt,
-                delete_book_named_func,
-            ),
-        )
-    }
-    pub(crate) async fn delete_book_named_sign(
-        &mut self,
-        book_id: Vec<i32>,
-    ) -> Result<
-        impl futures::Stream<Item = Result<(), sqlc_core::Error>>,
-        sqlc_core::Error,
-    > {
-        let stmt = self.client().await.prepare(DELETE_BOOK_NAMED_SIGN).await?;
-        Ok(
-            sqlc_core::BatchResults::new(
-                self.pool.clone(),
-                book_id,
-                stmt,
-                delete_book_named_sign,
-            ),
-        )
-    }
-    pub(crate) async fn get_author(
-        &mut self,
-        author_id: i32,
-    ) -> Result<Author, sqlc_core::Error> {
-        let row = self.client().await.query_one(GET_AUTHOR, &[&author_id]).await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) async fn get_biography(
-        &mut self,
-        author_id: Vec<i32>,
-    ) -> Result<
-        impl futures::Stream<Item = Result<serde_json::Value, sqlc_core::Error>>,
-        sqlc_core::Error,
-    > {
-        let stmt = self.client().await.prepare(GET_BIOGRAPHY).await?;
-        Ok(
-            sqlc_core::BatchResults::new(
-                self.pool.clone(),
-                author_id,
-                stmt,
-                get_biography,
-            ),
-        )
-    }
-    pub(crate) async fn update_book(
-        &mut self,
-        arg: Vec<UpdateBookParams>,
-    ) -> Result<
-        impl futures::Stream<Item = Result<(), sqlc_core::Error>>,
-        sqlc_core::Error,
-    > {
-        let stmt = self.client().await.prepare(UPDATE_BOOK).await?;
-        Ok(sqlc_core::BatchResults::new(self.pool.clone(), arg, stmt, update_book))
-    }
+    Ok(futures::stream::iter(futs))
 }

@@ -1,4 +1,5 @@
 use futures::TryStreamExt;
+use std::ops::Deref;
 
 pub(crate) const CREATE_AUTHOR: &str = r#"
 INSERT INTO authors (name) VALUES ($1)
@@ -39,7 +40,7 @@ pub enum BookType {
     #[cfg_attr(feature = "serde_support", serde(rename = "NONFICTION"))]
     Nonfiction,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(
     feature = "serde_support",
     derive(serde::Serialize, serde::Deserialize)
@@ -49,7 +50,7 @@ pub(crate) struct Author {
     pub name: String,
     pub biography: Option<serde_json::Value>,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(
     feature = "serde_support",
     derive(serde::Serialize, serde::Deserialize)
@@ -64,7 +65,7 @@ pub(crate) struct Book {
     pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(
     feature = "serde_support",
     derive(serde::Serialize, serde::Deserialize)
@@ -79,70 +80,50 @@ pub(crate) struct CreateBookParams {
     pub tags: Vec<String>,
 }
 
-async fn create_book(
-    pool: deadpool_postgres::Pool,
-    stmt: tokio_postgres::Statement,
-    arg: CreateBookParams,
-) -> Result<Book, sqlc_core::Error> {
-    let client = pool.clone().get().await?;
-    let row = client
-        .query_one(
-            &stmt,
-            &[
-                &arg.author_id,
-                &arg.isbn,
-                &arg.book_type,
-                &arg.title,
-                &arg.year,
-                &arg.available,
-                &arg.tags,
-            ],
-        )
-        .await?;
+pub(crate) async fn create_author(
+    client: &impl sqlc_core::DBTX,
+    name: String,
+) -> Result<Author, sqlc_core::Error> {
+    let row = client.query_one(CREATE_AUTHOR, &[&name]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
-
-#[derive(Clone)]
-pub struct Queries {
-    pool: deadpool_postgres::Pool,
-}
-impl Queries {
-    pub fn new(pool: deadpool_postgres::Pool) -> Self {
-        Self { pool }
+pub(crate) async fn create_book(
+    client: &impl sqlc_core::DBTX,
+    arg_list: Vec<CreateBookParams>,
+) -> Result<impl futures::Stream<Item = Result<Book, sqlc_core::Error>>, sqlc_core::Error> {
+    let stmt = client.prepare(CREATE_BOOK).await?;
+    let mut futs = vec![];
+    for arg in arg_list {
+        let stmt = stmt.clone();
+        let client = &client;
+        futs.push(async move {
+            let row = client
+                .query_one(
+                    &stmt,
+                    &[
+                        &arg.author_id,
+                        &arg.isbn,
+                        &arg.book_type,
+                        &arg.title,
+                        &arg.year,
+                        &arg.available,
+                        &arg.tags,
+                    ],
+                )
+                .await?;
+            Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+        });
     }
-
-    pub async fn client(&self) -> deadpool::managed::Object<deadpool_postgres::Manager> {
-        let client = self.pool.get().await.unwrap();
-        client
-    }
-
-    pub(crate) async fn create_author(&mut self, name: String) -> Result<Author, sqlc_core::Error> {
-        let row = self
-            .client()
-            .await
-            .query_one(CREATE_AUTHOR, &[&name])
-            .await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) async fn create_book(
-        &mut self,
-        arg: Vec<CreateBookParams>,
-    ) -> Result<impl futures::Stream<Item = Result<Book, sqlc_core::Error>>, sqlc_core::Error> {
-        let stmt = self.client().await.prepare(CREATE_BOOK).await?;
-        Ok(sqlc_core::BatchResults::new(
-            self.pool.clone(),
-            arg,
-            stmt,
-            create_book,
-        ))
-    }
+    Ok(futures::stream::iter(futs))
 }
 
 pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
-    let mut queries = Queries::new(pool.clone());
+    // let mut queries = Queries::new(pool.clone());
 
-    let a = queries
-        .create_author("Unknown Master".to_string())
+    let db_client = pool.get().await.expect("failed to get client from pool");
+    let client = db_client.deref().deref();
+
+    let a = create_author(client, "Unknown Master".to_string())
         .await
         .unwrap();
 
@@ -185,8 +166,7 @@ pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
         },
     ];
 
-    let new_books = queries
-        .create_book(new_book_params.clone())
+    let new_books = create_book(client, new_book_params.clone())
         .await
         .expect("failed to create batch results")
         .try_collect::<Vec<_>>()

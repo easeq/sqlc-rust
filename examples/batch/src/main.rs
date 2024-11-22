@@ -3,10 +3,10 @@ use postgresql_embedded::{PostgreSQL, Result};
 use std::ops::DerefMut;
 use tokio_postgres::NoTls;
 
-#[path = "./db/gen.rs"]
-pub mod db;
+// #[path = "./db/gen.rs"]
+// pub mod db;
 
-pub mod generated;
+// pub mod generated;
 pub mod manual;
 
 mod embedded {
@@ -48,8 +48,8 @@ async fn main() -> Result<()> {
         .await
         .expect("failed to load migrations");
 
-    // manual::execute(pool.clone()).await;
-    generated::execute(pool.clone()).await;
+    manual::execute(pool.clone()).await;
+    // generated::execute(pool.clone()).await;
 
     postgresql.stop().await
 }

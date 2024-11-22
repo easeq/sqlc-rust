@@ -47,6 +47,7 @@ where id = $1
 "#;
 #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 #[postgres(name = "type_genre")]
 pub enum TypeGenre {
     #[postgres(name = "history")]
@@ -62,8 +63,9 @@ pub enum TypeGenre {
     #[cfg_attr(feature = "serde_support", serde(rename = "ADVENTURE"))]
     Adventure,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct Author {
     pub id: i64,
     pub uuid: Option<uuid::Uuid>,
@@ -83,8 +85,9 @@ pub(crate) struct Author {
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct CreateAuthorFullParams {
     pub name: String,
     pub bio: Option<String>,
@@ -102,78 +105,69 @@ pub(crate) struct CreateAuthorFullParams {
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,
 }
-#[derive(Clone)]
-pub struct Queries {
-    client: tokio_postgres::Client,
+pub(crate) async fn create_author(
+    client: &impl sqlc_core::DBTX,
+    arg: CreateAuthorParams,
+) -> Result<Author, sqlc_core::Error> {
+    let row = client.query_one(CREATE_AUTHOR, &[&arg.name, &arg.bio]).await?;
+    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
-impl Queries {
-    pub fn new(client: tokio_postgres::Client) -> Self {
-        Self { client }
+pub(crate) async fn create_author_full(
+    client: &impl sqlc_core::DBTX,
+    arg: CreateAuthorFullParams,
+) -> Result<Author, sqlc_core::Error> {
+    let row = client
+        .query_one(
+            CREATE_AUTHOR_FULL,
+            &[
+                &arg.name,
+                &arg.bio,
+                &arg.data,
+                &arg.genre,
+                &arg.attrs,
+                &arg.ip_inet,
+                &arg.ip_cidr,
+                &arg.mac_address,
+                &arg.geo_point,
+                &arg.geo_rect,
+                &arg.geo_path,
+                &arg.bit_a,
+                &arg.varbit_a,
+                &arg.created_at,
+                &arg.updated_at,
+            ],
+        )
+        .await?;
+    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+}
+pub(crate) async fn delete_author(
+    client: &impl sqlc_core::DBTX,
+    id: i64,
+) -> Result<(), sqlc_core::Error> {
+    client.execute(DELETE_AUTHOR, &[&id]).await?;
+    Ok(())
+}
+pub(crate) async fn get_author(
+    client: &impl sqlc_core::DBTX,
+    id: i64,
+) -> Result<Author, sqlc_core::Error> {
+    let row = client.query_one(GET_AUTHOR, &[&id]).await?;
+    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+}
+pub(crate) async fn list_authors(
+    client: &impl sqlc_core::DBTX,
+) -> Result<Vec<Author>, sqlc_core::Error> {
+    let rows = client.query(LIST_AUTHORS, &[]).await?;
+    let mut result: Vec<Author> = vec![];
+    for row in rows {
+        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
     }
-    pub(crate) async fn create_author(
-        &mut self,
-        arg: CreateAuthorParams,
-    ) -> Result<Author, sqlc_core::Error> {
-        let row = self.client.query_one(CREATE_AUTHOR, &[&arg.name, &arg.bio]).await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) async fn create_author_full(
-        &mut self,
-        arg: CreateAuthorFullParams,
-    ) -> Result<Author, sqlc_core::Error> {
-        let row = self
-            .client
-            .query_one(
-                CREATE_AUTHOR_FULL,
-                &[
-                    &arg.name,
-                    &arg.bio,
-                    &arg.data,
-                    &arg.genre,
-                    &arg.attrs,
-                    &arg.ip_inet,
-                    &arg.ip_cidr,
-                    &arg.mac_address,
-                    &arg.geo_point,
-                    &arg.geo_rect,
-                    &arg.geo_path,
-                    &arg.bit_a,
-                    &arg.varbit_a,
-                    &arg.created_at,
-                    &arg.updated_at,
-                ],
-            )
-            .await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) async fn delete_author(
-        &mut self,
-        id: i64,
-    ) -> Result<(), sqlc_core::Error> {
-        self.client.execute(DELETE_AUTHOR, &[&id]).await?;
-        Ok(())
-    }
-    pub(crate) async fn get_author(
-        &mut self,
-        id: i64,
-    ) -> Result<Author, sqlc_core::Error> {
-        let row = self.client.query_one(GET_AUTHOR, &[&id]).await?;
-        Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-    }
-    pub(crate) async fn list_authors(
-        &mut self,
-    ) -> Result<Vec<Author>, sqlc_core::Error> {
-        let rows = self.client.query(LIST_AUTHORS, &[]).await?;
-        let mut result: Vec<Author> = vec![];
-        for row in rows {
-            result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-        }
-        Ok(result)
-    }
+    Ok(result)
 }

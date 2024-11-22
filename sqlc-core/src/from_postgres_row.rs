@@ -49,6 +49,7 @@ from_primitive!(serde_json_1::Value);
 
 cfg_block! {
     #[cfg(feature = "with-cidr-0_2")] {
+        pub use cidr_02::{IpInet, IpCidr};
         from_primitive!(cidr_02::IpInet);
         from_primitive!(cidr_02::IpCidr);
     }

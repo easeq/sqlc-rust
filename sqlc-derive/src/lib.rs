@@ -39,7 +39,7 @@ pub fn from_postgres_row(input: TokenStream) -> TokenStream {
     }
 
     let expanded = quote! {
-        impl sqlc_core::FromPostgresRow for #ident {
+        impl ::sqlc_core::FromPostgresRow for #ident {
             fn from_row(row: &#module::Row) -> Result<Self, #module::Error> {
                 Ok(Self {
                     #(#fields),*

@@ -136,7 +136,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlc-core",
- "sqlc-derive",
  "time 0.3.36",
  "uuid 1.10.0",
 ]
@@ -156,7 +155,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlc-core",
- "sqlc-derive",
  "time 0.3.36",
  "tokio",
  "tokio-postgres",
@@ -180,7 +178,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlc-core",
- "sqlc-derive",
  "time 0.3.36",
  "tokio",
  "tokio-postgres",
@@ -242,7 +239,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlc-core",
- "sqlc-derive",
  "time 0.3.36",
  "tokio",
  "tokio-postgres",
@@ -2348,9 +2344,11 @@ dependencies = [
 name = "sqlc-core"
 version = "0.3.0"
 dependencies = [
+ "async-trait",
  "bit-vec",
  "cfg_block",
  "cidr",
+ "deadpool",
  "deadpool-postgres",
  "eui48 0.4.6",
  "eui48 1.1.0",
@@ -2362,6 +2360,7 @@ dependencies = [
  "postgres-types",
  "serde",
  "serde_json",
+ "sqlc-derive",
  "thiserror",
  "time 0.2.27",
  "time 0.3.36",
@@ -2377,7 +2376,6 @@ dependencies = [
  "postgres-types",
  "proc-macro2",
  "quote",
- "sqlc-core",
  "syn 2.0.77",
 ]
 

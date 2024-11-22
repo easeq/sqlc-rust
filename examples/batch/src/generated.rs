@@ -1,12 +1,15 @@
 use crate::db;
 use futures::StreamExt;
 use futures::TryStreamExt;
+use std::ops::Deref;
 
 pub async fn execute(pool: deadpool_postgres::Pool) {
-    let mut queries = db::Queries::new(pool.clone());
+    // let mut queries = db::Queries::new(pool.clone());
 
-    let a = queries
-        .create_author("Unknown Master".to_string())
+    let db_client = pool.get().await.expect("failed to get client from pool");
+    let client = db_client.deref().deref();
+
+    let a = db::create_author(client, "Unknown Master".to_string())
         .await
         .unwrap();
 
@@ -48,8 +51,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
             tags: vec!["other".to_string()],
         },
     ];
-    let new_books = queries
-        .create_book(new_book_params.clone())
+    let new_books = db::create_book(client, new_book_params.clone())
         .await
         .expect("failed to create batch results")
         .try_collect::<Vec<_>>()
@@ -58,8 +60,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
     println!("books: {:?}", new_books);
     assert_eq!(new_books.len(), new_book_params.len());
 
-    let new_books_2 = queries
-        .create_book(new_book_params.clone())
+    let new_books_2 = db::create_book(client, new_book_params.clone())
         .await
         .expect("failed to create batch results")
         .try_collect::<Vec<_>>()
@@ -73,8 +74,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         tags: vec!["cool".to_string(), "disastor".to_string()],
     }];
 
-    queries
-        .update_book(update_books_params.clone())
+    db::update_book(client, update_books_params.clone())
         .await
         .expect("failed to create update books results")
         .try_collect::<Vec<_>>()
@@ -82,30 +82,34 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         .expect("failed to update books");
 
     let select_books_by_title_year_params = vec![2001, 2016];
-    let books: Vec<(db::Book, db::Author)> = queries
-        .books_by_year(select_books_by_title_year_params.clone())
-        .await
-        .expect("failed to fetch books by year")
-        .try_flatten()
-        .then(|book| {
-            let queries = queries.clone();
-            async move {
-                let book = book?;
-                println!(
-                    "Book {book_id} ({book_type:?}): {book_title} available: {book_available}",
-                    book_id = book.book_id,
-                    book_type = book.book_type,
-                    book_title = book.title,
-                    book_available = book.available,
-                );
+    let books: Vec<(db::Book, db::Author)> =
+        db::books_by_year(client, select_books_by_title_year_params.clone())
+            .await
+            .expect("failed to fetch books by year")
+            .try_flatten()
+            .then(|book| {
+                let pool = pool.clone();
 
-                let author = queries.clone().get_author(book.author_id).await.unwrap();
-                Ok::<(db::Book, db::Author), sqlc_core::Error>((book, author))
-            }
-        })
-        .try_collect()
-        .await
-        .expect("failed to fetch books by year");
+                async move {
+                    let db_client = pool.get().await.expect("failed to get client from pool");
+                    let client = db_client.deref().deref();
+
+                    let book = book?;
+                    println!(
+                        "Book {book_id} ({book_type:?}): {book_title} available: {book_available}",
+                        book_id = book.book_id,
+                        book_type = book.book_type,
+                        book_title = book.title,
+                        book_available = book.available,
+                    );
+
+                    let author = db::get_author(client, book.author_id).await.unwrap();
+                    Ok::<(db::Book, db::Author), sqlc_core::Error>((book, author))
+                }
+            })
+            .try_collect()
+            .await
+            .expect("failed to fetch books by year");
 
     println!("{:?}", books);
 
@@ -115,8 +119,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         .collect::<Vec<_>>();
 
     let want_num_deletes_processed = 2;
-    let deleted_books = queries
-        .delete_book(delete_books_params)
+    let deleted_books = db::delete_book(client, delete_books_params)
         .await
         .expect("failed to delete books")
         .take(want_num_deletes_processed)
