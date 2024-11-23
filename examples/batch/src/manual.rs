@@ -1,3 +1,4 @@
+use futures::StreamExt;
 use futures::TryStreamExt;
 use std::ops::Deref;
 
@@ -39,6 +40,9 @@ pub enum BookType {
     #[postgres(name = "NONFICTION")]
     #[cfg_attr(feature = "serde_support", serde(rename = "NONFICTION"))]
     Nonfiction,
+    // #[postgres(name = "INVALID")]
+    // #[cfg_attr(feature = "serde_support", serde(rename = "INVALID"))]
+    // Invalid,
 }
 #[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(
@@ -87,16 +91,23 @@ pub(crate) async fn create_author(
     let row = client.query_one(CREATE_AUTHOR, &[&name]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
-pub(crate) async fn create_book(
-    client: &impl sqlc_core::DBTX,
-    arg_list: &[CreateBookParams],
-) -> Result<impl futures::Stream<Item = Result<Book, sqlc_core::Error>>, sqlc_core::Error> {
+
+pub(crate) async fn create_book<'a, 'b, T: sqlc_core::DBTX>(
+    client: &'a T,
+    arg_list: &'b [CreateBookParams],
+) -> Result<
+    impl futures::Stream<
+            Item = std::pin::Pin<
+                Box<impl futures::Future<Output = Result<Book, sqlc_core::Error>> + use<'a, 'b, T>>,
+            >,
+        > + use<'a, 'b, T>,
+    sqlc_core::Error,
+> {
     let stmt = client.prepare(CREATE_BOOK).await?;
     let mut futs = vec![];
     for arg in arg_list {
         let stmt = stmt.clone();
-        let client = &client;
-        futs.push(async move {
+        futs.push(Box::pin(async move {
             let row = client
                 .query_one(
                     &stmt,
@@ -113,15 +124,13 @@ pub(crate) async fn create_book(
                 .await?;
             let result: Book = sqlc_core::FromPostgresRow::from_row(&row)?;
             Ok(result)
-        });
+        }));
     }
     let stream = futures::stream::iter(futs);
-    Ok(stream.into())
+    Ok(stream)
 }
 
 pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
-    // let mut queries = Queries::new(pool.clone());
-
     let db_client = pool.get().await.expect("failed to get client from pool");
     let client = db_client.deref().deref();
 
@@ -150,7 +159,7 @@ pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
             author_id: a.author_id,
             isbn: "3".to_string(),
             title: "the third book".to_string(),
-            book_type: BookType::Fiction,
+            book_type: BookType::Nonfiction,
             year: 2001,
             available: time::OffsetDateTime::now_utc(),
             tags: vec!["cool".to_string()],
@@ -169,9 +178,12 @@ pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
     let new_books = create_book(client, &new_book_params)
         .await
         .expect("failed to create batch results")
+        // .take(2)
+        .buffer_unordered(10)
         .try_collect::<Vec<_>>()
         .await
         .expect("failed to collect batch results 1");
+
     println!("books: {:?}", new_books);
     assert_eq!(new_books.len(), new_book_params.len());
 }

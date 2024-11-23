@@ -51,18 +51,20 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
             tags: vec!["other".to_string()],
         },
     ];
-    let new_books = db::create_book(client, new_book_params.clone())
+    let new_books = db::create_book(client, &new_book_params)
         .await
         .expect("failed to create batch results")
+        .buffered(10)
         .try_collect::<Vec<_>>()
         .await
         .expect("failed to collect batch results 1");
     println!("books: {:?}", new_books);
     assert_eq!(new_books.len(), new_book_params.len());
 
-    let new_books_2 = db::create_book(client, new_book_params.clone())
+    let new_books_2 = db::create_book(client, &new_book_params)
         .await
         .expect("failed to create batch results")
+        .buffer_unordered(2)
         .try_collect::<Vec<_>>()
         .await;
     println!("new books 2 err: {:?}", new_books_2);
@@ -74,18 +76,20 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         tags: vec!["cool".to_string(), "disastor".to_string()],
     }];
 
-    db::update_book(client, update_books_params.clone())
+    db::update_book(client, &update_books_params)
         .await
         .expect("failed to create update books results")
+        .buffer_unordered(1)
         .try_collect::<Vec<_>>()
         .await
         .expect("failed to update books");
 
     let select_books_by_title_year_params = vec![2001, 2016];
     let books: Vec<(db::Book, db::Author)> =
-        db::books_by_year(client, select_books_by_title_year_params.clone())
+        db::books_by_year(client, &select_books_by_title_year_params)
             .await
             .expect("failed to fetch books by year")
+            .buffer_unordered(3)
             .try_flatten()
             .then(|book| {
                 let pool = pool.clone();
@@ -119,10 +123,11 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         .collect::<Vec<_>>();
 
     let want_num_deletes_processed = 2;
-    let deleted_books = db::delete_book(client, delete_books_params)
+    let deleted_books = db::delete_book(client, &delete_books_params)
         .await
         .expect("failed to delete books")
         .take(want_num_deletes_processed)
+        .buffer_unordered(10)
         .collect::<Vec<_>>()
         .await;
 

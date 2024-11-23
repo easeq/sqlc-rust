@@ -83,24 +83,6 @@ impl ToTokens for StructField {
     }
 }
 
-// impl std::cmp::PartialEq<plugin::Column> for StructField {
-//     fn eq(&self, c: &plugin::Column) -> bool {
-//         let same_name = self.name() == column_name(&c.name, i as i32);
-//
-//         let same_type = self.data_type.to_string()
-//             == PgDataType::from(
-//                 c.r#type.as_ref().unwrap().name.as_str(),
-//                 &schemas,
-//                 &default_schema,
-//             )
-//             .to_string();
-//
-//         let same_table = same_table(c.table.as_ref(), s.table.as_ref(), &default_schema);
-//
-//         same_name && same_type && same_table
-//     }
-// }
-
 #[derive(Default, Debug, Clone)]
 pub enum StructType {
     #[default]

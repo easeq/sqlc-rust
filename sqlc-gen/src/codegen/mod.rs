@@ -259,12 +259,6 @@ impl Options {
     }
 }
 
-// impl From<plugin::Catalog> for Vec<TypeEnum> {
-//     fn from(value: plugin::Catalog) -> Self {
-//         vec![]
-//     }
-// }
-
 #[derive(Default)]
 pub struct CodeBuilder {
     req: plugin::GenerateRequest,

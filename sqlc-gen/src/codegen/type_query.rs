@@ -1,5 +1,5 @@
 use super::type_struct::TypeStruct;
-use super::{get_batch_results_ident, get_ident, DataType, PgDataType};
+use super::{get_ident, DataType, PgDataType};
 use convert_case::{Case, Casing};
 use core::panic;
 use proc_macro2::TokenStream;
@@ -118,7 +118,7 @@ impl QueryValue {
             let arg_toks = if is_batch {
                 let ident_name = get_ident(format!("{}_list", self.name).as_str());
                 quote! {
-                    #ident_name: Vec<#ident_type>
+                    #ident_name: &'b [#ident_type]
                 }
             } else {
                 quote! {
@@ -187,16 +187,16 @@ impl TypeQuery {
     fn generate_code(&self) -> TokenStream {
         let ident_name = get_ident(&self.name());
         let ident_const_name = get_ident(&self.constant_name());
-        let fields_list = self.arg.clone().unwrap_or_default().generate_fields_list();
-        let command = self.command();
         let arg = self.arg.clone().unwrap_or_default();
+        let fields_list = arg.generate_fields_list();
+        let command = self.command();
         let client = quote!(client);
 
         let sig_fn = quote!(fn #ident_name(client: &impl sqlc_core::DBTX, #arg));
 
         let query_method = match command {
             QueryCommand::One => {
-                let ret = self.ret.clone().unwrap_or_default();
+                let ret = self.ret.as_ref().unwrap();
                 let sig = quote! { #sig_fn -> Result<#ret, sqlc_core::Error> };
                 let fetch_stmt = quote! {
                     let row = #client.query_one(#ident_const_name, &[#fields_list])
@@ -207,7 +207,7 @@ impl TypeQuery {
                 QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
             }
             QueryCommand::Many => {
-                let ret = self.ret.clone().unwrap_or_default();
+                let ret = self.ret.as_ref().unwrap();
                 let sig = quote! { #sig_fn -> Result<Vec<#ret>, sqlc_core::Error> };
                 let fetch_stmt = quote! {
                     let rows = #client.query(#ident_const_name, &[#fields_list])
@@ -237,7 +237,7 @@ impl TypeQuery {
             }
             QueryCommand::BatchMany | QueryCommand::BatchOne | QueryCommand::BatchExec => {
                 let fut_ret = if command.has_return_value() {
-                    let ret = self.ret.clone().unwrap();
+                    let ret = self.ret.as_ref().unwrap();
                     if command.is_one() {
                         quote!(#ret)
                     } else {
@@ -248,13 +248,17 @@ impl TypeQuery {
                 } else {
                     quote!(())
                 };
-                let arg_name_str = self.arg.clone().unwrap_or_default().name;
+                let arg_name_str = arg.name.clone();
                 let arg_name = get_ident(&arg_name_str);
-                let arg_list = get_ident(format!("{}_list", arg_name_str).as_str());
+                let arg_list = get_ident(format!("{arg_name_str}_list").as_str());
                 let sig = quote! {
-                    fn #ident_name(client: &impl sqlc_core::DBTX, #arg) -> Result<
-                        impl futures::Stream<Item = Result<#fut_ret, sqlc_core::Error>>,
-                        sqlc_core::Error
+                    fn #ident_name<'a, 'b, T: sqlc_core::DBTX>(client: &'a T, #arg) -> Result<
+                        impl futures::Stream<
+                                Item = std::pin::Pin<
+                                    Box<impl futures::Future<Output = Result<#fut_ret, sqlc_core::Error>> + use<'a, 'b, T>>,
+                                >,
+                            > + use<'a, 'b, T>,
+                        sqlc_core::Error,
                     >
                 };
                 let stmt = quote! {
@@ -297,10 +301,9 @@ impl TypeQuery {
                     let mut futs = vec![];
                     for #arg_name in #arg_list {
                         let stmt = stmt.clone();
-                        let client = &client;
-                        futs.push(async move {
+                        futs.push(Box::pin(async move {
                             #fn_res
-                        });
+                        }));
 
                     }
                     Ok(futures::stream::iter(futs))
