@@ -283,14 +283,9 @@ impl TypeQuery {
                         }
                     }
                     QueryCommand::BatchMany => {
-                        let query_ret = self.ret.clone().unwrap_or_default();
                         quote! {
                             let rows = client.query(&stmt, &[#fields_list]).await?;
-                            let mut result: Vec<Result<#query_ret, sqlc_core::Error>> = vec![];
-                            for row in rows {
-
-                                result.push(Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
-                            }
+                            let result = rows.iter().map(|row| Ok(sqlc_core::FromPostgresRow::from_row(row)));
 
                             Ok(Box::pin(futures::stream::iter(result)))
                         }
@@ -298,15 +293,13 @@ impl TypeQuery {
                     _ => unimplemented!(),
                 };
                 let fn_body = quote! {
-                    let mut futs = vec![];
-                    for #arg_name in #arg_list {
+                    let fut = |#arg_name| {
                         let stmt = stmt.clone();
-                        futs.push(Box::pin(async move {
+                        Box::pin(async move {
                             #fn_res
-                        }));
-
-                    }
-                    Ok(futures::stream::iter(futs))
+                        })
+                    };
+                    Ok(futures::stream::iter(#arg_list.iter().map(fut)))
                 };
                 QueryMethod::new(sig, fn_body, stmt, self.use_async)
             } // _ => quote! {},

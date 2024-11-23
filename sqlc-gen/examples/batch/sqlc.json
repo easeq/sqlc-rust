@@ -9,7 +9,7 @@
       ],
       "wasm": {
         "url": "file://./../../../target/wasm32-wasip1/release/sqlc-gen.wasm",
-        "sha256": "e6c2de31a683429d0f1b6418a724b2e3933cee0cf8fee53d9d7f43fda4a14cc2"
+        "sha256": "ed74418ccc29a8ca14670c6c8687866b2ef0e8675a14dad15db819a6202e057c"
       }
     }
   ],

@@ -53,15 +53,12 @@ pub(crate) async fn delete_book<'a, 'b, T: sqlc_core::DBTX>(
     sqlc_core::Error,
 > {
     let stmt = client.prepare(DELETE_BOOK).await?;
-    let mut futs = vec![];
-    for book_id in book_id_list {
+    let fut = |book_id| {
         let stmt = stmt.clone();
-        futs.push(
-            Box::pin(async move {
-                client.execute(&stmt, &[&book_id]).await?;
-                Ok(())
-            }),
-        );
-    }
-    Ok(futures::stream::iter(futs))
+        Box::pin(async move {
+            client.execute(&stmt, &[&book_id]).await?;
+            Ok(())
+        })
+    };
+    Ok(futures::stream::iter(book_id_list.iter().map(fut)))
 }

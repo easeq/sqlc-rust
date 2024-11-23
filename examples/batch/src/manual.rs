@@ -104,10 +104,9 @@ pub(crate) async fn create_book<'a, 'b, T: sqlc_core::DBTX>(
     sqlc_core::Error,
 > {
     let stmt = client.prepare(CREATE_BOOK).await?;
-    let mut futs = vec![];
-    for arg in arg_list {
+    Ok(futures::stream::iter(arg_list.iter().map(move |arg| {
         let stmt = stmt.clone();
-        futs.push(Box::pin(async move {
+        Box::pin(async move {
             let row = client
                 .query_one(
                     &stmt,
@@ -123,11 +122,9 @@ pub(crate) async fn create_book<'a, 'b, T: sqlc_core::DBTX>(
                 )
                 .await?;
             let result: Book = sqlc_core::FromPostgresRow::from_row(&row)?;
-            Ok(result)
-        }));
-    }
-    let stream = futures::stream::iter(futs);
-    Ok(stream)
+            Ok::<Book, sqlc_core::Error>(result)
+        })
+    })))
 }
 
 pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
