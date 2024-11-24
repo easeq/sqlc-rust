@@ -1,7 +1,6 @@
 use check_keyword::CheckKeyword;
 use convert_case::Casing;
 use core::panic;
-use itertools::Itertools;
 use proc_macro2::{Punct, Spacing, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use serde::{Deserialize, Serialize};
@@ -13,7 +12,7 @@ use syn::Ident;
 use type_const::TypeConst;
 use type_enum::{enum_name, TypeEnum};
 use type_query::{QueryCommand, QueryValue, TypeQuery};
-use type_struct::{StructField, StructType, TypeStruct};
+use type_struct::TypeStruct;
 
 mod type_const;
 mod type_enum;
@@ -22,14 +21,6 @@ mod type_struct;
 
 pub fn get_ident(value: &str) -> Ident {
     format_ident!("{}", value)
-}
-
-pub fn get_batch_results_name(value: &str) -> String {
-    format!("{}BatchResults", value.to_case(convert_case::Case::Pascal))
-}
-
-pub fn get_batch_results_ident(value: &str) -> Ident {
-    format_ident!("{}", get_batch_results_name(value))
 }
 
 pub fn get_punct_from_char(c: char) -> Punct {
@@ -169,7 +160,19 @@ impl PgDataType {
         DataType(self.to_string())
     }
 
-    pub fn from(s: &str, schemas: &[plugin::Schema], default_schema: &str) -> PgDataType {
+    pub fn from_col(
+        col: &plugin::Column,
+        schemas: &[plugin::Schema],
+        default_schema: &str,
+    ) -> Self {
+        Self::from(
+            col.r#type.as_ref().unwrap().name.as_str(),
+            &schemas,
+            &default_schema,
+        )
+    }
+
+    pub fn from(s: &str, schemas: &[plugin::Schema], default_schema: &str) -> Self {
         let other_ret_type: String;
         let pg_data_type_string = match s {
             "smallint" | "int2" | "pg_catalog.int2" | "smallserial" | "serial2"
@@ -259,30 +262,28 @@ impl Options {
     }
 }
 
-#[derive(Default)]
-pub struct CodeBuilder {
-    req: plugin::GenerateRequest,
-    options: Options,
+pub struct CodePartials {
+    enums: Vec<TypeEnum>,
+    constants: Vec<TypeConst>,
+    structs: Vec<TypeStruct>,
+    queries: Vec<TypeQuery>,
 }
 
-impl CodeBuilder {
-    pub fn new(req: plugin::GenerateRequest) -> Self {
-        let settings = req.settings.clone().expect("could not find sqlc config");
+impl From<plugin::GenerateRequest> for CodePartials {
+    fn from(req: plugin::GenerateRequest) -> Self {
+        let settings = req.settings.as_ref().expect("could not find sqlc config");
         let codegen = settings
             .codegen
+            .as_ref()
             .expect("codegen settings not defined in sqlc config");
         let options_str = match std::str::from_utf8(&codegen.options) {
             Ok(v) => v,
             Err(e) => panic!("Invalid UTF-8 sequence in codegen options: {}", e),
         };
 
-        let mut code_builder = Self {
-            req,
-            options: Options::default(),
-        };
-
+        let mut options = Options::default();
         if !options_str.is_empty() {
-            let options: Options = serde_json::from_str(options_str).expect(
+            options = serde_json::from_str(options_str).expect(
                 format!(
                     "could not deserialize codegen options (valid object: {:?})",
                     serde_json::to_string(&Options::default())
@@ -290,256 +291,55 @@ impl CodeBuilder {
                 )
                 .as_str(),
             );
-            code_builder.options = options;
         }
 
-        code_builder
-    }
-}
-
-impl CodeBuilder {
-    fn process_schemas(
-        &self,
-        schemas: &[plugin::Schema],
-        default_schema: &str,
-    ) -> (Vec<TypeEnum>, Vec<TypeStruct>) {
         let mut enums = vec![];
         let mut structs = vec![];
+        let mut constants = vec![];
+        let mut type_queries = vec![];
+
+        let catalog = req.catalog.as_ref().unwrap();
+        let schemas = &catalog.schemas;
+        let default_schema = &catalog.default_schema;
+        let queries = &req.queries;
+
         for schema in schemas {
             if schema.name == "pg_catalog" || schema.name == "information_schema" {
                 continue;
             }
 
-            enums.extend(self.build_enums_from_schema(schema, default_schema));
-            structs.extend(self.build_structs_from_schema(schema, default_schema));
+            enums.extend(build_enums_from_schema(schema, &catalog.default_schema));
+            structs.extend(build_structs_from_schema(schema, &catalog.default_schema));
         }
 
-        enums.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
-        structs.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
-
-        (enums, structs)
-    }
-
-    fn build_enums_from_schema(
-        &self,
-        schema: &plugin::Schema,
-        default_schema: &str,
-    ) -> Vec<TypeEnum> {
-        let mut enums = vec![];
-        for e in &schema.enums {
-            let enum_name = enum_name(&e.name, &schema.name, default_schema);
-
-            enums.push(TypeEnum::new(enum_name, e.vals.clone()))
-        }
-
-        enums
-    }
-
-    fn build_structs_from_schema(
-        &self,
-        schema: &plugin::Schema,
-        default_schema: &str,
-    ) -> Vec<TypeStruct> {
-        let mut structs = vec![];
-
-        for table in &schema.tables {
-            let table_rel = table.rel.as_ref().unwrap();
-            let mut table_name = table_rel.name.clone();
-            if schema.name != default_schema {
-                table_name = format!("{}_{table_name}", schema.name);
-            }
-
-            let struct_name = pluralizer::pluralize(table_name.as_str(), 1, false);
-            let fields = table
-                .columns
-                .iter()
-                .map(|col| StructField::from(col, 0, &[schema.clone()], &default_schema))
-                .collect::<Vec<_>>();
-
-            structs.push(TypeStruct::new(
-                struct_name,
-                Some(plugin::Identifier {
-                    catalog: "".to_string(),
-                    schema: schema.name.clone(),
-                    name: table_rel.name.clone(),
-                }),
-                StructType::Default,
-                fields,
-            ));
-        }
-
-        structs
-    }
-
-    fn process_queries(
-        &self,
-        queries: &[plugin::Query],
-        schemas: &[plugin::Schema],
-        default_schema: &str,
-        structs: &[TypeStruct],
-    ) -> (Vec<TypeConst>, Vec<TypeQuery>, Vec<TypeStruct>) {
-        let mut constants = vec![];
-        let mut type_queries = vec![];
-        let mut associated_structs = vec![];
         for query in queries {
             if query.name.is_empty() || query.cmd.is_empty() {
                 continue;
             }
 
-            constants.push(TypeConst::new(&query.name, &query.text));
+            constants.push(query.into());
 
-            let (query, structs) = self.build_query(&query, schemas, default_schema, structs);
+            let (query, associated_structs) =
+                build_query(&query, schemas, default_schema, &structs, options.use_async);
             type_queries.push(query);
-            associated_structs.extend(structs);
+            structs.extend(associated_structs);
         }
 
         type_queries.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
-        associated_structs.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
-
-        (constants, type_queries, associated_structs)
-    }
-
-    fn build_query(
-        &self,
-        query: &plugin::Query,
-        schemas: &[plugin::Schema],
-        default_schema: &str,
-        structs: &[TypeStruct],
-    ) -> (TypeQuery, Vec<TypeStruct>) {
-        let mut associated_structs = vec![];
-
-        // Query parameter limit, get it from the options
-        let query_cmd = QueryCommand::from_str(&query.cmd).expect("invalid query annotation");
-        let is_batch = query_cmd.is_batch();
-        let qpl = 3;
-        let mut arg: Option<QueryValue> = None;
-        let params = &query.params;
-        if params.len() == 1 && qpl != 0 {
-            let p = params.first().unwrap();
-            let col = p.column.as_ref().unwrap();
-            arg = Some(QueryValue::new(
-                escape(&param_name(p)),
-                Some(PgDataType::from(
-                    col.r#type.as_ref().unwrap().name.as_str(),
-                    &schemas,
-                    &default_schema,
-                )),
-                None,
-                is_batch,
-            ));
-        } else if params.len() > 1 {
-            let fields = params
-                .iter()
-                .map(|field| {
-                    StructField::from(
-                        &field.column.as_ref().unwrap(),
-                        field.number,
-                        &schemas,
-                        &default_schema,
-                    )
-                })
-                .collect::<Vec<_>>();
-
-            let type_struct = TypeStruct::new(&query.name, None, StructType::Params, fields);
-            arg = Some(QueryValue::new(
-                "arg",
-                None,
-                Some(type_struct.clone()),
-                is_batch,
-            ));
-            associated_structs.push(type_struct);
-        }
-
-        let columns = &query.columns;
-        let mut ret: Option<QueryValue> = None;
-        if columns.len() == 1 {
-            let col = columns.first().unwrap();
-            ret = Some(QueryValue::new(
-                "",
-                Some(PgDataType::from(
-                    col.r#type.as_ref().unwrap().name.as_str(),
-                    &schemas,
-                    &default_schema,
-                )),
-                None,
-                is_batch,
-            ));
-        } else if query_cmd.has_return_value() {
-            let found_struct = structs.iter().find(|s| {
-                if s.fields.len() != columns.len() {
-                    false
-                } else {
-                    s.fields
-                        .iter()
-                        .zip(columns.iter())
-                        .enumerate()
-                        .all(|(i, (field, c))| {
-                            let same_name = field.name() == column_name(&c.name, i as i32);
-
-                            let same_type = field.data_type.to_string()
-                                == PgDataType::from(
-                                    c.r#type.as_ref().unwrap().name.as_str(),
-                                    &schemas,
-                                    &default_schema,
-                                )
-                                .to_string();
-
-                            let same_table =
-                                same_table(c.table.as_ref(), s.table.as_ref(), &default_schema);
-
-                            same_name && same_type && same_table
-                        })
-                }
-            });
-
-            let gs = match found_struct {
-                None => {
-                    let fields = columns
-                        .iter()
-                        .enumerate()
-                        .map(|(i, col)| StructField::from(col, i as i32, &schemas, &default_schema))
-                        .collect::<Vec<_>>();
-
-                    let type_struct = TypeStruct::new(&query.name, None, StructType::Row, fields);
-                    associated_structs.push(type_struct.clone());
-                    type_struct
-                }
-                Some(gs) => gs.clone(),
-            };
-
-            ret = Some(QueryValue::new("", None, Some(gs), is_batch));
-        }
-
-        (
-            TypeQuery::new(
-                &query.name,
-                &query.cmd,
-                arg,
-                ret,
-                self.options.use_async,
-                self.options.use_deadpool(),
-            ),
-            associated_structs,
-        )
-    }
-
-    pub fn generate_code(&self) -> TokenStream {
-        let catalog = self.req.catalog.as_ref().unwrap();
-        let schemas = &catalog.schemas;
-        let default_schema = &catalog.default_schema;
-        let queries = &self.req.queries;
-
-        let (enums, mut structs) = self.process_schemas(schemas, default_schema);
-        let (constants, queries, associated_structs) =
-            self.process_queries(queries, schemas, default_schema, &structs);
-
-        structs.extend(associated_structs);
+        enums.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
         structs.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
 
-        // TODO: below
-        // let (enums, structs) = self.filter_unused_structs(enums, structs, queries);
-        // validate_structs_and_enums
+        Self {
+            enums,
+            structs,
+            constants,
+            queries: type_queries,
+        }
+    }
+}
 
+impl ToTokens for CodePartials {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let generated_comment = MultiLine(
             r#"
             /// @generated by the sqlc-gen-rust on sqlc-generate using sqlc.yaml
@@ -548,12 +348,87 @@ impl CodeBuilder {
         )
         .to_token_stream();
 
-        quote! {
+        let Self {
+            enums,
+            structs,
+            constants,
+            queries,
+        } = self;
+
+        tokens.extend(quote! {
             #generated_comment
             #(#constants)*
             #(#enums)*
             #(#structs)*
             #(#queries)*
+        });
+    }
+}
+
+fn build_query(
+    query: &plugin::Query,
+    schemas: &[plugin::Schema],
+    default_schema: &str,
+    structs: &[TypeStruct],
+    use_async: bool,
+) -> (TypeQuery, Vec<TypeStruct>) {
+    let mut associated_structs = vec![];
+
+    // Query parameter limit, get it from the options
+    let query_cmd = QueryCommand::from_str(&query.cmd).expect("invalid query annotation");
+    let is_batch = query_cmd.is_batch();
+    let qpl = 3;
+    let arg = QueryValue::from_query_params(
+        &query.params,
+        schemas,
+        default_schema,
+        &query.name,
+        qpl,
+        is_batch,
+    );
+
+    if let Some(ref query_arg) = arg {
+        if let Some(ref type_struct) = query_arg.type_struct {
+            associated_structs.push(type_struct.clone());
         }
     }
+
+    let (ret, new_struct) = QueryValue::from_query_columns(
+        &query.columns,
+        schemas,
+        default_schema,
+        structs,
+        &query_cmd,
+        &query.name,
+        is_batch,
+    );
+
+    if new_struct {
+        if let Some(ref query_ret) = ret {
+            if let Some(ref type_struct) = query_ret.type_struct {
+                associated_structs.push(type_struct.clone());
+            }
+        }
+    }
+
+    (
+        TypeQuery::new(&query.name, &query.cmd, arg, ret, use_async),
+        associated_structs,
+    )
+}
+
+fn build_enums_from_schema(schema: &plugin::Schema, default_schema: &str) -> Vec<TypeEnum> {
+    schema
+        .enums
+        .iter()
+        .map(|e| TypeEnum::from(e, &schema.name, default_schema))
+        .collect::<Vec<_>>()
+}
+
+fn build_structs_from_schema(schema: &plugin::Schema, default_schema: &str) -> Vec<TypeStruct> {
+    schema
+        .tables
+        .iter()
+        .map(|table| TypeStruct::from_table(table, schema, default_schema))
+        .collect::<Vec<_>>()
 }

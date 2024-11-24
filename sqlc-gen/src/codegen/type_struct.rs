@@ -41,7 +41,7 @@ impl StructField {
         Self::new(
             &col.name,
             pos,
-            PgDataType::from(&col.r#type.as_ref().unwrap().name, &schemas, default_schema),
+            PgDataType::from_col(col, &schemas, default_schema),
             col.is_array,
             col.not_null,
         )
@@ -114,6 +114,72 @@ impl TypeStruct {
         }
     }
 
+    pub fn from_table(
+        table: &crate::plugin::Table,
+        schema: &plugin::Schema,
+        default_schema: &str,
+    ) -> Self {
+        let table_rel = table.rel.as_ref().unwrap();
+        let mut table_name = table_rel.name.clone();
+        if schema.name != default_schema {
+            table_name = format!("{}_{table_name}", schema.name);
+        }
+
+        let struct_name = pluralizer::pluralize(table_name.as_str(), 1, false);
+        let fields = table
+            .columns
+            .iter()
+            .map(|col| StructField::from(col, 0, &[schema.clone()], &default_schema))
+            .collect::<Vec<_>>();
+
+        Self::new(
+            struct_name,
+            Some(plugin::Identifier {
+                catalog: "".to_string(),
+                schema: schema.name.clone(),
+                name: table_rel.name.clone(),
+            }),
+            StructType::Default,
+            fields,
+        )
+    }
+
+    pub fn from_columns(
+        struct_name: &str,
+        columns: &[plugin::Column],
+        schemas: &[plugin::Schema],
+        default_schema: &str,
+    ) -> Self {
+        let fields = columns
+            .iter()
+            .enumerate()
+            .map(|(i, col)| StructField::from(col, i as i32, &schemas, &default_schema))
+            .collect::<Vec<_>>();
+
+        Self::new(struct_name, None, StructType::Row, fields)
+    }
+
+    pub fn from_params(
+        struct_name: &str,
+        params: &[plugin::Parameter],
+        schemas: &[plugin::Schema],
+        default_schema: &str,
+    ) -> Self {
+        let fields = params
+            .iter()
+            .map(|field| {
+                StructField::from(
+                    &field.column.as_ref().unwrap(),
+                    field.number,
+                    &schemas,
+                    &default_schema,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        Self::new(struct_name, None, StructType::Params, fields)
+    }
+
     pub fn name(&self) -> String {
         let name = match &self.struct_type {
             StructType::Default => format!("{}", self.name),
@@ -152,12 +218,6 @@ impl ToTokens for TypeStruct {
         tokens.extend(self.generate_code());
     }
 }
-
-// impl PartialEq for TypeStruct {
-//     fn eq(&self, other: &Self) -> bool {
-//         // if self.fields.len() !=
-//     }
-// }
 
 #[cfg(test)]
 mod tests {

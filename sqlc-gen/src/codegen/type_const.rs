@@ -37,6 +37,12 @@ impl ToTokens for TypeConst {
     }
 }
 
+impl From<&crate::plugin::Query> for TypeConst {
+    fn from(query: &crate::plugin::Query) -> Self {
+        TypeConst::new(&query.name, &query.text)
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::*;

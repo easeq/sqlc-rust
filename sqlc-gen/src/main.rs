@@ -1,4 +1,5 @@
 use prost::Message;
+use quote::ToTokens;
 use sqlc_sqlc_community_neoeinstein_prost::plugin;
 use std::io;
 use std::io::prelude::*;
@@ -26,7 +27,8 @@ pub fn create_codegen_response(content: &str) -> plugin::GenerateResponse {
 }
 
 pub fn generate_rust_code(req: plugin::GenerateRequest) -> String {
-    let tokens = codegen::CodeBuilder::new(req).generate_code();
+    let code_partials: codegen::CodePartials = req.into();
+    let tokens = code_partials.to_token_stream();
     let syntax_tree = syn::parse_file(tokens.to_string().as_str()).unwrap();
     return prettyplease::unparse(&syntax_tree);
     // return tokens.to_string();
