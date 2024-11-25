@@ -1,10 +1,37 @@
-use super::column_name;
 use super::get_ident;
 use super::plugin;
 use super::{DataType, PgDataType};
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
+
+fn column_name(name: &str, pos: i32) -> String {
+    match name.is_empty() {
+        false => name.to_case(convert_case::Case::Snake),
+        true => format!("_{}", pos),
+    }
+}
+
+fn same_table(
+    col_table: Option<&plugin::Identifier>,
+    struct_table: Option<&plugin::Identifier>,
+    default_schema: &str,
+) -> bool {
+    if let Some(table_id) = col_table {
+        let mut schema = table_id.schema.as_str();
+        if schema.is_empty() {
+            schema = default_schema;
+        }
+
+        if let Some(f) = struct_table {
+            table_id.catalog == f.catalog && schema == f.schema && table_id.name == f.name
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
@@ -45,6 +72,24 @@ impl StructField {
             col.is_array,
             col.not_null,
         )
+    }
+
+    pub fn matches_column(
+        &self,
+        col: &crate::plugin::Column,
+        field_table: Option<&plugin::Identifier>,
+        schemas: &[plugin::Schema],
+        default_schema: &str,
+        pos: i32,
+    ) -> bool {
+        let same_name = self.name() == column_name(&col.name, pos);
+
+        let same_type = self.data_type.to_string()
+            == PgDataType::from_col(col, schemas, default_schema).to_string();
+
+        let same_table = same_table(col.table.as_ref(), field_table, default_schema);
+
+        same_name && same_type && same_table
     }
 
     pub fn name(&self) -> String {
@@ -178,6 +223,31 @@ impl TypeStruct {
             .collect::<Vec<_>>();
 
         Self::new(struct_name, None, StructType::Params, fields)
+    }
+
+    pub fn has_same_fields(
+        &self,
+        columns: &[plugin::Column],
+        schemas: &[plugin::Schema],
+        default_schema: &str,
+    ) -> bool {
+        if self.fields.len() != columns.len() {
+            false
+        } else {
+            self.fields
+                .iter()
+                .zip(columns.iter())
+                .enumerate()
+                .all(|(i, (field, col))| {
+                    field.matches_column(
+                        col,
+                        self.table.as_ref(),
+                        schemas,
+                        default_schema,
+                        i as i32,
+                    )
+                })
+        }
     }
 
     pub fn name(&self) -> String {

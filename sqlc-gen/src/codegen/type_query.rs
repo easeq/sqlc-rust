@@ -1,11 +1,30 @@
 use super::{get_ident, DataType, PgDataType};
-use crate::codegen::{column_name, escape, param_name, same_table, TypeStruct};
+use crate::codegen::TypeStruct;
+use check_keyword::CheckKeyword;
 use convert_case::{Case, Casing};
 use core::panic;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use std::str::FromStr;
 use strum_macros::EnumString;
+
+fn escape(s: &str) -> String {
+    if s.is_keyword() {
+        format!("s_{s}")
+    } else {
+        s.to_string()
+    }
+}
+
+fn param_name(p: &crate::plugin::Parameter) -> String {
+    let column = p.column.as_ref().expect("column not found");
+
+    if !column.name.is_empty() {
+        column.name.to_case(convert_case::Case::Snake)
+    } else {
+        format!("dollar_{}", p.number)
+    }
+}
 
 #[derive(Debug, PartialEq, EnumString)]
 pub enum QueryCommand {
@@ -118,27 +137,9 @@ impl QueryValue {
                 false,
             )
         } else if query_cmd.has_return_value() {
-            let found_struct = structs.iter().find(|s| {
-                if s.fields.len() != columns.len() {
-                    false
-                } else {
-                    s.fields
-                        .iter()
-                        .zip(columns.iter())
-                        .enumerate()
-                        .all(|(i, (field, c))| {
-                            let same_name = field.name() == column_name(&c.name, i as i32);
-
-                            let same_type = field.data_type.to_string()
-                                == PgDataType::from_col(c, schemas, default_schema).to_string();
-
-                            let same_table =
-                                same_table(c.table.as_ref(), s.table.as_ref(), &default_schema);
-
-                            same_name && same_type && same_table
-                        })
-                }
-            });
+            let found_struct = structs
+                .iter()
+                .find(|s| s.has_same_fields(&columns, schemas, default_schema));
 
             let mut new_struct = false;
             let gs = match found_struct {
@@ -325,7 +326,14 @@ impl TypeQuery {
                         quote!(#ret)
                     } else {
                         quote! {
-                            std::pin::Pin<Box<futures::stream::Iter<std::vec::IntoIter<Result<#ret, sqlc_core::Error>>>>>
+                            std::pin::Pin<Box<futures::stream::Iter<
+                                impl std::iter::Iterator<
+                                    Item = Result<
+                                        Result<#ret, tokio_postgres::Error>,
+                                        sqlc_core::Error,
+                                    >,
+                                >,
+                            >>>
                         }
                     }
                 } else {
@@ -334,6 +342,7 @@ impl TypeQuery {
                 let arg_name_str = arg.name.clone();
                 let arg_name = get_ident(&arg_name_str);
                 let arg_list = get_ident(format!("{arg_name_str}_list").as_str());
+                let arg_type = arg.get_type();
                 let sig = quote! {
                     fn #ident_name<'a, 'b, T: sqlc_core::DBTX>(client: &'a T, #arg) -> Result<
                         impl futures::Stream<
@@ -368,7 +377,7 @@ impl TypeQuery {
                     QueryCommand::BatchMany => {
                         quote! {
                             let rows = client.query(&stmt, &[#fields_list]).await?;
-                            let result = rows.iter().map(|row| Ok(sqlc_core::FromPostgresRow::from_row(row)));
+                            let result = rows.into_iter().map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)));
 
                             Ok(Box::pin(futures::stream::iter(result)))
                         }
@@ -376,7 +385,7 @@ impl TypeQuery {
                     _ => unimplemented!(),
                 };
                 let fn_body = quote! {
-                    let fut = |#arg_name| {
+                    let fut = move |#arg_name: &'b #arg_type| {
                         let stmt = stmt.clone();
                         Box::pin(async move {
                             #fn_res

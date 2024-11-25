@@ -1,13 +1,11 @@
 use crate::db;
 use futures::StreamExt;
 use futures::TryStreamExt;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 pub async fn execute(pool: deadpool_postgres::Pool) {
-    // let mut queries = db::Queries::new(pool.clone());
-
-    let db_client = pool.get().await.expect("failed to get client from pool");
-    let client = db_client.deref().deref();
+    let mut db_client = pool.get().await.expect("failed to get client from pool");
+    let client = db_client.deref_mut().deref_mut();
 
     let a = db::create_author(client, "Unknown Master".to_string())
         .await
@@ -98,7 +96,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
                     let db_client = pool.get().await.expect("failed to get client from pool");
                     let client = db_client.deref().deref();
 
-                    let book = book?;
+                    let book = book?.unwrap();
                     println!(
                         "Book {book_id} ({book_type:?}): {book_title} available: {book_available}",
                         book_id = book.book_id,
@@ -132,4 +130,40 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         .await;
 
     assert_eq!(deleted_books.len(), want_num_deletes_processed);
+
+    let transaction = client
+        .transaction()
+        .await
+        .expect("could not create transaction");
+
+    let update_books_params = vec![
+        db::UpdateBookParams {
+            book_id: new_books[3].book_id,
+            title: "changed 4th txn title".to_string(),
+            tags: vec!["cool".to_string(), "disastor".to_string()],
+        },
+        db::UpdateBookParams {
+            book_id: new_books[2].book_id,
+            title: "changed third txn title".to_string(),
+            tags: vec!["cool".to_string(), "disastor".to_string()],
+        },
+    ];
+
+    db::update_book(&transaction, &update_books_params)
+        .await
+        .expect("failed to create update books results")
+        .buffer_unordered(1)
+        .try_collect::<Vec<_>>()
+        .await
+        .expect("failed to update books");
+
+    transaction
+        .commit()
+        .await
+        .expect("failed to commit transaction");
+
+    let books = db::all_books(client)
+        .await
+        .expect("failed to fetch all books");
+    println!("{books:#?}");
 }

@@ -1,5 +1,3 @@
-use check_keyword::CheckKeyword;
-use convert_case::Casing;
 use core::panic;
 use proc_macro2::{Punct, Spacing, TokenStream};
 use quote::{format_ident, quote, ToTokens};
@@ -34,52 +32,6 @@ pub fn get_punct_from_char_tokens(c: char) -> TokenStream {
 pub fn get_newline_tokens() -> TokenStream {
     let newline_char = char::from_u32(0x000A).unwrap();
     get_punct_from_char_tokens(newline_char)
-}
-
-pub fn column_name(name: &str, pos: i32) -> String {
-    match name.is_empty() {
-        false => name.to_case(convert_case::Case::Snake),
-        true => format!("_{}", pos),
-    }
-}
-
-pub fn param_name(p: &plugin::Parameter) -> String {
-    let column = p.column.as_ref().expect("column not found");
-
-    if !column.name.is_empty() {
-        column.name.to_case(convert_case::Case::Snake)
-    } else {
-        format!("dollar_{}", p.number)
-    }
-}
-
-pub fn escape(s: &str) -> String {
-    if s.is_keyword() {
-        format!("s_{s}")
-    } else {
-        s.to_string()
-    }
-}
-
-pub fn same_table(
-    col_table: Option<&plugin::Identifier>,
-    struct_table: Option<&plugin::Identifier>,
-    default_schema: &str,
-) -> bool {
-    if let Some(table_id) = col_table {
-        let mut schema = table_id.schema.as_str();
-        if schema.is_empty() {
-            schema = default_schema;
-        }
-
-        if let Some(f) = struct_table {
-            table_id.catalog == f.catalog && schema == f.schema && table_id.name == f.name
-        } else {
-            false
-        }
-    } else {
-        false
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -262,16 +214,8 @@ impl Options {
     }
 }
 
-pub struct CodePartials {
-    enums: Vec<TypeEnum>,
-    constants: Vec<TypeConst>,
-    structs: Vec<TypeStruct>,
-    queries: Vec<TypeQuery>,
-}
-
-impl From<plugin::GenerateRequest> for CodePartials {
-    fn from(req: plugin::GenerateRequest) -> Self {
-        let settings = req.settings.as_ref().expect("could not find sqlc config");
+impl From<plugin::Settings> for Options {
+    fn from(settings: plugin::Settings) -> Self {
         let codegen = settings
             .codegen
             .as_ref()
@@ -293,48 +237,70 @@ impl From<plugin::GenerateRequest> for CodePartials {
             );
         }
 
-        let mut enums = vec![];
-        let mut structs = vec![];
-        let mut constants = vec![];
-        let mut type_queries = vec![];
+        options
+    }
+}
 
+#[derive(Default)]
+pub struct CodePartials {
+    enums: Vec<TypeEnum>,
+    constants: Vec<TypeConst>,
+    structs: Vec<TypeStruct>,
+    queries: Vec<TypeQuery>,
+}
+
+impl CodePartials {
+    fn sort_all(&mut self) {
+        self.constants
+            .sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
+        self.enums.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
+        self.queries.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
+        self.structs.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
+    }
+}
+
+impl From<plugin::GenerateRequest> for CodePartials {
+    fn from(req: plugin::GenerateRequest) -> Self {
+        let options: Options = req.settings.expect("could not find sqlc config").into();
         let catalog = req.catalog.as_ref().unwrap();
-        let schemas = &catalog.schemas;
-        let default_schema = &catalog.default_schema;
-        let queries = &req.queries;
 
-        for schema in schemas {
+        let mut code_partials = CodePartials::default();
+
+        for schema in &catalog.schemas {
             if schema.name == "pg_catalog" || schema.name == "information_schema" {
                 continue;
             }
 
-            enums.extend(build_enums_from_schema(schema, &catalog.default_schema));
-            structs.extend(build_structs_from_schema(schema, &catalog.default_schema));
+            code_partials
+                .enums
+                .extend(build_enums_from_schema(schema, &catalog.default_schema));
+
+            code_partials
+                .structs
+                .extend(build_structs_from_schema(schema, &catalog.default_schema));
         }
 
-        for query in queries {
+        for query in &req.queries {
             if query.name.is_empty() || query.cmd.is_empty() {
                 continue;
             }
 
-            constants.push(query.into());
+            code_partials.constants.push(query.into());
 
-            let (query, associated_structs) =
-                build_query(&query, schemas, default_schema, &structs, options.use_async);
-            type_queries.push(query);
-            structs.extend(associated_structs);
+            let (query, associated_structs) = build_query(
+                &query,
+                &catalog.schemas,
+                &catalog.default_schema,
+                &code_partials.structs,
+                options.use_async,
+            );
+            code_partials.queries.push(query);
+            code_partials.structs.extend(associated_structs);
         }
 
-        type_queries.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
-        enums.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
-        structs.sort_by(|a, b| Ord::cmp(&a.name(), &b.name()));
+        code_partials.sort_all();
 
-        Self {
-            enums,
-            structs,
-            constants,
-            queries: type_queries,
-        }
+        code_partials
     }
 }
 
@@ -393,7 +359,7 @@ fn build_query(
         }
     }
 
-    let (ret, new_struct) = QueryValue::from_query_columns(
+    let (ret, has_new_struct) = QueryValue::from_query_columns(
         &query.columns,
         schemas,
         default_schema,
@@ -403,7 +369,7 @@ fn build_query(
         is_batch,
     );
 
-    if new_struct {
+    if has_new_struct {
         if let Some(ref query_ret) = ret {
             if let Some(ref type_struct) = query_ret.type_struct {
                 associated_structs.push(type_struct.clone());

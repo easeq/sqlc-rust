@@ -53,7 +53,7 @@ pub(crate) async fn delete_book<'a, 'b, T: sqlc_core::DBTX>(
     sqlc_core::Error,
 > {
     let stmt = client.prepare(DELETE_BOOK).await?;
-    let fut = |book_id| {
+    let fut = move |book_id: &'b i32| {
         let stmt = stmt.clone();
         Box::pin(async move {
             client.execute(&stmt, &[&book_id]).await?;
