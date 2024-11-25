@@ -1,6 +1,6 @@
 use std::{char, collections::HashSet};
 
-use super::get_ident;
+use crate::codegen::get_ident;
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};

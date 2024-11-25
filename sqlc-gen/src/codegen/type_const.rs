@@ -1,4 +1,4 @@
-use super::{get_ident, MultiLineString};
+use crate::codegen::{get_ident, MultiLineString};
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};

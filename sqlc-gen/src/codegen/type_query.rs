@@ -1,5 +1,4 @@
-use super::{get_ident, DataType, PgDataType};
-use crate::codegen::TypeStruct;
+use crate::codegen::{get_ident, DataType, PgDataType, TypeStruct};
 use check_keyword::CheckKeyword;
 use convert_case::{Case, Casing};
 use core::panic;

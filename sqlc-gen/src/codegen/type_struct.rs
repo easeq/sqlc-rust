@@ -1,6 +1,4 @@
-use super::get_ident;
-use super::plugin;
-use super::{DataType, PgDataType};
+use crate::codegen::{get_ident, plugin, DataType, PgDataType};
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
