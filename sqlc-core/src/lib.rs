@@ -16,10 +16,3 @@ pub use dbtx::*;
 pub use error::*;
 pub use from_postgres_row::*;
 pub use sqlc_derive::FromPostgresRow;
-
-cfg_block! {
-    #[cfg(feature = "with-deadpool")] {
-        mod batch_results;
-        pub use batch_results::*;
-    }
-}
