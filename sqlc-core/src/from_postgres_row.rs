@@ -2,19 +2,19 @@ use cfg_block::cfg_block;
 use std::collections::HashMap;
 
 #[cfg(feature = "with-postgres")]
-use postgres::{Error as PgError, Row};
+use postgres::Row;
 
 #[cfg(feature = "with-tokio-postgres")]
-use tokio_postgres::{Error as PgError, Row};
+use tokio_postgres::Row;
 
 pub trait FromPostgresRow: Sized {
-    fn from_row(row: &Row) -> Result<Self, PgError>;
+    fn from_row(row: &Row) -> Result<Self, crate::Error>;
 }
 
 macro_rules! from_primitive {
     ($t:ty) => {
         impl FromPostgresRow for $t {
-            fn from_row(row: &Row) -> Result<Self, PgError> {
+            fn from_row(row: &Row) -> crate::Result<Self> {
                 Ok(row.try_get::<&str, $t>("0")?)
             }
         }

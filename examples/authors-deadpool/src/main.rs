@@ -125,7 +125,7 @@ async fn main() -> Result<()> {
         author_full_req.updated_at.to_hms_micro()
     );
     assert!(author_full_res.id == 1);
-    println!("{author_full_res:?}");
+    println!("{author_full_res:#?}");
 
     let delete_res = db::delete_author(client, 1).await.is_ok();
     assert_eq!(delete_res, true);

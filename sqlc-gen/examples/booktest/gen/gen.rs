@@ -144,36 +144,36 @@ pub(crate) struct UpdateBookParams {
 pub(crate) async fn books_by_tags(
     client: &impl sqlc_core::DBTX,
     dollar_1: String,
-) -> Result<Vec<BooksByTagsRow>, sqlc_core::Error> {
+) -> sqlc_core::Result<
+    impl std::iter::Iterator<Item = sqlc_core::Result<BooksByTagsRow>>,
+> {
     let rows = client.query(BOOKS_BY_TAGS, &[&dollar_1]).await?;
-    let mut result: Vec<BooksByTagsRow> = vec![];
-    for row in rows {
-        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-    }
-    Ok(result)
+    let iter = rows
+        .into_iter()
+        .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+    Ok(iter)
 }
 pub(crate) async fn books_by_title_year(
     client: &impl sqlc_core::DBTX,
     arg: BooksByTitleYearParams,
-) -> Result<Vec<Book>, sqlc_core::Error> {
+) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Book>>> {
     let rows = client.query(BOOKS_BY_TITLE_YEAR, &[&arg.title, &arg.year]).await?;
-    let mut result: Vec<Book> = vec![];
-    for row in rows {
-        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-    }
-    Ok(result)
+    let iter = rows
+        .into_iter()
+        .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+    Ok(iter)
 }
 pub(crate) async fn create_author(
     client: &impl sqlc_core::DBTX,
     name: String,
-) -> Result<Author, sqlc_core::Error> {
+) -> sqlc_core::Result<Author> {
     let row = client.query_one(CREATE_AUTHOR, &[&name]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) async fn create_book(
     client: &impl sqlc_core::DBTX,
     arg: CreateBookParams,
-) -> Result<Book, sqlc_core::Error> {
+) -> sqlc_core::Result<Book> {
     let row = client
         .query_one(
             CREATE_BOOK,
@@ -193,42 +193,42 @@ pub(crate) async fn create_book(
 pub(crate) async fn delete_book(
     client: &impl sqlc_core::DBTX,
     book_id: i32,
-) -> Result<(), sqlc_core::Error> {
+) -> sqlc_core::Result<()> {
     client.execute(DELETE_BOOK, &[&book_id]).await?;
     Ok(())
 }
 pub(crate) async fn get_author(
     client: &impl sqlc_core::DBTX,
     author_id: i32,
-) -> Result<Author, sqlc_core::Error> {
+) -> sqlc_core::Result<Author> {
     let row = client.query_one(GET_AUTHOR, &[&author_id]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) async fn get_book(
     client: &impl sqlc_core::DBTX,
     book_id: i32,
-) -> Result<Book, sqlc_core::Error> {
+) -> sqlc_core::Result<Book> {
     let row = client.query_one(GET_BOOK, &[&book_id]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) async fn say_hello(
     client: &impl sqlc_core::DBTX,
     s: String,
-) -> Result<String, sqlc_core::Error> {
+) -> sqlc_core::Result<String> {
     let row = client.query_one(SAY_HELLO, &[&s]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) async fn update_book(
     client: &impl sqlc_core::DBTX,
     arg: UpdateBookParams,
-) -> Result<(), sqlc_core::Error> {
+) -> sqlc_core::Result<()> {
     client.execute(UPDATE_BOOK, &[&arg.title, &arg.tags, &arg.book_id]).await?;
     Ok(())
 }
 pub(crate) async fn update_book_isbn(
     client: &impl sqlc_core::DBTX,
     arg: UpdateBookIsbnParams,
-) -> Result<(), sqlc_core::Error> {
+) -> sqlc_core::Result<()> {
     client
         .execute(UPDATE_BOOK_ISBN, &[&arg.title, &arg.tags, &arg.book_id, &arg.isbn])
         .await?;

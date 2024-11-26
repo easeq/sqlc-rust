@@ -119,45 +119,27 @@ pub(crate) struct UpdateBookParams {
 }
 pub(crate) async fn all_books(
     client: &impl sqlc_core::DBTX,
-) -> Result<Vec<Book>, sqlc_core::Error> {
+) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Book>>> {
     let rows = client.query(ALL_BOOKS, &[]).await?;
-    let mut result: Vec<Book> = vec![];
-    for row in rows {
-        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-    }
-    Ok(result)
+    let iter = rows
+        .into_iter()
+        .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+    Ok(iter)
 }
-pub(crate) async fn books_by_year<'a, 'b, T: sqlc_core::DBTX>(
+pub(crate) async fn books_by_year<'a, T: sqlc_core::DBTX>(
     client: &'a T,
-    year_list: &'b [i32],
-) -> Result<
+    year_list: &'a [i32],
+) -> sqlc_core::Result<
     impl futures::Stream<
-        Item = std::pin::Pin<
-            Box<
-                impl futures::Future<
-                    Output = Result<
-                        std::pin::Pin<
-                            Box<
-                                futures::stream::Iter<
-                                    impl std::iter::Iterator<
-                                        Item = Result<
-                                            Result<Book, tokio_postgres::Error>,
-                                            sqlc_core::Error,
-                                        >,
-                                    >,
-                                >,
-                            >,
-                        >,
-                        sqlc_core::Error,
-                    >,
-                > + use<'a, 'b, T>,
+        Item = impl futures::Future<
+            Output = sqlc_core::Result<
+                impl futures::Stream<Item = sqlc_core::Result<sqlc_core::Result<Book>>>,
             >,
-        >,
-    > + use<'a, 'b, T>,
-    sqlc_core::Error,
+        > + 'a,
+    > + 'a,
 > {
     let stmt = client.prepare(BOOKS_BY_YEAR).await?;
-    let fut = move |year: &'b i32| {
+    let fut = move |year: &'a i32| {
         let stmt = stmt.clone();
         Box::pin(async move {
             let rows = client.query(&stmt, &[&year]).await?;
@@ -172,27 +154,20 @@ pub(crate) async fn books_by_year<'a, 'b, T: sqlc_core::DBTX>(
 pub(crate) async fn create_author(
     client: &impl sqlc_core::DBTX,
     name: String,
-) -> Result<Author, sqlc_core::Error> {
+) -> sqlc_core::Result<Author> {
     let row = client.query_one(CREATE_AUTHOR, &[&name]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
-pub(crate) async fn create_book<'a, 'b, T: sqlc_core::DBTX>(
+pub(crate) async fn create_book<'a, T: sqlc_core::DBTX>(
     client: &'a T,
-    arg_list: &'b [CreateBookParams],
-) -> Result<
+    arg_list: &'a [CreateBookParams],
+) -> sqlc_core::Result<
     impl futures::Stream<
-        Item = std::pin::Pin<
-            Box<
-                impl futures::Future<
-                    Output = Result<Book, sqlc_core::Error>,
-                > + use<'a, 'b, T>,
-            >,
-        >,
-    > + use<'a, 'b, T>,
-    sqlc_core::Error,
+        Item = impl futures::Future<Output = sqlc_core::Result<Book>> + 'a,
+    > + 'a,
 > {
     let stmt = client.prepare(CREATE_BOOK).await?;
-    let fut = move |arg: &'b CreateBookParams| {
+    let fut = move |arg: &'a CreateBookParams| {
         let stmt = stmt.clone();
         Box::pin(async move {
             let row = client
@@ -214,23 +189,16 @@ pub(crate) async fn create_book<'a, 'b, T: sqlc_core::DBTX>(
     };
     Ok(futures::stream::iter(arg_list.iter().map(fut)))
 }
-pub(crate) async fn delete_book<'a, 'b, T: sqlc_core::DBTX>(
+pub(crate) async fn delete_book<'a, T: sqlc_core::DBTX>(
     client: &'a T,
-    book_id_list: &'b [i32],
-) -> Result<
+    book_id_list: &'a [i32],
+) -> sqlc_core::Result<
     impl futures::Stream<
-        Item = std::pin::Pin<
-            Box<
-                impl futures::Future<
-                    Output = Result<(), sqlc_core::Error>,
-                > + use<'a, 'b, T>,
-            >,
-        >,
-    > + use<'a, 'b, T>,
-    sqlc_core::Error,
+        Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
+    > + 'a,
 > {
     let stmt = client.prepare(DELETE_BOOK).await?;
-    let fut = move |book_id: &'b i32| {
+    let fut = move |book_id: &'a i32| {
         let stmt = stmt.clone();
         Box::pin(async move {
             client.execute(&stmt, &[&book_id]).await?;
@@ -242,27 +210,20 @@ pub(crate) async fn delete_book<'a, 'b, T: sqlc_core::DBTX>(
 pub(crate) async fn delete_book_exec_result(
     client: &impl sqlc_core::DBTX,
     book_id: i32,
-) -> Result<(), sqlc_core::Error> {
+) -> sqlc_core::Result<()> {
     client.execute(DELETE_BOOK_EXEC_RESULT, &[&book_id]).await?;
     Ok(())
 }
-pub(crate) async fn delete_book_named_func<'a, 'b, T: sqlc_core::DBTX>(
+pub(crate) async fn delete_book_named_func<'a, T: sqlc_core::DBTX>(
     client: &'a T,
-    book_id_list: &'b [i32],
-) -> Result<
+    book_id_list: &'a [i32],
+) -> sqlc_core::Result<
     impl futures::Stream<
-        Item = std::pin::Pin<
-            Box<
-                impl futures::Future<
-                    Output = Result<(), sqlc_core::Error>,
-                > + use<'a, 'b, T>,
-            >,
-        >,
-    > + use<'a, 'b, T>,
-    sqlc_core::Error,
+        Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
+    > + 'a,
 > {
     let stmt = client.prepare(DELETE_BOOK_NAMED_FUNC).await?;
-    let fut = move |book_id: &'b i32| {
+    let fut = move |book_id: &'a i32| {
         let stmt = stmt.clone();
         Box::pin(async move {
             client.execute(&stmt, &[&book_id]).await?;
@@ -271,23 +232,16 @@ pub(crate) async fn delete_book_named_func<'a, 'b, T: sqlc_core::DBTX>(
     };
     Ok(futures::stream::iter(book_id_list.iter().map(fut)))
 }
-pub(crate) async fn delete_book_named_sign<'a, 'b, T: sqlc_core::DBTX>(
+pub(crate) async fn delete_book_named_sign<'a, T: sqlc_core::DBTX>(
     client: &'a T,
-    book_id_list: &'b [i32],
-) -> Result<
+    book_id_list: &'a [i32],
+) -> sqlc_core::Result<
     impl futures::Stream<
-        Item = std::pin::Pin<
-            Box<
-                impl futures::Future<
-                    Output = Result<(), sqlc_core::Error>,
-                > + use<'a, 'b, T>,
-            >,
-        >,
-    > + use<'a, 'b, T>,
-    sqlc_core::Error,
+        Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
+    > + 'a,
 > {
     let stmt = client.prepare(DELETE_BOOK_NAMED_SIGN).await?;
-    let fut = move |book_id: &'b i32| {
+    let fut = move |book_id: &'a i32| {
         let stmt = stmt.clone();
         Box::pin(async move {
             client.execute(&stmt, &[&book_id]).await?;
@@ -299,27 +253,20 @@ pub(crate) async fn delete_book_named_sign<'a, 'b, T: sqlc_core::DBTX>(
 pub(crate) async fn get_author(
     client: &impl sqlc_core::DBTX,
     author_id: i32,
-) -> Result<Author, sqlc_core::Error> {
+) -> sqlc_core::Result<Author> {
     let row = client.query_one(GET_AUTHOR, &[&author_id]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
-pub(crate) async fn get_biography<'a, 'b, T: sqlc_core::DBTX>(
+pub(crate) async fn get_biography<'a, T: sqlc_core::DBTX>(
     client: &'a T,
-    author_id_list: &'b [i32],
-) -> Result<
+    author_id_list: &'a [i32],
+) -> sqlc_core::Result<
     impl futures::Stream<
-        Item = std::pin::Pin<
-            Box<
-                impl futures::Future<
-                    Output = Result<serde_json::Value, sqlc_core::Error>,
-                > + use<'a, 'b, T>,
-            >,
-        >,
-    > + use<'a, 'b, T>,
-    sqlc_core::Error,
+        Item = impl futures::Future<Output = sqlc_core::Result<serde_json::Value>> + 'a,
+    > + 'a,
 > {
     let stmt = client.prepare(GET_BIOGRAPHY).await?;
-    let fut = move |author_id: &'b i32| {
+    let fut = move |author_id: &'a i32| {
         let stmt = stmt.clone();
         Box::pin(async move {
             let row = client.query_one(&stmt, &[&author_id]).await?;
@@ -328,23 +275,16 @@ pub(crate) async fn get_biography<'a, 'b, T: sqlc_core::DBTX>(
     };
     Ok(futures::stream::iter(author_id_list.iter().map(fut)))
 }
-pub(crate) async fn update_book<'a, 'b, T: sqlc_core::DBTX>(
+pub(crate) async fn update_book<'a, T: sqlc_core::DBTX>(
     client: &'a T,
-    arg_list: &'b [UpdateBookParams],
-) -> Result<
+    arg_list: &'a [UpdateBookParams],
+) -> sqlc_core::Result<
     impl futures::Stream<
-        Item = std::pin::Pin<
-            Box<
-                impl futures::Future<
-                    Output = Result<(), sqlc_core::Error>,
-                > + use<'a, 'b, T>,
-            >,
-        >,
-    > + use<'a, 'b, T>,
-    sqlc_core::Error,
+        Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
+    > + 'a,
 > {
     let stmt = client.prepare(UPDATE_BOOK).await?;
-    let fut = move |arg: &'b UpdateBookParams| {
+    let fut = move |arg: &'a UpdateBookParams| {
         let stmt = stmt.clone();
         Box::pin(async move {
             client.execute(&stmt, &[&arg.title, &arg.tags, &arg.book_id]).await?;

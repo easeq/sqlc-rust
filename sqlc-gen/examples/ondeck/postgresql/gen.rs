@@ -158,14 +158,14 @@ pub(crate) struct VenueCountByCityRow {
 pub(crate) async fn create_city(
     client: &impl sqlc_core::DBTX,
     arg: CreateCityParams,
-) -> Result<City, sqlc_core::Error> {
+) -> sqlc_core::Result<City> {
     let row = client.query_one(CREATE_CITY, &[&arg.name, &arg.slug]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) async fn create_venue(
     client: &impl sqlc_core::DBTX,
     arg: CreateVenueParams,
-) -> Result<i32, sqlc_core::Error> {
+) -> sqlc_core::Result<i32> {
     let row = client
         .query_one(
             CREATE_VENUE,
@@ -185,66 +185,65 @@ pub(crate) async fn create_venue(
 pub(crate) async fn delete_venue(
     client: &impl sqlc_core::DBTX,
     slug: String,
-) -> Result<(), sqlc_core::Error> {
+) -> sqlc_core::Result<()> {
     client.execute(DELETE_VENUE, &[&slug]).await?;
     Ok(())
 }
 pub(crate) async fn get_city(
     client: &impl sqlc_core::DBTX,
     slug: String,
-) -> Result<City, sqlc_core::Error> {
+) -> sqlc_core::Result<City> {
     let row = client.query_one(GET_CITY, &[&slug]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) async fn get_venue(
     client: &impl sqlc_core::DBTX,
     arg: GetVenueParams,
-) -> Result<Venue, sqlc_core::Error> {
+) -> sqlc_core::Result<Venue> {
     let row = client.query_one(GET_VENUE, &[&arg.slug, &arg.city]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) async fn list_cities(
     client: &impl sqlc_core::DBTX,
-) -> Result<Vec<City>, sqlc_core::Error> {
+) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<City>>> {
     let rows = client.query(LIST_CITIES, &[]).await?;
-    let mut result: Vec<City> = vec![];
-    for row in rows {
-        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-    }
-    Ok(result)
+    let iter = rows
+        .into_iter()
+        .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+    Ok(iter)
 }
 pub(crate) async fn list_venues(
     client: &impl sqlc_core::DBTX,
     city: String,
-) -> Result<Vec<Venue>, sqlc_core::Error> {
+) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Venue>>> {
     let rows = client.query(LIST_VENUES, &[&city]).await?;
-    let mut result: Vec<Venue> = vec![];
-    for row in rows {
-        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-    }
-    Ok(result)
+    let iter = rows
+        .into_iter()
+        .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+    Ok(iter)
 }
 pub(crate) async fn update_city_name(
     client: &impl sqlc_core::DBTX,
     arg: UpdateCityNameParams,
-) -> Result<(), sqlc_core::Error> {
+) -> sqlc_core::Result<()> {
     client.execute(UPDATE_CITY_NAME, &[&arg.slug, &arg.name]).await?;
     Ok(())
 }
 pub(crate) async fn update_venue_name(
     client: &impl sqlc_core::DBTX,
     arg: UpdateVenueNameParams,
-) -> Result<i32, sqlc_core::Error> {
+) -> sqlc_core::Result<i32> {
     let row = client.query_one(UPDATE_VENUE_NAME, &[&arg.slug, &arg.name]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) async fn venue_count_by_city(
     client: &impl sqlc_core::DBTX,
-) -> Result<Vec<VenueCountByCityRow>, sqlc_core::Error> {
+) -> sqlc_core::Result<
+    impl std::iter::Iterator<Item = sqlc_core::Result<VenueCountByCityRow>>,
+> {
     let rows = client.query(VENUE_COUNT_BY_CITY, &[]).await?;
-    let mut result: Vec<VenueCountByCityRow> = vec![];
-    for row in rows {
-        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-    }
-    Ok(result)
+    let iter = rows
+        .into_iter()
+        .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+    Ok(iter)
 }

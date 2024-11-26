@@ -1,6 +1,7 @@
 use crate::db;
 use futures::StreamExt;
 use futures::TryStreamExt;
+use itertools::Itertools;
 use std::ops::{Deref, DerefMut};
 
 pub async fn execute(pool: deadpool_postgres::Pool) {
@@ -56,7 +57,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         .try_collect::<Vec<_>>()
         .await
         .expect("failed to collect batch results 1");
-    println!("books: {:?}", new_books);
+    println!("books: {:#?}", new_books);
     assert_eq!(new_books.len(), new_book_params.len());
 
     let new_books_2 = db::create_book(client, &new_book_params)
@@ -65,7 +66,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         .buffer_unordered(2)
         .try_collect::<Vec<_>>()
         .await;
-    println!("new books 2 err: {:?}", new_books_2);
+    println!("new books 2 err: {:#?}", new_books_2);
     assert_eq!(new_books_2.is_err(), true);
 
     let update_books_params = vec![db::UpdateBookParams {
@@ -113,7 +114,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
             .await
             .expect("failed to fetch books by year");
 
-    println!("{:?}", books);
+    println!("{books:#?}");
 
     let delete_books_params = new_books
         .iter()
@@ -162,8 +163,10 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         .await
         .expect("failed to commit transaction");
 
-    let books = db::all_books(client)
+    let books: Vec<_> = db::all_books(client)
         .await
-        .expect("failed to fetch all books");
+        .expect("failed to fetch all books")
+        .try_collect()
+        .expect("failed to collect all books");
     println!("{books:#?}");
 }

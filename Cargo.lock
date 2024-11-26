@@ -230,6 +230,7 @@ dependencies = [
  "eui48 1.1.0",
  "futures",
  "geo-types 0.7.13",
+ "itertools",
  "pin-project",
  "pin-project-lite",
  "postgres-derive",

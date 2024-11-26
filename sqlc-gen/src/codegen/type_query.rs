@@ -204,7 +204,7 @@ impl QueryValue {
             let arg_toks = if is_batch {
                 let ident_name = get_ident(format!("{}_list", self.name).as_str());
                 quote! {
-                    #ident_name: &'b [#ident_type]
+                    #ident_name: &'a [#ident_type]
                 }
             } else {
                 quote! {
@@ -278,46 +278,12 @@ impl TypeQuery {
         let sig_fn = quote!(fn #ident_name(client: &impl sqlc_core::DBTX, #arg));
 
         let query_method = match command {
-            QueryCommand::One => {
-                let ret = self.ret.as_ref().unwrap();
-                let sig = quote! { #sig_fn -> Result<#ret, sqlc_core::Error> };
-                let fetch_stmt = quote! {
-                    let row = #client.query_one(#ident_const_name, &[#fields_list])
-                };
-                let fn_body = quote! {
-                    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
-                };
-                QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
-            }
-            QueryCommand::Many => {
-                let ret = self.ret.as_ref().unwrap();
-                let sig = quote! { #sig_fn -> Result<Vec<#ret>, sqlc_core::Error> };
-                let fetch_stmt = quote! {
-                    let rows = #client.query(#ident_const_name, &[#fields_list])
-                };
-                let fn_body = quote! {
-                    let mut result: Vec<#ret> = vec![];
-                    for row in rows {
-                        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-                    }
-
-                    Ok(result)
-                };
-                QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
-            }
+            QueryCommand::One => QueryMethod::for_query_one(self, &sig_fn, &client),
+            QueryCommand::Many => QueryMethod::for_query_many(self, &sig_fn, &client),
             QueryCommand::Exec
             | QueryCommand::ExecRows
             | QueryCommand::ExecResult
-            | QueryCommand::ExecLastId => {
-                let sig = quote! { #sig_fn -> Result<(), sqlc_core::Error> };
-                let fetch_stmt = quote! {
-                    #client.execute(#ident_const_name, &[#fields_list])
-                };
-                let fn_body = quote! {
-                    Ok(())
-                };
-                QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
-            }
+            | QueryCommand::ExecLastId => QueryMethod::for_query_exec(self, &sig_fn, &client),
             QueryCommand::BatchMany | QueryCommand::BatchOne | QueryCommand::BatchExec => {
                 let fut_ret = if command.has_return_value() {
                     let ret = self.ret.as_ref().unwrap();
@@ -325,14 +291,11 @@ impl TypeQuery {
                         quote!(#ret)
                     } else {
                         quote! {
-                            std::pin::Pin<Box<futures::stream::Iter<
-                                impl std::iter::Iterator<
-                                    Item = Result<
-                                        Result<#ret, tokio_postgres::Error>,
-                                        sqlc_core::Error,
-                                    >,
+                            impl futures::Stream<
+                                Item = sqlc_core::Result<
+                                    sqlc_core::Result<#ret>,
                                 >,
-                            >>>
+                            >
                         }
                     }
                 } else {
@@ -343,13 +306,12 @@ impl TypeQuery {
                 let arg_list = get_ident(format!("{arg_name_str}_list").as_str());
                 let arg_type = arg.get_type();
                 let sig = quote! {
-                    fn #ident_name<'a, 'b, T: sqlc_core::DBTX>(client: &'a T, #arg) -> Result<
+                    fn #ident_name<'a, T: sqlc_core::DBTX>(client: &'a T, #arg) -> sqlc_core::Result<
                         impl futures::Stream<
-                                Item = std::pin::Pin<
-                                    Box<impl futures::Future<Output = Result<#fut_ret, sqlc_core::Error>> + use<'a, 'b, T>>,
-                                >,
-                            > + use<'a, 'b, T>,
-                        sqlc_core::Error,
+                                Item = impl futures::Future<
+                                    Output = sqlc_core::Result<#fut_ret>
+                                > + 'a,
+                            > + 'a,
                     >
                 };
                 let stmt = quote! {
@@ -384,7 +346,7 @@ impl TypeQuery {
                     _ => unimplemented!(),
                 };
                 let fn_body = quote! {
-                    let fut = move |#arg_name: &'b #arg_type| {
+                    let fut = move |#arg_name: &'a #arg_type| {
                         let stmt = stmt.clone();
                         Box::pin(async move {
                             #fn_res
@@ -426,6 +388,69 @@ impl QueryMethod {
             fn_body,
             use_async,
         }
+    }
+
+    fn for_query_one(query: &TypeQuery, sig_fn_input: &TokenStream, client: &TokenStream) -> Self {
+        let ident_const_name = get_ident(&query.constant_name());
+
+        let arg = query.arg.clone().unwrap_or_default();
+        let fields_list = arg.generate_fields_list();
+
+        let ret = query.ret.as_ref().unwrap();
+
+        let sig = quote! { #sig_fn_input -> sqlc_core::Result<#ret> };
+        let fetch_stmt = quote! {
+            let row = #client.query_one(#ident_const_name, &[#fields_list])
+        };
+        let fn_body = quote! {
+            Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+        };
+
+        Self::new(sig, fn_body, fetch_stmt, query.use_async)
+    }
+
+    fn for_query_many(query: &TypeQuery, sig_fn_input: &TokenStream, client: &TokenStream) -> Self {
+        let ident_const_name = get_ident(&query.constant_name());
+
+        let arg = query.arg.clone().unwrap_or_default();
+        let fields_list = arg.generate_fields_list();
+
+        let ret = query.ret.as_ref().unwrap();
+
+        let sig = quote! {
+            #sig_fn_input -> sqlc_core::Result<
+                impl std::iter::Iterator<Item = sqlc_core::Result<#ret>>
+            >
+        };
+        let fetch_stmt = quote! {
+            let rows = #client.query(#ident_const_name, &[#fields_list])
+        };
+        let fn_body = quote! {
+            let iter = rows
+                .into_iter()
+                .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+
+            Ok(iter)
+        };
+
+        Self::new(sig, fn_body, fetch_stmt, query.use_async)
+    }
+
+    fn for_query_exec(query: &TypeQuery, sig_fn_input: &TokenStream, client: &TokenStream) -> Self {
+        let ident_const_name = get_ident(&query.constant_name());
+
+        let arg = query.arg.clone().unwrap_or_default();
+        let fields_list = arg.generate_fields_list();
+
+        let sig = quote! { #sig_fn_input -> sqlc_core::Result<()> };
+        let fetch_stmt = quote! {
+            #client.execute(#ident_const_name, &[#fields_list])
+        };
+        let fn_body = quote! {
+            Ok(())
+        };
+
+        Self::new(sig, fn_body, fetch_stmt, query.use_async)
     }
 }
 

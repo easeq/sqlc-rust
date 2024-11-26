@@ -115,14 +115,14 @@ pub(crate) struct CreateAuthorParams {
 pub(crate) async fn create_author(
     client: &impl sqlc_core::DBTX,
     arg: CreateAuthorParams,
-) -> Result<Author, sqlc_core::Error> {
+) -> sqlc_core::Result<Author> {
     let row = client.query_one(CREATE_AUTHOR, &[&arg.name, &arg.bio]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) async fn create_author_full(
     client: &impl sqlc_core::DBTX,
     arg: CreateAuthorFullParams,
-) -> Result<Author, sqlc_core::Error> {
+) -> sqlc_core::Result<Author> {
     let row = client
         .query_one(
             CREATE_AUTHOR_FULL,
@@ -150,24 +150,23 @@ pub(crate) async fn create_author_full(
 pub(crate) async fn delete_author(
     client: &impl sqlc_core::DBTX,
     id: i64,
-) -> Result<(), sqlc_core::Error> {
+) -> sqlc_core::Result<()> {
     client.execute(DELETE_AUTHOR, &[&id]).await?;
     Ok(())
 }
 pub(crate) async fn get_author(
     client: &impl sqlc_core::DBTX,
     id: i64,
-) -> Result<Author, sqlc_core::Error> {
+) -> sqlc_core::Result<Author> {
     let row = client.query_one(GET_AUTHOR, &[&id]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) async fn list_authors(
     client: &impl sqlc_core::DBTX,
-) -> Result<Vec<Author>, sqlc_core::Error> {
+) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Author>>> {
     let rows = client.query(LIST_AUTHORS, &[]).await?;
-    let mut result: Vec<Author> = vec![];
-    for row in rows {
-        result.push(sqlc_core::FromPostgresRow::from_row(&row)?);
-    }
-    Ok(result)
+    let iter = rows
+        .into_iter()
+        .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+    Ok(iter)
 }
