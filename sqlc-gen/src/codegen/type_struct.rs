@@ -113,6 +113,11 @@ impl StructField {
 
         tokens
     }
+
+    pub fn to_pg_query_slice_item(&self, var_name: &syn::Ident) -> TokenStream {
+        let ident_field_name = get_ident(&self.name());
+        quote! { &#var_name.#ident_field_name }
+    }
 }
 
 impl ToTokens for StructField {
@@ -260,6 +265,15 @@ impl TypeStruct {
 
     pub fn data_type(&self) -> DataType {
         DataType(self.name())
+    }
+
+    pub fn to_pg_query_slice(&self, var_name: &syn::Ident) -> TokenStream {
+        let fields = self
+            .fields
+            .iter()
+            .map(|field| field.to_pg_query_slice_item(&var_name))
+            .collect::<Vec<_>>();
+        quote! { #(#fields),* }
     }
 
     fn generate_code(&self) -> TokenStream {
