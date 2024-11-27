@@ -12,7 +12,16 @@ mod dbtx;
 mod error;
 mod from_postgres_row;
 
-pub use dbtx::*;
 pub use error::*;
 pub use from_postgres_row::*;
 pub use sqlc_derive::FromPostgresRow;
+
+cfg_block! {
+    #[cfg(feature = "with-postgres")] {
+        pub use dbtx::pg::*;
+    }
+
+    #[cfg(feature = "with-tokio-postgres")] {
+        pub use dbtx::tokio_pg::*;
+    }
+}

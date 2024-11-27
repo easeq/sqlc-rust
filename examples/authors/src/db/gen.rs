@@ -113,14 +113,14 @@ pub(crate) struct CreateAuthorParams {
     pub bio: Option<String>,
 }
 pub(crate) fn create_author(
-    client: &impl sqlc_core::DBTX,
+    client: &mut impl sqlc_core::DBTX,
     arg: CreateAuthorParams,
 ) -> sqlc_core::Result<Author> {
     let row = client.query_one(CREATE_AUTHOR, &[&arg.name, &arg.bio])?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) fn create_author_full(
-    client: &impl sqlc_core::DBTX,
+    client: &mut impl sqlc_core::DBTX,
     arg: CreateAuthorFullParams,
 ) -> sqlc_core::Result<Author> {
     let row = client
@@ -147,21 +147,21 @@ pub(crate) fn create_author_full(
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) fn delete_author(
-    client: &impl sqlc_core::DBTX,
+    client: &mut impl sqlc_core::DBTX,
     id: i64,
 ) -> sqlc_core::Result<()> {
     client.execute(DELETE_AUTHOR, &[&id])?;
     Ok(())
 }
 pub(crate) fn get_author(
-    client: &impl sqlc_core::DBTX,
+    client: &mut impl sqlc_core::DBTX,
     id: i64,
 ) -> sqlc_core::Result<Author> {
     let row = client.query_one(GET_AUTHOR, &[&id])?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
 pub(crate) fn list_authors(
-    client: &impl sqlc_core::DBTX,
+    client: &mut impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Author>>> {
     let rows = client.query(LIST_AUTHORS, &[])?;
     let iter = rows

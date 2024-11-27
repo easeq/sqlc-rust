@@ -32,7 +32,7 @@ deadpool = "0.12.1"
 sqlc-derive = { version = "0.3.0", path = "../sqlc-derive" }
 
 [features]
-# default = ["with-postgres"]
+default = ["with-postgres"]
 with-postgres = ["postgres", "sqlc-derive/with-postgres"]
 with-tokio-postgres = ["tokio-postgres", "sqlc-derive/with-tokio-postgres"]
 with-deadpool = ["futures", "deadpool-postgres", "with-tokio-postgres", "sqlc-derive/with-deadpool"]

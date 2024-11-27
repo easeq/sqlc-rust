@@ -1,5 +1,6 @@
 use deadpool_postgres::{Config, Runtime};
 use geo_types::line_string;
+use itertools::Itertools;
 use postgresql_embedded::{PostgreSQL, Result};
 use std::ops::{Deref, DerefMut};
 use tokio_postgres::NoTls;
@@ -52,7 +53,7 @@ async fn main() -> Result<()> {
     let client = db_client.deref().deref();
 
     let authors = db::list_authors(client).await.unwrap();
-    assert_eq!(authors.len(), 0);
+    assert_eq!(authors.try_len().unwrap(), 0);
 
     let author_res_err = db::get_author(client, 1).await.is_err();
     assert_eq!(author_res_err, true);
@@ -142,7 +143,11 @@ async fn main() -> Result<()> {
     assert!(author1_res.id == 2);
 
     let mut authors_list_prepared = vec![author1_res.clone()];
-    let authors = db::list_authors(client).await.unwrap();
+    let authors: Vec<_> = db::list_authors(client)
+        .await
+        .unwrap()
+        .try_collect()
+        .unwrap();
     assert_eq!(authors.len(), 1);
     assert_eq!(authors, authors_list_prepared);
 
@@ -159,7 +164,11 @@ async fn main() -> Result<()> {
 
     authors_list_prepared.push(author2_res.clone());
 
-    let authors = db::list_authors(client).await.unwrap();
+    let authors: Vec<_> = db::list_authors(client)
+        .await
+        .unwrap()
+        .try_collect()
+        .unwrap();
     assert_eq!(authors.len(), 2);
     assert_eq!(authors, authors_list_prepared);
 
@@ -167,7 +176,11 @@ async fn main() -> Result<()> {
     assert_eq!(author, author1_res);
 
     db::delete_author(client, 2).await.unwrap();
-    let authors = db::list_authors(client).await.unwrap();
+    let authors: Vec<_> = db::list_authors(client)
+        .await
+        .unwrap()
+        .try_collect()
+        .unwrap();
     assert_eq!(authors.len(), 1);
     assert_eq!(authors, authors_list_prepared[1..]);
 

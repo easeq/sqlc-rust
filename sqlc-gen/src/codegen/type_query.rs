@@ -275,7 +275,12 @@ impl TypeQuery {
         let command = self.command();
         let client = quote!(client);
 
-        let sig_fn = quote!(fn #ident_name(client: &impl sqlc_core::DBTX, #arg));
+        let client_mut = if self.use_async {
+            quote!()
+        } else {
+            quote!(mut)
+        };
+        let sig_fn = quote!(fn #ident_name(client: &#client_mut impl sqlc_core::DBTX, #arg));
 
         let query_method = match command {
             QueryCommand::One => QueryMethod::for_query_one(self, &sig_fn, &client),

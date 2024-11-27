@@ -21,6 +21,7 @@ tokio = { version = "1.40.0", features = ["rt", "rt-multi-thread", "macros", "si
 tokio-postgres = { version = "0.7.12", features = ["with-uuid-1", "with-time-0_3", "array-impls"] }
 uuid = { version = "1.10.0", features = ["serde"] }
 postgres-derive = "0.4.6"
+itertools = "0.13.0"
 
 [features]
 default = ["serde_support"]
