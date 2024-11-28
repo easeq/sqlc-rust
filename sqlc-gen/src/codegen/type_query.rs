@@ -90,7 +90,7 @@ impl QueryValue {
         }
     }
 
-    pub fn from_query_params(
+    pub(crate) fn from_query_params(
         params: &[crate::plugin::Parameter],
         schemas: &[crate::plugin::Schema],
         default_schema: &str,
@@ -115,7 +115,7 @@ impl QueryValue {
         }
     }
 
-    pub fn from_query_columns(
+    pub(crate) fn from_query_columns(
         columns: &[crate::plugin::Column],
         schemas: &[crate::plugin::Schema],
         default_schema: &str,
@@ -158,7 +158,7 @@ impl QueryValue {
         }
     }
 
-    pub fn get_type(&self) -> DataType {
+    fn get_type(&self) -> DataType {
         if let Some(typ) = &self.typ {
             typ.as_data_type()
         } else if let Some(ref type_struct) = self.type_struct {
@@ -168,12 +168,12 @@ impl QueryValue {
         }
     }
 
-    pub fn get_type_tokens(&self) -> TokenStream {
+    fn get_type_tokens(&self) -> TokenStream {
         let data_type = &self.get_type();
         quote!(#data_type)
     }
 
-    pub fn generate_fields_list(&self) -> TokenStream {
+    fn generate_fields_list(&self) -> TokenStream {
         let mut fields_list = quote! {};
         if self.typ.is_some() {
             let ident_name = get_ident(&self.name);
@@ -190,10 +190,10 @@ impl QueryValue {
     }
 
     fn to_named_fn_arg_ref(&self) -> TokenStream {
-        let ident_type = self.get_type_tokens();
+        // let ident_type = self.get_type_tokens();
         let ident_name = get_ident(format!("{}_list", self.name).as_str());
         quote! {
-            #ident_name: &'a [#ident_type]
+            #ident_name: I
         }
     }
 
@@ -212,7 +212,7 @@ impl QueryValue {
         }
     }
 
-    pub(crate) fn generate_code(&self) -> TokenStream {
+    fn generate_code(&self) -> TokenStream {
         if !self.name.is_empty() {
             if self.is_batch {
                 self.to_named_fn_arg_ref()
@@ -385,13 +385,17 @@ impl TypeQuery {
 
         let fields_list = self.to_field_list();
         let sig = quote! {
-            fn #ident_name<'a, T: sqlc_core::DBTX>(client: &'a T, #arg) -> sqlc_core::Result<
+            fn #ident_name<'a, C, I>(client: &'a C, #arg) -> sqlc_core::Result<
                 impl futures::Stream<
                         Item = impl futures::Future<
                             Output = sqlc_core::Result<#fut_ret>
                         > + 'a,
                     > + 'a,
             >
+            where
+                C: sqlc_core::DBTX,
+                I: IntoIterator + 'a,
+                I::Item: std::borrow::Borrow<#arg_type> + 'a,
         };
         let stmt = quote! {
             let stmt = #client.prepare(#ident_const_name)
@@ -425,13 +429,15 @@ impl TypeQuery {
             _ => unimplemented!(),
         };
         let fn_body = quote! {
-            let fut = move |#arg_name: &'a #arg_type| {
+            let fut = move |item: <I as IntoIterator>::Item| {
                 let stmt = stmt.clone();
                 Box::pin(async move {
+                    use std::borrow::Borrow;
+                    let #arg_name = item.borrow();
                     #fn_res
                 })
             };
-            Ok(futures::stream::iter(#arg_list.iter().map(fut)))
+            Ok(futures::stream::iter(#arg_list.into_iter().map(fut)))
         };
         QueryMethod::new(sig, fn_body, stmt, self.use_async)
     }

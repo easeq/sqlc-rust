@@ -126,9 +126,9 @@ pub(crate) async fn all_books(
         .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
     Ok(iter)
 }
-pub(crate) async fn books_by_year<'a, T: sqlc_core::DBTX>(
-    client: &'a T,
-    year_list: &'a [i32],
+pub(crate) async fn books_by_year<'a, C, I>(
+    client: &'a C,
+    year_list: I,
 ) -> sqlc_core::Result<
     impl futures::Stream<
         Item = impl futures::Future<
@@ -137,11 +137,18 @@ pub(crate) async fn books_by_year<'a, T: sqlc_core::DBTX>(
             >,
         > + 'a,
     > + 'a,
-> {
+>
+where
+    C: sqlc_core::DBTX,
+    I: IntoIterator + 'a,
+    I::Item: std::borrow::Borrow<i32> + 'a,
+{
     let stmt = client.prepare(BOOKS_BY_YEAR).await?;
-    let fut = move |year: &'a i32| {
+    let fut = move |item: <I as IntoIterator>::Item| {
         let stmt = stmt.clone();
         Box::pin(async move {
+            use std::borrow::Borrow;
+            let year = item.borrow();
             let rows = client.query(&stmt, &[&year]).await?;
             let result = rows
                 .into_iter()
@@ -149,7 +156,7 @@ pub(crate) async fn books_by_year<'a, T: sqlc_core::DBTX>(
             Ok(Box::pin(futures::stream::iter(result)))
         })
     };
-    Ok(futures::stream::iter(year_list.iter().map(fut)))
+    Ok(futures::stream::iter(year_list.into_iter().map(fut)))
 }
 pub(crate) async fn create_author(
     client: &impl sqlc_core::DBTX,
@@ -158,18 +165,25 @@ pub(crate) async fn create_author(
     let row = client.query_one(CREATE_AUTHOR, &[&name]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
-pub(crate) async fn create_book<'a, T: sqlc_core::DBTX>(
-    client: &'a T,
-    arg_list: &'a [CreateBookParams],
+pub(crate) async fn create_book<'a, C, I>(
+    client: &'a C,
+    arg_list: I,
 ) -> sqlc_core::Result<
     impl futures::Stream<
         Item = impl futures::Future<Output = sqlc_core::Result<Book>> + 'a,
     > + 'a,
-> {
+>
+where
+    C: sqlc_core::DBTX,
+    I: IntoIterator + 'a,
+    I::Item: std::borrow::Borrow<CreateBookParams> + 'a,
+{
     let stmt = client.prepare(CREATE_BOOK).await?;
-    let fut = move |arg: &'a CreateBookParams| {
+    let fut = move |item: <I as IntoIterator>::Item| {
         let stmt = stmt.clone();
         Box::pin(async move {
+            use std::borrow::Borrow;
+            let arg = item.borrow();
             let row = client
                 .query_one(
                     &stmt,
@@ -187,25 +201,32 @@ pub(crate) async fn create_book<'a, T: sqlc_core::DBTX>(
             Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
         })
     };
-    Ok(futures::stream::iter(arg_list.iter().map(fut)))
+    Ok(futures::stream::iter(arg_list.into_iter().map(fut)))
 }
-pub(crate) async fn delete_book<'a, T: sqlc_core::DBTX>(
-    client: &'a T,
-    book_id_list: &'a [i32],
+pub(crate) async fn delete_book<'a, C, I>(
+    client: &'a C,
+    book_id_list: I,
 ) -> sqlc_core::Result<
     impl futures::Stream<
         Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
     > + 'a,
-> {
+>
+where
+    C: sqlc_core::DBTX,
+    I: IntoIterator + 'a,
+    I::Item: std::borrow::Borrow<i32> + 'a,
+{
     let stmt = client.prepare(DELETE_BOOK).await?;
-    let fut = move |book_id: &'a i32| {
+    let fut = move |item: <I as IntoIterator>::Item| {
         let stmt = stmt.clone();
         Box::pin(async move {
+            use std::borrow::Borrow;
+            let book_id = item.borrow();
             client.execute(&stmt, &[&book_id]).await?;
             Ok(())
         })
     };
-    Ok(futures::stream::iter(book_id_list.iter().map(fut)))
+    Ok(futures::stream::iter(book_id_list.into_iter().map(fut)))
 }
 pub(crate) async fn delete_book_exec_result(
     client: &impl sqlc_core::DBTX,
@@ -214,41 +235,55 @@ pub(crate) async fn delete_book_exec_result(
     client.execute(DELETE_BOOK_EXEC_RESULT, &[&book_id]).await?;
     Ok(())
 }
-pub(crate) async fn delete_book_named_func<'a, T: sqlc_core::DBTX>(
-    client: &'a T,
-    book_id_list: &'a [i32],
+pub(crate) async fn delete_book_named_func<'a, C, I>(
+    client: &'a C,
+    book_id_list: I,
 ) -> sqlc_core::Result<
     impl futures::Stream<
         Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
     > + 'a,
-> {
+>
+where
+    C: sqlc_core::DBTX,
+    I: IntoIterator + 'a,
+    I::Item: std::borrow::Borrow<i32> + 'a,
+{
     let stmt = client.prepare(DELETE_BOOK_NAMED_FUNC).await?;
-    let fut = move |book_id: &'a i32| {
+    let fut = move |item: <I as IntoIterator>::Item| {
         let stmt = stmt.clone();
         Box::pin(async move {
+            use std::borrow::Borrow;
+            let book_id = item.borrow();
             client.execute(&stmt, &[&book_id]).await?;
             Ok(())
         })
     };
-    Ok(futures::stream::iter(book_id_list.iter().map(fut)))
+    Ok(futures::stream::iter(book_id_list.into_iter().map(fut)))
 }
-pub(crate) async fn delete_book_named_sign<'a, T: sqlc_core::DBTX>(
-    client: &'a T,
-    book_id_list: &'a [i32],
+pub(crate) async fn delete_book_named_sign<'a, C, I>(
+    client: &'a C,
+    book_id_list: I,
 ) -> sqlc_core::Result<
     impl futures::Stream<
         Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
     > + 'a,
-> {
+>
+where
+    C: sqlc_core::DBTX,
+    I: IntoIterator + 'a,
+    I::Item: std::borrow::Borrow<i32> + 'a,
+{
     let stmt = client.prepare(DELETE_BOOK_NAMED_SIGN).await?;
-    let fut = move |book_id: &'a i32| {
+    let fut = move |item: <I as IntoIterator>::Item| {
         let stmt = stmt.clone();
         Box::pin(async move {
+            use std::borrow::Borrow;
+            let book_id = item.borrow();
             client.execute(&stmt, &[&book_id]).await?;
             Ok(())
         })
     };
-    Ok(futures::stream::iter(book_id_list.iter().map(fut)))
+    Ok(futures::stream::iter(book_id_list.into_iter().map(fut)))
 }
 pub(crate) async fn get_author(
     client: &impl sqlc_core::DBTX,
@@ -257,39 +292,53 @@ pub(crate) async fn get_author(
     let row = client.query_one(GET_AUTHOR, &[&author_id]).await?;
     Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
 }
-pub(crate) async fn get_biography<'a, T: sqlc_core::DBTX>(
-    client: &'a T,
-    author_id_list: &'a [i32],
+pub(crate) async fn get_biography<'a, C, I>(
+    client: &'a C,
+    author_id_list: I,
 ) -> sqlc_core::Result<
     impl futures::Stream<
         Item = impl futures::Future<Output = sqlc_core::Result<serde_json::Value>> + 'a,
     > + 'a,
-> {
+>
+where
+    C: sqlc_core::DBTX,
+    I: IntoIterator + 'a,
+    I::Item: std::borrow::Borrow<i32> + 'a,
+{
     let stmt = client.prepare(GET_BIOGRAPHY).await?;
-    let fut = move |author_id: &'a i32| {
+    let fut = move |item: <I as IntoIterator>::Item| {
         let stmt = stmt.clone();
         Box::pin(async move {
+            use std::borrow::Borrow;
+            let author_id = item.borrow();
             let row = client.query_one(&stmt, &[&author_id]).await?;
             Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
         })
     };
-    Ok(futures::stream::iter(author_id_list.iter().map(fut)))
+    Ok(futures::stream::iter(author_id_list.into_iter().map(fut)))
 }
-pub(crate) async fn update_book<'a, T: sqlc_core::DBTX>(
-    client: &'a T,
-    arg_list: &'a [UpdateBookParams],
+pub(crate) async fn update_book<'a, C, I>(
+    client: &'a C,
+    arg_list: I,
 ) -> sqlc_core::Result<
     impl futures::Stream<
         Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
     > + 'a,
-> {
+>
+where
+    C: sqlc_core::DBTX,
+    I: IntoIterator + 'a,
+    I::Item: std::borrow::Borrow<UpdateBookParams> + 'a,
+{
     let stmt = client.prepare(UPDATE_BOOK).await?;
-    let fut = move |arg: &'a UpdateBookParams| {
+    let fut = move |item: <I as IntoIterator>::Item| {
         let stmt = stmt.clone();
         Box::pin(async move {
+            use std::borrow::Borrow;
+            let arg = item.borrow();
             client.execute(&stmt, &[&arg.title, &arg.tags, &arg.book_id]).await?;
             Ok(())
         })
     };
-    Ok(futures::stream::iter(arg_list.iter().map(fut)))
+    Ok(futures::stream::iter(arg_list.into_iter().map(fut)))
 }

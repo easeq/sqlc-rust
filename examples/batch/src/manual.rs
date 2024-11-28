@@ -157,36 +157,46 @@ pub(crate) async fn create_book<'a, T: sqlc_core::DBTX>(
     })))
 }
 
-pub(crate) async fn update_book<'a, T: sqlc_core::DBTX>(
-    client: &'a T,
-    arg_list: &'a [UpdateBookParams],
+pub(crate) async fn update_book<'a, C, I>(
+    client: &'a C,
+    arg_list: I,
 ) -> sqlc_core::Result<
     impl futures::Stream<Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a> + 'a,
-> {
+>
+where
+    C: sqlc_core::DBTX,
+    I: IntoIterator + 'a,
+    I::Item: std::borrow::Borrow<UpdateBookParams> + 'a,
+{
+    use std::borrow::Borrow;
     let stmt = client.prepare(UPDATE_BOOK).await?;
-    let fut = move |arg: &'a UpdateBookParams| {
+    let fut = move |item: <I as IntoIterator>::Item| {
         let stmt = stmt.clone();
         Box::pin(async move {
+            let arg = item.borrow();
             client
                 .execute(&stmt, &[&arg.title, &arg.tags, &arg.book_id])
                 .await?;
             Ok(())
         })
     };
-    Ok(futures::stream::iter(arg_list.iter().map(fut)))
+    Ok(futures::stream::iter(arg_list.into_iter().map(fut)))
 }
-
-use futures::{Future, Stream};
-use sqlc_core::Result;
 
 pub(crate) async fn books_by_year<'a, T: sqlc_core::DBTX>(
     client: &'a T,
-    year_list: &'a [i32],
+    year_list: impl std::iter::Iterator<Item = i32> + 'a,
 ) -> sqlc_core::Result<
-    impl Stream<Item = impl Future<Output = Result<impl Stream<Item = Result<Result<Book>>>>> + 'a> + 'a,
+    impl futures::Stream<
+            Item = impl futures::Future<
+                Output = sqlc_core::Result<
+                    impl futures::Stream<Item = sqlc_core::Result<sqlc_core::Result<Book>>>,
+                >,
+            > + 'a,
+        > + 'a,
 > {
     let stmt = client.prepare(BOOKS_BY_YEAR).await?;
-    let fut = move |year: &'a i32| {
+    let fut = move |year: i32| {
         let stmt = stmt.clone();
         Box::pin(async move {
             let rows = client.query(&stmt, &[&year]).await?;
@@ -196,7 +206,7 @@ pub(crate) async fn books_by_year<'a, T: sqlc_core::DBTX>(
             Ok(Box::pin(futures::stream::iter(result)))
         })
     };
-    Ok(futures::stream::iter(year_list.iter().map(fut)))
+    Ok(futures::stream::iter(year_list.map(fut)))
 }
 
 pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
@@ -264,20 +274,32 @@ pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
         .await
         .expect("could not create transaction");
 
-    let update_books_params = vec![
-        UpdateBookParams {
-            book_id: new_books[1].book_id,
-            title: "changed second txn title".to_string(),
-            tags: vec!["cool".to_string(), "disastor".to_string()],
-        },
-        UpdateBookParams {
-            book_id: new_books[2].book_id,
-            title: "changed third txn title".to_string(),
-            tags: vec!["cool".to_string(), "disastor".to_string()],
-        },
-    ];
+    // let update_books_params = vec![
+    //     UpdateBookParams {
+    //         book_id: new_books[1].book_id,
+    //         title: "changed second txn title".to_string(),
+    //         tags: vec!["cool".to_string(), "disastor".to_string()],
+    //     },
+    //     UpdateBookParams {
+    //         book_id: new_books[2].book_id,
+    //         title: "changed third txn title".to_string(),
+    //         tags: vec!["cool".to_string(), "disastor".to_string()],
+    //     },
+    // ];
 
-    update_book(&transaction, &update_books_params)
+    let update_new_books_iter = new_books.iter().filter_map(|book| {
+        if book.book_id % 2 == 0 {
+            None
+        } else {
+            Some(UpdateBookParams {
+                book_id: book.book_id,
+                title: format!("{} updated", book.title),
+                tags: book.tags.clone(),
+            })
+        }
+    });
+
+    update_book(&transaction, update_new_books_iter)
         .await
         .expect("failed to create update books results")
         .buffer_unordered(1)

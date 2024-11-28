@@ -72,7 +72,7 @@ impl StructField {
         )
     }
 
-    pub fn matches_column(
+    fn matches_column(
         &self,
         col: &crate::plugin::Column,
         field_table: Option<&plugin::Identifier>,
@@ -90,31 +90,25 @@ impl StructField {
         same_name && same_type && same_table
     }
 
-    pub fn name(&self) -> String {
+    fn name(&self) -> String {
         column_name(&self.name, self.number)
     }
 
-    pub fn data_type(&self) -> TokenStream {
+    fn data_type(&self) -> TokenStream {
         let mut tokens = self.data_type.to_token_stream();
 
         if self.is_array {
-            let vec_ident = get_ident("Vec");
-            tokens = quote! {
-                #vec_ident<#tokens>
-            };
+            tokens = quote!(Vec<#tokens>);
         }
 
         if !self.not_null {
-            let option_ident = get_ident("Option");
-            tokens = quote! {
-                #option_ident<#tokens>
-            };
+            tokens = quote!(Option<#tokens>);
         }
 
         tokens
     }
 
-    pub fn to_pg_query_slice_item(&self, var_name: &syn::Ident) -> TokenStream {
+    fn to_pg_query_slice_item(&self, var_name: &syn::Ident) -> TokenStream {
         let ident_field_name = get_ident(&self.name());
         quote! { &#var_name.#ident_field_name }
     }
@@ -162,6 +156,18 @@ impl TypeStruct {
         }
     }
 
+    fn column_to_struct_fields(
+        columns: &[plugin::Column],
+        schemas: &[plugin::Schema],
+        default_schema: &str,
+    ) -> Vec<StructField> {
+        columns
+            .iter()
+            .enumerate()
+            .map(|(i, col)| StructField::from(col, i as i32, schemas, default_schema))
+            .collect::<Vec<_>>()
+    }
+
     pub fn from_table(
         table: &crate::plugin::Table,
         schema: &plugin::Schema,
@@ -174,11 +180,8 @@ impl TypeStruct {
         }
 
         let struct_name = pluralizer::pluralize(table_name.as_str(), 1, false);
-        let fields = table
-            .columns
-            .iter()
-            .map(|col| StructField::from(col, 0, &[schema.clone()], &default_schema))
-            .collect::<Vec<_>>();
+        let fields =
+            Self::column_to_struct_fields(&table.columns, &[schema.clone()], default_schema);
 
         Self::new(
             struct_name,
@@ -198,11 +201,7 @@ impl TypeStruct {
         schemas: &[plugin::Schema],
         default_schema: &str,
     ) -> Self {
-        let fields = columns
-            .iter()
-            .enumerate()
-            .map(|(i, col)| StructField::from(col, i as i32, &schemas, &default_schema))
-            .collect::<Vec<_>>();
+        let fields = Self::column_to_struct_fields(columns, schemas, default_schema);
 
         Self::new(struct_name, None, StructType::Row, fields)
     }
@@ -253,7 +252,7 @@ impl TypeStruct {
         }
     }
 
-    pub fn name(&self) -> String {
+    pub(crate) fn name(&self) -> String {
         let name = match &self.struct_type {
             StructType::Default => format!("{}", self.name),
             StructType::Params => format!("{}Params", self.name),
@@ -263,11 +262,11 @@ impl TypeStruct {
         name.to_case(Case::Pascal)
     }
 
-    pub fn data_type(&self) -> DataType {
+    pub(crate) fn data_type(&self) -> DataType {
         DataType(self.name())
     }
 
-    pub fn to_pg_query_slice(&self, var_name: &syn::Ident) -> TokenStream {
+    pub(crate) fn to_pg_query_slice(&self, var_name: &syn::Ident) -> TokenStream {
         let fields = self
             .fields
             .iter()

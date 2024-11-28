@@ -6,7 +6,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::Ident;
 
-pub fn enum_name(name: &str, schema_name: &str, default_schema: &str) -> String {
+pub(crate) fn enum_name(name: &str, schema_name: &str, default_schema: &str) -> String {
     match schema_name == default_schema {
         true => name.to_string(),
         false => format!("{schema_name}_{name}"),
@@ -52,12 +52,12 @@ impl TypeEnum {
         }
     }
 
-    pub fn from(e: &crate::plugin::Enum, schema_name: &str, default_schema: &str) -> Self {
+    pub(crate) fn from(e: &crate::plugin::Enum, schema_name: &str, default_schema: &str) -> Self {
         let enum_name = enum_name(&e.name, schema_name, default_schema);
         Self::new(enum_name, e.vals.clone())
     }
 
-    pub fn name(&self) -> String {
+    pub(crate) fn name(&self) -> String {
         self.name.to_case(Case::Pascal)
     }
 
@@ -93,30 +93,6 @@ impl ToTokens for TypeEnum {
 impl From<&TypeEnum> for Ident {
     fn from(c: &TypeEnum) -> Self {
         get_ident(&c.name())
-    }
-}
-
-impl From<&TypeEnum> for TokenStream {
-    fn from(c: &TypeEnum) -> Self {
-        let ident_enum_name = get_ident(&c.name());
-        let type_name = c.name().to_case(Case::Snake);
-        let mut seen = HashSet::new();
-        let variants = c
-            .values
-            .iter()
-            .enumerate()
-            .map(|(i, val)| generate_enum_variant(i, val, &mut seen))
-            .collect::<Vec<_>>();
-
-        quote! {
-            #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
-            #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-            #[cfg_attr(feature = "hash", derive(Eq, Hash))]
-            #[postgres(name=#type_name)]
-            pub enum #ident_enum_name {
-                #(#variants),*
-            }
-        }
     }
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "sqlc-core"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 
 [dependencies]
@@ -29,7 +29,7 @@ futures = { version = "0.3.31", optional = true }
 pin-project = "1.1.7"
 async-trait = "0.1.83"
 deadpool = "0.12.1"
-sqlc-derive = { version = "0.3.0", path = "../sqlc-derive" }
+sqlc-derive = { version = "0.4.0", path = "../sqlc-derive" }
 
 [features]
 default = ["with-postgres"]

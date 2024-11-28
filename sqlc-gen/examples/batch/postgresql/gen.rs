@@ -37,21 +37,28 @@ pub(crate) struct Book {
     pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
-pub(crate) async fn delete_book<'a, T: sqlc_core::DBTX>(
-    client: &'a T,
-    book_id_list: &'a [i32],
+pub(crate) async fn delete_book<'a, C, I>(
+    client: &'a C,
+    book_id_list: I,
 ) -> sqlc_core::Result<
     impl futures::Stream<
         Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
     > + 'a,
-> {
+>
+where
+    C: sqlc_core::DBTX,
+    I: IntoIterator + 'a,
+    I::Item: std::borrow::Borrow<i32> + 'a,
+{
     let stmt = client.prepare(DELETE_BOOK).await?;
-    let fut = move |book_id: &'a i32| {
+    let fut = move |item: <I as IntoIterator>::Item| {
         let stmt = stmt.clone();
         Box::pin(async move {
+            use std::borrow::Borrow;
+            let book_id = item.borrow();
             client.execute(&stmt, &[&book_id]).await?;
             Ok(())
         })
     };
-    Ok(futures::stream::iter(book_id_list.iter().map(fut)))
+    Ok(futures::stream::iter(book_id_list.into_iter().map(fut)))
 }

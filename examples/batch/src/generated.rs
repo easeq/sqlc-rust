@@ -50,6 +50,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
             tags: vec!["other".to_string()],
         },
     ];
+    let new_book_params_len = new_book_params.len();
     let new_books = db::create_book(client, &new_book_params)
         .await
         .expect("failed to create batch results")
@@ -58,7 +59,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         .await
         .expect("failed to collect batch results 1");
     println!("books: {:#?}", new_books);
-    assert_eq!(new_books.len(), new_book_params.len());
+    assert_eq!(new_books.len(), new_book_params_len);
 
     let new_books_2 = db::create_book(client, &new_book_params)
         .await
@@ -75,7 +76,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         tags: vec!["cool".to_string(), "disastor".to_string()],
     }];
 
-    db::update_book(client, &update_books_params)
+    db::update_book(client, update_books_params)
         .await
         .expect("failed to create update books results")
         .buffer_unordered(1)
@@ -85,7 +86,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
 
     let select_books_by_title_year_params = vec![2001, 2016];
     let books: Vec<(db::Book, db::Author)> =
-        db::books_by_year(client, &select_books_by_title_year_params)
+        db::books_by_year(client, select_books_by_title_year_params)
             .await
             .expect("failed to fetch books by year")
             .buffer_unordered(3)
@@ -122,7 +123,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         .collect::<Vec<_>>();
 
     let want_num_deletes_processed = 2;
-    let deleted_books = db::delete_book(client, &delete_books_params)
+    let deleted_books = db::delete_book(client, delete_books_params)
         .await
         .expect("failed to delete books")
         .take(want_num_deletes_processed)
@@ -137,20 +138,19 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
         .await
         .expect("could not create transaction");
 
-    let update_books_params = vec![
-        db::UpdateBookParams {
-            book_id: new_books[3].book_id,
-            title: "changed 4th txn title".to_string(),
-            tags: vec!["cool".to_string(), "disastor".to_string()],
-        },
-        db::UpdateBookParams {
-            book_id: new_books[2].book_id,
-            title: "changed third txn title".to_string(),
-            tags: vec!["cool".to_string(), "disastor".to_string()],
-        },
-    ];
+    let update_new_books_iter = new_books.iter().filter_map(|book| {
+        if book.book_id % 2 == 0 {
+            None
+        } else {
+            Some(db::UpdateBookParams {
+                book_id: book.book_id,
+                title: format!("{} updated in txn", book.title),
+                tags: book.tags.clone(),
+            })
+        }
+    });
 
-    db::update_book(&transaction, &update_books_params)
+    db::update_book(&transaction, update_new_books_iter)
         .await
         .expect("failed to create update books results")
         .buffer_unordered(1)
