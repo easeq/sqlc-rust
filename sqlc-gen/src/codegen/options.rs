@@ -11,12 +11,6 @@ pub(crate) struct Options {
     use_deadpool: bool,
 }
 
-impl Options {
-    pub fn use_deadpool(&self) -> bool {
-        self.use_async && self.use_deadpool
-    }
-}
-
 impl From<plugin::Settings> for Options {
     fn from(settings: plugin::Settings) -> Self {
         let codegen = settings
