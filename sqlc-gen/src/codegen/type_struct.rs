@@ -1,12 +1,37 @@
-use super::column_name;
-use super::get_ident;
-use super::plugin;
-use super::{DataType, PgDataType};
+use crate::codegen::{get_ident, plugin, DataType, PgDataType};
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-#[derive(Debug, Clone)]
+fn column_name(name: &str, pos: i32) -> String {
+    match name.is_empty() {
+        false => name.to_case(convert_case::Case::Snake),
+        true => format!("_{}", pos),
+    }
+}
+
+fn same_table(
+    col_table: Option<&plugin::Identifier>,
+    struct_table: Option<&plugin::Identifier>,
+    default_schema: &str,
+) -> bool {
+    if let Some(table_id) = col_table {
+        let mut schema = table_id.schema.as_str();
+        if schema.is_empty() {
+            schema = default_schema;
+        }
+
+        if let Some(f) = struct_table {
+            table_id.catalog == f.catalog && schema == f.schema && table_id.name == f.name
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
     pub name: String,
     pub is_array: bool,
@@ -33,42 +58,59 @@ impl StructField {
     }
 
     pub fn from(
-        col: plugin::Column,
+        col: &plugin::Column,
         pos: i32,
-        schemas: Vec<plugin::Schema>,
-        default_schema: String,
+        schemas: &[plugin::Schema],
+        default_schema: &str,
     ) -> Self {
         Self::new(
-            col.name,
+            &col.name,
             pos,
-            PgDataType::from(&col.r#type.unwrap().name, schemas, default_schema),
+            PgDataType::from_col(col, &schemas, default_schema),
             col.is_array,
             col.not_null,
         )
     }
 
-    pub fn name(&self) -> String {
-        column_name(self.name.clone(), self.number)
+    fn matches_column(
+        &self,
+        col: &crate::plugin::Column,
+        field_table: Option<&plugin::Identifier>,
+        schemas: &[plugin::Schema],
+        default_schema: &str,
+        pos: i32,
+    ) -> bool {
+        let same_name = self.name() == column_name(&col.name, pos);
+
+        let same_type = self.data_type.to_string()
+            == PgDataType::from_col(col, schemas, default_schema).to_string();
+
+        let same_table = same_table(col.table.as_ref(), field_table, default_schema);
+
+        same_name && same_type && same_table
     }
 
-    pub fn data_type(&self) -> TokenStream {
+    fn name(&self) -> String {
+        column_name(&self.name, self.number)
+    }
+
+    fn data_type(&self) -> TokenStream {
         let mut tokens = self.data_type.to_token_stream();
 
         if self.is_array {
-            let vec_ident = get_ident("Vec");
-            tokens = quote! {
-                #vec_ident<#tokens>
-            };
+            tokens = quote!(Vec<#tokens>);
         }
 
         if !self.not_null {
-            let option_ident = get_ident("Option");
-            tokens = quote! {
-                #option_ident<#tokens>
-            };
+            tokens = quote!(Option<#tokens>);
         }
 
         tokens
+    }
+
+    fn to_pg_query_slice_item(&self, var_name: &syn::Ident) -> TokenStream {
+        let ident_field_name = get_ident(&self.name());
+        quote! { &#var_name.#ident_field_name }
     }
 }
 
@@ -114,7 +156,103 @@ impl TypeStruct {
         }
     }
 
-    pub fn name(&self) -> String {
+    fn column_to_struct_fields(
+        columns: &[plugin::Column],
+        schemas: &[plugin::Schema],
+        default_schema: &str,
+    ) -> Vec<StructField> {
+        columns
+            .iter()
+            .enumerate()
+            .map(|(i, col)| StructField::from(col, i as i32, schemas, default_schema))
+            .collect::<Vec<_>>()
+    }
+
+    pub fn from_table(
+        table: &crate::plugin::Table,
+        schema: &plugin::Schema,
+        default_schema: &str,
+    ) -> Self {
+        let table_rel = table.rel.as_ref().unwrap();
+        let mut table_name = table_rel.name.clone();
+        if schema.name != default_schema {
+            table_name = format!("{}_{table_name}", schema.name);
+        }
+
+        let struct_name = pluralizer::pluralize(table_name.as_str(), 1, false);
+        let fields =
+            Self::column_to_struct_fields(&table.columns, &[schema.clone()], default_schema);
+
+        Self::new(
+            struct_name,
+            Some(plugin::Identifier {
+                catalog: "".to_string(),
+                schema: schema.name.clone(),
+                name: table_rel.name.clone(),
+            }),
+            StructType::Default,
+            fields,
+        )
+    }
+
+    pub fn from_columns(
+        struct_name: &str,
+        columns: &[plugin::Column],
+        schemas: &[plugin::Schema],
+        default_schema: &str,
+    ) -> Self {
+        let fields = Self::column_to_struct_fields(columns, schemas, default_schema);
+
+        Self::new(struct_name, None, StructType::Row, fields)
+    }
+
+    pub fn from_params(
+        struct_name: &str,
+        params: &[plugin::Parameter],
+        schemas: &[plugin::Schema],
+        default_schema: &str,
+    ) -> Self {
+        let fields = params
+            .iter()
+            .map(|field| {
+                StructField::from(
+                    &field.column.as_ref().unwrap(),
+                    field.number,
+                    &schemas,
+                    &default_schema,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        Self::new(struct_name, None, StructType::Params, fields)
+    }
+
+    pub fn has_same_fields(
+        &self,
+        columns: &[plugin::Column],
+        schemas: &[plugin::Schema],
+        default_schema: &str,
+    ) -> bool {
+        if self.fields.len() != columns.len() {
+            false
+        } else {
+            self.fields
+                .iter()
+                .zip(columns.iter())
+                .enumerate()
+                .all(|(i, (field, col))| {
+                    field.matches_column(
+                        col,
+                        self.table.as_ref(),
+                        schemas,
+                        default_schema,
+                        i as i32,
+                    )
+                })
+        }
+    }
+
+    pub(crate) fn name(&self) -> String {
         let name = match &self.struct_type {
             StructType::Default => format!("{}", self.name),
             StructType::Params => format!("{}Params", self.name),
@@ -124,8 +262,17 @@ impl TypeStruct {
         name.to_case(Case::Pascal)
     }
 
-    pub fn data_type(&self) -> DataType {
+    pub(crate) fn data_type(&self) -> DataType {
         DataType(self.name())
+    }
+
+    pub(crate) fn to_pg_query_slice(&self, var_name: &syn::Ident) -> TokenStream {
+        let fields = self
+            .fields
+            .iter()
+            .map(|field| field.to_pg_query_slice_item(&var_name))
+            .collect::<Vec<_>>();
+        quote! { #(#fields),* }
     }
 
     fn generate_code(&self) -> TokenStream {
@@ -133,11 +280,12 @@ impl TypeStruct {
             quote! {}
         } else {
             let ident_struct = self.data_type();
-            let fields = self.fields.clone().into_iter().collect::<Vec<_>>();
+            let fields = self.fields.iter().collect::<Vec<_>>();
 
             quote! {
-                #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+                #[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
                 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+                #[cfg_attr(feature = "hash", derive(Eq, Hash))]
                 pub(crate) struct #ident_struct {
                     #(#fields),*
                 }
@@ -166,7 +314,7 @@ mod tests {
         StructField::new(
             name.unwrap_or(""),
             number.unwrap_or(0),
-            data_type.unwrap_or(PgDataType::from("pg_catalog.int4", vec![], "".to_string())),
+            data_type.unwrap_or(PgDataType::from("pg_catalog.int4", &[], "")),
             is_array.unwrap_or_default(),
             not_null.unwrap_or_default(),
         )
@@ -261,7 +409,7 @@ mod tests {
         assert_eq!(
             type_struct.generate_code().to_string(),
             quote! {
-                #[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+                #[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
                 pub(crate) struct StructNameParams {
                     pub(crate) f_1:  Option<i32>,
                     pub(crate) f_2: i32,

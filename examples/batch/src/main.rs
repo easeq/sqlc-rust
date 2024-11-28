@@ -5,9 +5,9 @@ use tokio_postgres::NoTls;
 
 #[path = "./db/gen.rs"]
 pub mod db;
-
 pub mod generated;
-pub mod manual;
+
+// pub mod manual;
 
 mod embedded {
     use refinery::embed_migrations;

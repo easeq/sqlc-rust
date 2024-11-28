@@ -1,4 +1,5 @@
 use geo_types::line_string;
+use itertools::Itertools;
 use postgresql_embedded::blocking::PostgreSQL;
 use postgresql_embedded::Result;
 
@@ -37,15 +38,13 @@ fn main() -> Result<()> {
 
     embedded::migrations::runner().run(&mut client).unwrap();
 
-    let mut queries = db::Queries::new(client);
+    let authors = db::list_authors(&mut client).unwrap();
+    assert_eq!(authors.try_len().unwrap(), 0);
 
-    let authors = queries.list_authors().unwrap();
-    assert_eq!(authors.len(), 0);
-
-    let author_res_err = queries.get_author(1).is_err();
+    let author_res_err = db::get_author(&mut client, 1).is_err();
     assert_eq!(author_res_err, true);
 
-    let delete_res = queries.delete_author(1).is_ok();
+    let delete_res = db::delete_author(&mut client, 1).is_ok();
     assert_eq!(delete_res, true);
 
     let author_full_req = db::CreateAuthorFullParams {
@@ -88,7 +87,7 @@ fn main() -> Result<()> {
         updated_at: time::OffsetDateTime::now_utc(),
     };
 
-    let author_full_res = queries.create_author_full(author_full_req.clone()).unwrap();
+    let author_full_res = db::create_author_full(&mut client, author_full_req.clone()).unwrap();
     assert_eq!(author_full_res.name, author_full_req.name);
     assert_eq!(author_full_res.bio, author_full_req.bio);
     assert_ne!(author_full_res.uuid, None);
@@ -112,25 +111,28 @@ fn main() -> Result<()> {
         author_full_req.updated_at.to_hms_micro()
     );
     assert!(author_full_res.id == 1);
-    println!("{author_full_res:?}");
+    println!("{author_full_res:#?}");
 
-    let delete_res = queries.delete_author(1).is_ok();
+    let delete_res = db::delete_author(&mut client, 1).is_ok();
     assert_eq!(delete_res, true);
 
     let author1_req = db::CreateAuthorParams {
         name: "Author 1".to_string(),
         bio: None,
     };
-    let author1_res = queries.create_author(author1_req.clone()).unwrap();
+    let author1_res = db::create_author(&mut client, author1_req.clone()).unwrap();
     assert_eq!(author1_res.name, author1_req.name);
     assert_eq!(author1_res.bio, author1_req.bio.clone());
     assert_eq!(author1_res.uuid, author1_res.uuid.clone());
     assert_ne!(author1_res.uuid, None);
     assert!(author1_res.id == 2);
-    println!("{author1_res:?}");
+    println!("{author1_res:#?}");
 
     let mut authors_list_prepared = vec![author1_res.clone()];
-    let authors = queries.list_authors().unwrap();
+    let authors: Vec<_> = db::list_authors(&mut client)
+        .unwrap()
+        .try_collect()
+        .unwrap();
     assert_eq!(authors.len(), 1);
     assert_eq!(authors, authors_list_prepared);
 
@@ -138,24 +140,57 @@ fn main() -> Result<()> {
         name: "Author 2".to_string(),
         bio: Some("My name is Author 2".to_string()),
     };
-    let author2_res = queries.create_author(author2_req.clone()).unwrap();
+    let author2_res = db::create_author(&mut client, author2_req.clone()).unwrap();
     assert_eq!(author2_res.name, author2_req.name);
     assert_eq!(author2_res.bio, author2_req.bio);
     assert!(author2_res.id == 3);
 
     authors_list_prepared.push(author2_res.clone());
 
-    let authors = queries.list_authors().unwrap();
+    let authors: Vec<_> = db::list_authors(&mut client)
+        .unwrap()
+        .try_collect()
+        .unwrap();
     assert_eq!(authors.len(), 2);
     assert_eq!(authors, authors_list_prepared);
 
-    let author = queries.get_author(2).unwrap();
+    let author = db::get_author(&mut client, 2).unwrap();
     assert_eq!(author, author1_res);
 
-    queries.delete_author(2).unwrap();
-    let authors = queries.list_authors().unwrap();
+    db::delete_author(&mut client, 2).unwrap();
+    let authors: Vec<_> = db::list_authors(&mut client)
+        .unwrap()
+        .try_collect()
+        .unwrap();
     assert_eq!(authors.len(), 1);
     assert_eq!(authors, authors_list_prepared[1..]);
+
+    let mut transaction = client.transaction().expect("could not create transaction");
+
+    let create_authors_params = vec![
+        db::CreateAuthorParams {
+            name: "Author Txn 1".to_string(),
+            bio: None,
+        },
+        db::CreateAuthorParams {
+            name: "Author Txn 2".to_string(),
+            bio: None,
+        },
+    ];
+
+    for create_author_params in create_authors_params {
+        db::create_author(&mut transaction, create_author_params)
+            .expect("failed to create author results");
+    }
+
+    transaction.commit().expect("failed to commit transaction");
+
+    let authors: Vec<_> = db::list_authors(&mut client)
+        .expect("failed to fetch all authors")
+        .try_collect()
+        .expect("failed to collect all authors");
+
+    println!("{authors:#?}");
 
     postgresql.stop()
 }

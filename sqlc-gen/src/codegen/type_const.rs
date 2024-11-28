@@ -1,4 +1,4 @@
-use super::{get_ident, MultiLineString};
+use crate::codegen::{get_ident, MultiLineString};
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -34,6 +34,12 @@ impl TypeConst {
 impl ToTokens for TypeConst {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(self.generate_code());
+    }
+}
+
+impl From<&crate::plugin::Query> for TypeConst {
+    fn from(query: &crate::plugin::Query) -> Self {
+        TypeConst::new(&query.name, &query.text)
     }
 }
 

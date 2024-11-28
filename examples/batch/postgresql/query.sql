@@ -64,3 +64,8 @@ select biography
 from authors
 where author_id = $1
 ;
+
+-- name: AllBooks :many
+select *
+from books
+;

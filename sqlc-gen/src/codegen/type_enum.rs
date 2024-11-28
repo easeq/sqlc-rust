@@ -1,14 +1,15 @@
 use std::{char, collections::HashSet};
 
-use super::get_ident;
+use crate::codegen::get_ident;
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
+use syn::Ident;
 
-pub fn enum_name(name: &str, schema_name: &str, default_schema: &str) -> String {
+pub(crate) fn enum_name(name: &str, schema_name: &str, default_schema: &str) -> String {
     match schema_name == default_schema {
         true => name.to_string(),
-        false => format!("{}_{name}", schema_name),
+        false => format!("{schema_name}_{name}"),
     }
     .to_case(Case::Pascal)
 }
@@ -23,13 +24,13 @@ fn enum_replacer(c: char) -> Option<char> {
     }
 }
 
-fn generate_enum_variant(i: usize, val: String, seen: &mut HashSet<String>) -> TokenStream {
+fn generate_enum_variant(i: usize, val: &str, seen: &mut HashSet<String>) -> TokenStream {
     let mut value = val.chars().filter_map(enum_replacer).collect::<String>();
     if seen.get(&value).is_some() || value.is_empty() {
         value = format!("value_{}", i);
     }
-    seen.insert(value.clone());
     let ident_variant = get_ident(&value.to_case(Case::Pascal));
+    seen.insert(value);
     quote! {
         #[postgres(name=#val)]
         #[cfg_attr(feature = "serde_support", serde(rename=#val))]
@@ -51,7 +52,12 @@ impl TypeEnum {
         }
     }
 
-    pub fn name(&self) -> String {
+    pub(crate) fn from(e: &crate::plugin::Enum, schema_name: &str, default_schema: &str) -> Self {
+        let enum_name = enum_name(&e.name, schema_name, default_schema);
+        Self::new(enum_name, e.vals.clone())
+    }
+
+    pub(crate) fn name(&self) -> String {
         self.name.to_case(Case::Pascal)
     }
 
@@ -61,8 +67,7 @@ impl TypeEnum {
         let mut seen = HashSet::new();
         let variants = self
             .values
-            .clone()
-            .into_iter()
+            .iter()
             .enumerate()
             .map(|(i, val)| generate_enum_variant(i, val, &mut seen))
             .collect::<Vec<_>>();
@@ -70,6 +75,7 @@ impl TypeEnum {
         quote! {
             #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
             #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+            #[cfg_attr(feature = "hash", derive(Eq, Hash))]
             #[postgres(name=#type_name)]
             pub enum #ident_enum_name {
                 #(#variants),*
@@ -81,6 +87,12 @@ impl TypeEnum {
 impl ToTokens for TypeEnum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(self.generate_code().to_token_stream());
+    }
+}
+
+impl From<&TypeEnum> for Ident {
+    fn from(c: &TypeEnum) -> Self {
+        get_ident(&c.name())
     }
 }
 

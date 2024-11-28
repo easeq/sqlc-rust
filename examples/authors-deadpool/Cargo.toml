@@ -16,12 +16,12 @@ refinery = { version = "0.8.14", features = ["tokio-postgres"] }
 serde = { version = "1.0.210", optional = true }
 serde_json = { version = "1.0.128", optional = true }
 sqlc-core = { path = "../../sqlc-core", default-features = false, features = ["with-bit-vec-0_6", "with-cidr-0_2", "with-eui48-1", "with-geo-types-0_7", "with-serde_json-1", "with-time-0_3", "with-tokio-postgres", "with-uuid-1"] }
-sqlc-derive = { path = "../../sqlc-derive", default-features = false, features = ["with-tokio-postgres"] }
 time = { version = "0.3.36", features = ["local-offset", "serde"] }
 tokio = { version = "1.40.0", features = ["rt", "rt-multi-thread", "macros", "signal"] }
 tokio-postgres = { version = "0.7.12", features = ["with-uuid-1", "with-time-0_3", "array-impls"] }
 uuid = { version = "1.10.0", features = ["serde"] }
 postgres-derive = "0.4.6"
+itertools = "0.13.0"
 
 [features]
 default = ["serde_support"]
