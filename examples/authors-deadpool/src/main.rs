@@ -1,11 +1,14 @@
 use deadpool_postgres::{Config, Runtime};
 use geo_types::line_string;
+use itertools::Itertools;
 use postgresql_embedded::{PostgreSQL, Result};
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use tokio_postgres::NoTls;
 
 #[path = "./db/gen.rs"]
 pub mod db;
+// #[path = "./db/store.rs"]
+// pub mod store;
 
 mod embedded {
     use refinery::embed_migrations;
@@ -46,15 +49,16 @@ async fn main() -> Result<()> {
         .await
         .expect("failed to load migrations");
 
-    let mut queries = db::Queries::new(pool);
+    let db_client = pool.get().await.expect("failed to get client from pool");
+    let client = db_client.deref().deref();
 
-    let authors = queries.list_authors().await.unwrap();
-    assert_eq!(authors.len(), 0);
+    let authors = db::list_authors(client).await.unwrap();
+    assert_eq!(authors.try_len().unwrap(), 0);
 
-    let author_res_err = queries.get_author(1).await.is_err();
+    let author_res_err = db::get_author(client, 1).await.is_err();
     assert_eq!(author_res_err, true);
 
-    let delete_res = queries.delete_author(1).await.is_ok();
+    let delete_res = db::delete_author(client, 1).await.is_ok();
     assert_eq!(delete_res, true);
 
     let author_full_req = db::CreateAuthorFullParams {
@@ -96,8 +100,7 @@ async fn main() -> Result<()> {
         created_at: time::OffsetDateTime::now_utc(),
         updated_at: time::OffsetDateTime::now_utc(),
     };
-    let author_full_res = queries
-        .create_author_full(author_full_req.clone())
+    let author_full_res = db::create_author_full(client, author_full_req.clone())
         .await
         .unwrap();
     assert_eq!(author_full_res.name, author_full_req.name);
@@ -123,22 +126,28 @@ async fn main() -> Result<()> {
         author_full_req.updated_at.to_hms_micro()
     );
     assert!(author_full_res.id == 1);
-    println!("{author_full_res:?}");
+    println!("{author_full_res:#?}");
 
-    let delete_res = queries.delete_author(1).await.is_ok();
+    let delete_res = db::delete_author(client, 1).await.is_ok();
     assert_eq!(delete_res, true);
 
     let author1_req = db::CreateAuthorParams {
         name: "Author 1".to_string(),
         bio: None,
     };
-    let author1_res = queries.create_author(author1_req.clone()).await.unwrap();
+    let author1_res = db::create_author(client, author1_req.clone())
+        .await
+        .unwrap();
     assert_eq!(author1_res.name, author1_req.name);
     assert_eq!(author1_res.bio, author1_req.bio.clone());
     assert!(author1_res.id == 2);
 
     let mut authors_list_prepared = vec![author1_res.clone()];
-    let authors = queries.list_authors().await.unwrap();
+    let authors: Vec<_> = db::list_authors(client)
+        .await
+        .unwrap()
+        .try_collect()
+        .unwrap();
     assert_eq!(authors.len(), 1);
     assert_eq!(authors, authors_list_prepared);
 
@@ -146,22 +155,32 @@ async fn main() -> Result<()> {
         name: "Author 2".to_string(),
         bio: Some("My name is Author 2".to_string()),
     };
-    let author2_res = queries.create_author(author2_req.clone()).await.unwrap();
+    let author2_res = db::create_author(client, author2_req.clone())
+        .await
+        .unwrap();
     assert_eq!(author2_res.name, author2_req.name);
     assert_eq!(author2_res.bio, author2_req.bio);
     assert!(author2_res.id == 3);
 
     authors_list_prepared.push(author2_res.clone());
 
-    let authors = queries.list_authors().await.unwrap();
+    let authors: Vec<_> = db::list_authors(client)
+        .await
+        .unwrap()
+        .try_collect()
+        .unwrap();
     assert_eq!(authors.len(), 2);
     assert_eq!(authors, authors_list_prepared);
 
-    let author = queries.get_author(2).await.unwrap();
+    let author = db::get_author(client, 2).await.unwrap();
     assert_eq!(author, author1_res);
 
-    queries.delete_author(2).await.unwrap();
-    let authors = queries.list_authors().await.unwrap();
+    db::delete_author(client, 2).await.unwrap();
+    let authors: Vec<_> = db::list_authors(client)
+        .await
+        .unwrap()
+        .try_collect()
+        .unwrap();
     assert_eq!(authors.len(), 1);
     assert_eq!(authors, authors_list_prepared[1..]);
 

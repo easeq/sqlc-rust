@@ -1,6 +1,6 @@
 [package]
 name = "sqlc-core"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 
 [dependencies]
@@ -27,12 +27,16 @@ time-02 = { version = "0.2", package = "time", optional = true }
 time-03 = { version = "0.3", package = "time", default-features = false, optional = true }
 futures = { version = "0.3.31", optional = true }
 pin-project = "1.1.7"
+async-trait = "0.1.83"
+deadpool = "0.12.1"
+sqlc-derive = { version = "0.4.0", path = "../sqlc-derive" }
 
 [features]
-# default = ["with-postgres"]
-with-postgres = ["postgres"]
-with-tokio-postgres = ["tokio-postgres"]
-with-deadpool = ["futures", "deadpool-postgres", "with-tokio-postgres"]
+default = ["with-postgres"]
+with-postgres = ["postgres", "sqlc-derive/with-postgres"]
+with-tokio-postgres = ["tokio-postgres", "sqlc-derive/with-tokio-postgres"]
+with-deadpool = ["futures", "deadpool-postgres", "with-tokio-postgres", "sqlc-derive/with-deadpool"]
+
 with-bit-vec-0_6 = ["bit-vec-06", "postgres/with-bit-vec-0_6", "tokio-postgres/with-bit-vec-0_6"]
 with-cidr-0_2 = ["cidr-02", "postgres-types/with-cidr-0_2"]
 with-eui48-0_4 = ["eui48-04", "postgres/with-eui48-0_4", "tokio-postgres/with-eui48-0_4"]

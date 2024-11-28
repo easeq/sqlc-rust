@@ -6,6 +6,7 @@ where book_id = $1
 "#;
 #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 #[postgres(name = "book_type")]
 pub enum BookType {
     #[postgres(name = "FICTION")]
@@ -15,15 +16,17 @@ pub enum BookType {
     #[cfg_attr(feature = "serde_support", serde(rename = "NONFICTION"))]
     Nonfiction,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct Author {
     pub author_id: i32,
     pub name: String,
     pub biography: Option<serde_json::Value>,
 }
-#[derive(Clone, Debug, sqlc_derive::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "hash", derive(Eq, Hash))]
 pub(crate) struct Book {
     pub book_id: i32,
     pub author_id: i32,
@@ -34,31 +37,28 @@ pub(crate) struct Book {
     pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
-async fn delete_book(
-    pool: deadpool_postgres::Pool,
-    stmt: tokio_postgres::Statement,
-    book_id: i32,
-) -> Result<(), sqlc_core::Error> {
-    let client = pool.clone().get().await?;
-    client.execute(&stmt, &[&book_id]).await?;
-    Ok(())
-}
-#[derive(Clone)]
-pub struct Queries {
-    client: tokio_postgres::Client,
-}
-impl Queries {
-    pub fn new(client: tokio_postgres::Client) -> Self {
-        Self { client }
-    }
-    pub(crate) async fn delete_book(
-        &mut self,
-        book_id: Vec<i32>,
-    ) -> Result<
-        impl futures::Stream<Item = Result<(), sqlc_core::Error>>,
-        sqlc_core::Error,
-    > {
-        let stmt = self.client.prepare(DELETE_BOOK).await?;
-        Ok(sqlc_core::BatchResults::new(self.pool.clone(), book_id, stmt, delete_book))
-    }
+pub(crate) async fn delete_book<'a, C, I>(
+    client: &'a C,
+    book_id_list: I,
+) -> sqlc_core::Result<
+    impl futures::Stream<
+        Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
+    > + 'a,
+>
+where
+    C: sqlc_core::DBTX,
+    I: IntoIterator + 'a,
+    I::Item: std::borrow::Borrow<i32> + 'a,
+{
+    let stmt = client.prepare(DELETE_BOOK).await?;
+    let fut = move |item: <I as IntoIterator>::Item| {
+        let stmt = stmt.clone();
+        Box::pin(async move {
+            use std::borrow::Borrow;
+            let book_id = item.borrow();
+            client.execute(&stmt, &[&book_id]).await?;
+            Ok(())
+        })
+    };
+    Ok(futures::stream::iter(book_id_list.into_iter().map(fut)))
 }

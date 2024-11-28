@@ -7,6 +7,6 @@ members = [
   "examples/authors",
   "examples/authors-async",
   "examples/authors-deadpool",
-  "examples/batch",
+  "examples/batch", 
 ]
 

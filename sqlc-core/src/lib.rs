@@ -8,15 +8,20 @@ compile_error!(
 #[cfg(all(not(feature = "with-postgres"), not(feature = "with-tokio-postgres")))]
 compile_error!("one of with-postgres and with-tokio-postgres features needs to be enabled");
 
+mod dbtx;
 mod error;
 mod from_postgres_row;
 
 pub use error::*;
 pub use from_postgres_row::*;
+pub use sqlc_derive::FromPostgresRow;
 
 cfg_block! {
-    #[cfg(feature = "with-deadpool")] {
-        mod batch_results;
-        pub use batch_results::*;
+    #[cfg(feature = "with-postgres")] {
+        pub use dbtx::pg::*;
+    }
+
+    #[cfg(feature = "with-tokio-postgres")] {
+        pub use dbtx::tokio_pg::*;
     }
 }
