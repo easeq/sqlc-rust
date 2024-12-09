@@ -1,3 +1,4 @@
+use crate::codegen::options::RuleType;
 use crate::codegen::{get_ident, plugin, DataType, PgDataType};
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
@@ -120,6 +121,7 @@ impl ToTokens for StructField {
         let field_type_ident = self.data_type();
 
         tokens.extend(quote! {
+            // #[cfg_attr(feature = "serde_support", serde(default))]
             pub #field_name_ident: #field_type_ident
         })
     }
@@ -139,6 +141,8 @@ pub struct TypeStruct {
     pub table: Option<plugin::Identifier>,
     struct_type: StructType,
     pub fields: Vec<StructField>,
+    derive: Vec<String>,
+    attrs: Vec<String>,
 }
 
 impl TypeStruct {
@@ -147,13 +151,22 @@ impl TypeStruct {
         table: Option<plugin::Identifier>,
         struct_type: StructType,
         fields: Vec<StructField>,
+        options: &crate::codegen::Options,
     ) -> Self {
-        Self {
+        let mut s = Self {
             name: name.into(),
             table,
             struct_type,
             fields,
+            ..Default::default()
+        };
+
+        if let Some(rules) = options.rules.as_ref() {
+            s.derive = rules.derive_for(s.name(), RuleType::Structs);
+            s.attrs = rules.container_attrs_for(s.name(), RuleType::Structs);
         }
+
+        s
     }
 
     fn column_to_struct_fields(
@@ -172,6 +185,7 @@ impl TypeStruct {
         table: &crate::plugin::Table,
         schema: &plugin::Schema,
         default_schema: &str,
+        options: &crate::codegen::Options,
     ) -> Self {
         let table_rel = table.rel.as_ref().unwrap();
         let mut table_name = table_rel.name.clone();
@@ -192,6 +206,7 @@ impl TypeStruct {
             }),
             StructType::Default,
             fields,
+            options,
         )
     }
 
@@ -200,10 +215,11 @@ impl TypeStruct {
         columns: &[plugin::Column],
         schemas: &[plugin::Schema],
         default_schema: &str,
+        options: &crate::codegen::Options,
     ) -> Self {
         let fields = Self::column_to_struct_fields(columns, schemas, default_schema);
 
-        Self::new(struct_name, None, StructType::Row, fields)
+        Self::new(struct_name, None, StructType::Row, fields, options)
     }
 
     pub fn from_params(
@@ -211,6 +227,7 @@ impl TypeStruct {
         params: &[plugin::Parameter],
         schemas: &[plugin::Schema],
         default_schema: &str,
+        options: &crate::codegen::Options,
     ) -> Self {
         let fields = params
             .iter()
@@ -224,7 +241,7 @@ impl TypeStruct {
             })
             .collect::<Vec<_>>();
 
-        Self::new(struct_name, None, StructType::Params, fields)
+        Self::new(struct_name, None, StructType::Params, fields, options)
     }
 
     pub fn has_same_fields(
@@ -281,11 +298,16 @@ impl TypeStruct {
         } else {
             let ident_struct = self.data_type();
             let fields = self.fields.iter().collect::<Vec<_>>();
+            let derive_tokens = crate::codegen::list_tokenstream(&self.derive);
+            let attr_tokens = crate::codegen::list_tokenstream(&self.attrs);
 
             quote! {
-                #[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-                #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-                #[cfg_attr(feature = "hash", derive(Eq, Hash))]
+                #[derive(sqlc_core::FromPostgresRow)]
+                #[derive(#(#derive_tokens),*)]
+                #(#attr_tokens)*
+                // #[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
+                // #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+                // #[cfg_attr(feature = "hash", derive(Eq, Hash))]
                 pub(crate) struct #ident_struct {
                     #(#fields),*
                 }

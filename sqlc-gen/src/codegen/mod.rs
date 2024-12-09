@@ -20,6 +20,19 @@ mod type_enum;
 mod type_query;
 mod type_struct;
 
+pub(crate) fn list_tokenstream(list: &[String]) -> Vec<TokenStream> {
+    let mut tokenstream_list = vec![];
+    for item in list.iter() {
+        let mut tokens = TokenStream::new();
+        for c in item.chars() {
+            tokens.extend(crate::codegen::get_punct_from_char_tokens(c));
+        }
+        tokenstream_list.push(tokens);
+    }
+
+    tokenstream_list
+}
+
 pub fn get_ident(value: &str) -> Ident {
     format_ident!("{}", value)
 }
@@ -29,7 +42,7 @@ fn build_query(
     schemas: &[plugin::Schema],
     default_schema: &str,
     structs: &[TypeStruct],
-    use_async: bool,
+    options: &Options,
 ) -> (TypeQuery, Vec<TypeStruct>) {
     let mut associated_structs = vec![];
 
@@ -44,6 +57,7 @@ fn build_query(
         &query.name,
         qpl,
         is_batch,
+        options,
     );
 
     if let Some(ref query_arg) = arg {
@@ -60,6 +74,7 @@ fn build_query(
         &query_cmd,
         &query.name,
         is_batch,
+        options,
     );
 
     if has_new_struct {
@@ -71,24 +86,32 @@ fn build_query(
     }
 
     (
-        TypeQuery::new(&query.name, &query.cmd, arg, ret, use_async),
+        TypeQuery::new(&query.name, &query.cmd, arg, ret, options.use_async),
         associated_structs,
     )
 }
 
-fn build_enums_from_schema(schema: &plugin::Schema, default_schema: &str) -> Vec<TypeEnum> {
+fn build_enums_from_schema(
+    schema: &plugin::Schema,
+    default_schema: &str,
+    options: &Options,
+) -> Vec<TypeEnum> {
     schema
         .enums
         .iter()
-        .map(|e| TypeEnum::from(e, &schema.name, default_schema))
+        .map(|e| TypeEnum::from(e, &schema.name, default_schema, options))
         .collect::<Vec<_>>()
 }
 
-fn build_structs_from_schema(schema: &plugin::Schema, default_schema: &str) -> Vec<TypeStruct> {
+fn build_structs_from_schema(
+    schema: &plugin::Schema,
+    default_schema: &str,
+    options: &Options,
+) -> Vec<TypeStruct> {
     schema
         .tables
         .iter()
-        .map(|table| TypeStruct::from_table(table, schema, default_schema))
+        .map(|table| TypeStruct::from_table(table, schema, default_schema, options))
         .collect::<Vec<_>>()
 }
 
@@ -122,13 +145,17 @@ impl From<plugin::GenerateRequest> for CodePartials {
                 continue;
             }
 
-            code_partials
-                .enums
-                .extend(build_enums_from_schema(schema, &catalog.default_schema));
+            code_partials.enums.extend(build_enums_from_schema(
+                schema,
+                &catalog.default_schema,
+                &options,
+            ));
 
-            code_partials
-                .structs
-                .extend(build_structs_from_schema(schema, &catalog.default_schema));
+            code_partials.structs.extend(build_structs_from_schema(
+                schema,
+                &catalog.default_schema,
+                &options,
+            ));
         }
 
         for query in &req.queries {
@@ -138,12 +165,13 @@ impl From<plugin::GenerateRequest> for CodePartials {
 
             code_partials.constants.push(query.into());
 
+            // panic!("{:#?}", query.clone());
             let (query, associated_structs) = build_query(
                 &query,
                 &catalog.schemas,
                 &catalog.default_schema,
                 &code_partials.structs,
-                options.use_async,
+                &options,
             );
             code_partials.queries.push(query);
             code_partials.structs.extend(associated_structs);

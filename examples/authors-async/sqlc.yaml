@@ -6,7 +6,7 @@ plugins:
       - RUST_LOG
     wasm:
       url: file://./../../target/wasm32-wasip1/release/sqlc-gen.wasm
-      sha256: aff49b0838e05cd2fecad97b80286e79528e8bc9011c7948338de0feda9c5e87
+      sha256: 6ca2b7d932bbdcc7d2f7c37d6eab0fa0ac438545c6dee4abb21f2b45a9bac582
 # - name: js
 #   process:
 #     cmd: sqlc-gen-json
@@ -20,5 +20,58 @@ sql:
         options:
           use_async: true
           use_deadpool: false
-    # - out: gen
-    #   plugin: js
+          # overrides:
+          #   enum:
+          #     BookType:
+          #       name: book_type_new_name
+          #       variants:
+          #         FICTION: FICTION_NAME_NEW
+          rules:
+            - type: '*'
+              derive:
+                # - postgres_derive::ToSql
+                # - postgres_derive::FromSql
+                - serde::Serialize
+                - serde::Deserialize
+                - Clone
+                - Debug
+                - PartialEq
+            - type: enums
+              derive:
+                - Eq
+              container:
+                - '#[serde(rename_all = "SCREAMING_SNAKE_CASE")]'
+                # variants:
+                #   - "I"
+            - type: TypeGenre
+              derive:
+                - Hash
+              # container:
+              #   - ""
+              variants:
+                # "*":
+                #   - "something for all variants"
+                - name: HISTORY
+                  attributes:
+                    - '#[serde(rename = "HISTORY_NEW")]'
+            - type: structs
+              # derive:
+              #   - Eq
+              # container: 
+              #   - "something"
+              # fields: 
+              #   - "something for field" 
+            - type: Book
+              derive:
+                - Hash
+              # container: 
+              #   - "#[serde(default)]"
+              fields:
+                - name: '*'
+                  attributes:
+                    - '#[serde(default)]'
+                - name: id
+                  attributes:
+                    - '#[serde(default)]'
+# - out: gen
+#   plugin: js

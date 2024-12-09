@@ -9,6 +9,8 @@ limit 1
 select *
 from authors
 order by name
+limit sqlc.arg('limit')::bigint
+offset sqlc.arg('offset')::bigint
 ;
 
 -- name: CreateAuthor :one

@@ -45,9 +45,8 @@ select id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, g
 from authors
 order by name
 "#;
-#[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
+#[derive()]
 #[postgres(name = "type_genre")]
 pub enum TypeGenre {
     #[postgres(name = "history")]
@@ -63,9 +62,8 @@ pub enum TypeGenre {
     #[cfg_attr(feature = "serde_support", serde(rename = "ADVENTURE"))]
     Adventure,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct Author {
     pub id: i64,
     pub uuid: Option<uuid::Uuid>,
@@ -85,9 +83,8 @@ pub(crate) struct Author {
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct CreateAuthorFullParams {
     pub name: String,
     pub bio: Option<String>,
@@ -105,9 +102,8 @@ pub(crate) struct CreateAuthorFullParams {
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,

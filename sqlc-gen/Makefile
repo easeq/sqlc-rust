@@ -24,8 +24,8 @@ generate-for-example:
 generate:
 	sha=$$(make -s build && sha256sum ../target/wasm32-wasip1/release/sqlc-gen.wasm | cut -d' ' -f1) && \
 	echo "SHA256: $$sha" && \
-	make -s get-examples | xargs -I_EX sh -c "make -s generate-for-example example_dir=examples/_EX sha_256=$$sha url=file://./../../../target/wasm32-wasip1/release/sqlc-gen.wasm" && \
 	make -s get-outer-examples | xargs -I_EX sh -c "make -s generate-for-example example_dir=../examples/_EX sha_256=$$sha url=file://./../../target/wasm32-wasip1/release/sqlc-gen.wasm"
+	make -s get-examples | xargs -I_EX sh -c "make -s generate-for-example example_dir=examples/_EX sha_256=$$sha url=file://./../../../target/wasm32-wasip1/release/sqlc-gen.wasm" && \
 
 install-deps: 
 	rustup target add wasm32-wasip1

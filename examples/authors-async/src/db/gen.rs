@@ -44,10 +44,12 @@ pub(crate) const LIST_AUTHORS: &str = r#"
 select id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at, updated_at
 from authors
 order by name
+limit $2::bigint
+offset $1::bigint
 "#;
-#[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
+#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[postgres(name = "type_genre")]
 pub enum TypeGenre {
     #[postgres(name = "history")]
@@ -63,9 +65,8 @@ pub enum TypeGenre {
     #[cfg_attr(feature = "serde_support", serde(rename = "ADVENTURE"))]
     Adventure,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
 pub(crate) struct Author {
     pub id: i64,
     pub uuid: Option<uuid::Uuid>,
@@ -85,9 +86,8 @@ pub(crate) struct Author {
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
 pub(crate) struct CreateAuthorFullParams {
     pub name: String,
     pub bio: Option<String>,
@@ -105,12 +105,17 @@ pub(crate) struct CreateAuthorFullParams {
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
 pub(crate) struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,
+}
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
+pub(crate) struct ListAuthorsParams {
+    pub offset: i64,
+    pub limit: i64,
 }
 pub(crate) async fn create_author(
     client: &impl sqlc_core::DBTX,
@@ -163,8 +168,9 @@ pub(crate) async fn get_author(
 }
 pub(crate) async fn list_authors(
     client: &impl sqlc_core::DBTX,
+    arg: ListAuthorsParams,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Author>>> {
-    let rows = client.query(LIST_AUTHORS, &[]).await?;
+    let rows = client.query(LIST_AUTHORS, &[&arg.offset, &arg.limit]).await?;
     let iter = rows
         .into_iter()
         .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));

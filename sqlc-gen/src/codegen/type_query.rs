@@ -97,6 +97,7 @@ impl QueryValue {
         query_name: &str,
         qpl: usize,
         is_batch: bool,
+        options: &crate::codegen::Options,
     ) -> Option<Self> {
         if params.len() == 1 && qpl != 0 {
             let p = params.first().unwrap();
@@ -108,7 +109,8 @@ impl QueryValue {
                 is_batch,
             ))
         } else if params.len() > 1 {
-            let type_struct = TypeStruct::from_params(query_name, params, schemas, default_schema);
+            let type_struct =
+                TypeStruct::from_params(query_name, params, schemas, default_schema, options);
             Some(Self::new("arg", None, Some(type_struct.clone()), is_batch))
         } else {
             None
@@ -123,6 +125,7 @@ impl QueryValue {
         query_cmd: &QueryCommand,
         query_name: &str,
         is_batch: bool,
+        options: &crate::codegen::Options,
     ) -> (Option<Self>, bool) {
         if columns.len() == 1 {
             let col = columns.first().unwrap();
@@ -144,7 +147,7 @@ impl QueryValue {
             let gs = match found_struct {
                 None => {
                     new_struct = true;
-                    TypeStruct::from_columns(query_name, columns, schemas, default_schema)
+                    TypeStruct::from_columns(query_name, columns, schemas, default_schema, options)
                 }
                 Some(gs) => gs.clone(),
             };

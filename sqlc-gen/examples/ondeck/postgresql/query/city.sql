@@ -2,6 +2,8 @@
 select *
 from city
 order by name
+limit sqlc.arg('limit')::bigint
+offset sqlc.arg('offset')::bigint
 ;
 
 -- name: GetCity :one

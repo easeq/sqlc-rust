@@ -1,6 +1,7 @@
 use std::{char, collections::HashSet};
 
 use crate::codegen::get_ident;
+use crate::codegen::options::RuleType;
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -42,6 +43,8 @@ fn generate_enum_variant(i: usize, val: &str, seen: &mut HashSet<String>) -> Tok
 pub struct TypeEnum {
     name: String,
     values: Vec<String>,
+    derive: Vec<String>,
+    attrs: Vec<String>,
 }
 
 impl TypeEnum {
@@ -49,12 +52,23 @@ impl TypeEnum {
         Self {
             name: name.into(),
             values,
+            ..Self::default()
         }
     }
 
-    pub(crate) fn from(e: &crate::plugin::Enum, schema_name: &str, default_schema: &str) -> Self {
+    pub(crate) fn from(
+        e: &crate::plugin::Enum,
+        schema_name: &str,
+        default_schema: &str,
+        options: &crate::codegen::Options,
+    ) -> Self {
         let enum_name = enum_name(&e.name, schema_name, default_schema);
-        Self::new(enum_name, e.vals.clone())
+        let mut e = Self::new(enum_name, e.vals.clone());
+        if let Some(rules) = options.rules.as_ref() {
+            e.derive = rules.derive_for(e.name(), RuleType::Enums);
+            e.attrs = rules.container_attrs_for(e.name(), RuleType::Enums);
+        }
+        e
     }
 
     pub(crate) fn name(&self) -> String {
@@ -72,10 +86,16 @@ impl TypeEnum {
             .map(|(i, val)| generate_enum_variant(i, val, &mut seen))
             .collect::<Vec<_>>();
 
+        let derive_tokens = crate::codegen::list_tokenstream(&self.derive);
+        let attr_tokens = crate::codegen::list_tokenstream(&self.attrs);
+
         quote! {
-            #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
-            #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-            #[cfg_attr(feature = "hash", derive(Eq, Hash))]
+            #[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
+            #[derive(#(#derive_tokens),*)]
+            #(#attr_tokens)*
+            // #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
+            // #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
+            // #[cfg_attr(feature = "hash", derive(Eq, Hash))]
             #[postgres(name=#type_name)]
             pub enum #ident_enum_name {
                 #(#variants),*

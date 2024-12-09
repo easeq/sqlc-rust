@@ -46,7 +46,13 @@ async fn main() -> Result<()> {
         .await
         .expect("failed to load migrations");
 
-    let authors = db::list_authors(&db_client).await.unwrap();
+    let list_options = db::ListAuthorsParams {
+        limit: 50,
+        offset: 0,
+    };
+    let authors = db::list_authors(&db_client, list_options.clone())
+        .await
+        .unwrap();
     assert_eq!(authors.try_len().unwrap(), 0);
 
     let author_res_err = db::get_author(&db_client, 1).await.is_err();
@@ -137,7 +143,7 @@ async fn main() -> Result<()> {
     assert!(author1_res.id == 2);
 
     let mut authors_list_prepared = vec![author1_res.clone()];
-    let authors: Vec<_> = db::list_authors(&db_client)
+    let authors: Vec<_> = db::list_authors(&db_client, list_options.clone())
         .await
         .unwrap()
         .try_collect()
@@ -158,7 +164,7 @@ async fn main() -> Result<()> {
 
     authors_list_prepared.push(author2_res.clone());
 
-    let authors: Vec<_> = db::list_authors(&db_client)
+    let authors: Vec<_> = db::list_authors(&db_client, list_options.clone())
         .await
         .unwrap()
         .try_collect()
@@ -170,7 +176,7 @@ async fn main() -> Result<()> {
     assert_eq!(author, author1_res);
 
     db::delete_author(&db_client, 2).await.unwrap();
-    let authors: Vec<_> = db::list_authors(&db_client)
+    let authors: Vec<_> = db::list_authors(&db_client, list_options.clone())
         .await
         .unwrap()
         .try_collect()
