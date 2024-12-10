@@ -6,7 +6,7 @@ plugins:
       - RUST_LOG
     wasm:
       url: file://./../../target/wasm32-wasip1/release/sqlc-gen.wasm
-      sha256: 6ca2b7d932bbdcc7d2f7c37d6eab0fa0ac438545c6dee4abb21f2b45a9bac582
+      sha256: 2f4959f5c2a4cc40636ebc5da326cfd0ec39959dfa8395b53c2a62e993cd2c29
 # - name: js
 #   process:
 #     cmd: sqlc-gen-json
@@ -20,5 +20,11 @@ sql:
         options:
           #   use_async: true
           use_deadpool: false
+          rules:
+            - type: '*'
+              derive:
+                - Clone
+                - Debug
+                - PartialEq
     # - out: gen
     #   plugin: js

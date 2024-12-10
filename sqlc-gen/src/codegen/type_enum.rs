@@ -25,33 +25,67 @@ fn enum_replacer(c: char) -> Option<char> {
     }
 }
 
-fn generate_enum_variant(i: usize, val: &str, seen: &mut HashSet<String>) -> TokenStream {
-    let mut value = val.chars().filter_map(enum_replacer).collect::<String>();
-    if seen.get(&value).is_some() || value.is_empty() {
-        value = format!("value_{}", i);
+#[derive(Default, Debug, PartialEq)]
+pub struct Variant {
+    orig_name: String,
+    name: String,
+    attrs: Vec<String>,
+}
+
+impl Variant {
+    fn new<S: Into<String>>(orig_name: S, name: S) -> Self {
+        Self {
+            orig_name: orig_name.into(),
+            name: name.into(),
+            ..Self::default()
+        }
     }
-    let ident_variant = get_ident(&value.to_case(Case::Pascal));
-    seen.insert(value);
-    quote! {
-        #[postgres(name=#val)]
-        #[cfg_attr(feature = "serde_support", serde(rename=#val))]
-        #ident_variant
+
+    pub(crate) fn from<S: Into<String>>(
+        orig_name: S,
+        name: S,
+        enum_name: S,
+        options: &crate::codegen::Options,
+    ) -> Self {
+        let mut v = Self::new(orig_name, name);
+        if let Some(rules) = options.rules.as_ref() {
+            v.attrs = rules.child_attr_for(v.name.clone(), enum_name.into(), RuleType::Enums);
+        }
+        v
+    }
+
+    fn generate_code(&self) -> TokenStream {
+        let orig_name = self.orig_name.clone();
+        let ident_variant = get_ident(&self.name.to_case(Case::Pascal));
+        let attrs_tokens = crate::codegen::list_tokenstream(&self.attrs);
+        quote! {
+            #[postgres(name=#orig_name)]
+            // #[cfg_attr(feature = "serde_support", serde(rename=#val))]
+            #(#attrs_tokens)*
+            #ident_variant
+        }
+    }
+}
+
+impl ToTokens for Variant {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.generate_code().to_token_stream());
     }
 }
 
 #[derive(Default, Debug, PartialEq)]
 pub struct TypeEnum {
     name: String,
-    values: Vec<String>,
+    variants: Vec<Variant>,
     derive: Vec<String>,
     attrs: Vec<String>,
 }
 
 impl TypeEnum {
-    pub fn new<S: Into<String>>(name: S, values: Vec<String>) -> Self {
+    pub fn new<S: Into<String>>(name: S, variants: Vec<Variant>) -> Self {
         Self {
             name: name.into(),
-            values,
+            variants,
             ..Self::default()
         }
     }
@@ -62,13 +96,29 @@ impl TypeEnum {
         default_schema: &str,
         options: &crate::codegen::Options,
     ) -> Self {
+        let mut seen = HashSet::new();
         let enum_name = enum_name(&e.name, schema_name, default_schema);
-        let mut e = Self::new(enum_name, e.vals.clone());
+        let mut type_enum = Self::new(
+            enum_name.clone(),
+            e.vals
+                .iter()
+                .enumerate()
+                .map(|(i, value)| {
+                    let mut name = value.chars().filter_map(enum_replacer).collect::<String>();
+
+                    if seen.get(&name).is_some() || name.is_empty() {
+                        name = format!("value_{}", i);
+                    }
+                    seen.insert(name.clone());
+                    Variant::from(value.clone(), name, enum_name.clone(), options)
+                })
+                .collect::<Vec<_>>(),
+        );
         if let Some(rules) = options.rules.as_ref() {
-            e.derive = rules.derive_for(e.name(), RuleType::Enums);
-            e.attrs = rules.container_attrs_for(e.name(), RuleType::Enums);
+            type_enum.derive = rules.derive_for(type_enum.name(), RuleType::Enums);
+            type_enum.attrs = rules.container_attrs_for(type_enum.name(), RuleType::Enums);
         }
-        e
+        type_enum
     }
 
     pub(crate) fn name(&self) -> String {
@@ -78,13 +128,7 @@ impl TypeEnum {
     fn generate_code(&self) -> TokenStream {
         let ident_enum_name = get_ident(&self.name());
         let type_name = self.name().to_case(Case::Snake);
-        let mut seen = HashSet::new();
-        let variants = self
-            .values
-            .iter()
-            .enumerate()
-            .map(|(i, val)| generate_enum_variant(i, val, &mut seen))
-            .collect::<Vec<_>>();
+        let variants = &self.variants;
 
         let derive_tokens = crate::codegen::list_tokenstream(&self.derive);
         let attr_tokens = crate::codegen::list_tokenstream(&self.attrs);

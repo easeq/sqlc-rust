@@ -39,6 +39,7 @@ pub struct StructField {
     pub not_null: bool,
     pub number: i32,
     pub data_type: PgDataType,
+    attrs: Vec<String>,
 }
 
 impl StructField {
@@ -55,6 +56,7 @@ impl StructField {
             data_type,
             is_array,
             not_null,
+            attrs: vec![],
         }
     }
 
@@ -63,14 +65,22 @@ impl StructField {
         pos: i32,
         schemas: &[plugin::Schema],
         default_schema: &str,
+        struct_name: &str,
+        options: &crate::codegen::Options,
     ) -> Self {
-        Self::new(
+        let mut sf = Self::new(
             &col.name,
             pos,
             PgDataType::from_col(col, &schemas, default_schema),
             col.is_array,
             col.not_null,
-        )
+        );
+
+        if let Some(rules) = options.rules.as_ref() {
+            sf.attrs = rules.child_attr_for(sf.name(), struct_name.to_string(), RuleType::Structs);
+        }
+
+        sf
     }
 
     fn matches_column(
@@ -119,9 +129,11 @@ impl ToTokens for StructField {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let field_name_ident = get_ident(&self.name());
         let field_type_ident = self.data_type();
+        let attrs_tokens = crate::codegen::list_tokenstream(&self.attrs);
 
         tokens.extend(quote! {
             // #[cfg_attr(feature = "serde_support", serde(default))]
+            #(#attrs_tokens)*
             pub #field_name_ident: #field_type_ident
         })
     }
@@ -150,14 +162,14 @@ impl TypeStruct {
         name: S,
         table: Option<plugin::Identifier>,
         struct_type: StructType,
-        fields: Vec<StructField>,
+        // fields: Vec<StructField>,
         options: &crate::codegen::Options,
     ) -> Self {
         let mut s = Self {
             name: name.into(),
             table,
             struct_type,
-            fields,
+            // fields,
             ..Default::default()
         };
 
@@ -173,11 +185,15 @@ impl TypeStruct {
         columns: &[plugin::Column],
         schemas: &[plugin::Schema],
         default_schema: &str,
+        struct_name: &str,
+        options: &crate::codegen::Options,
     ) -> Vec<StructField> {
         columns
             .iter()
             .enumerate()
-            .map(|(i, col)| StructField::from(col, i as i32, schemas, default_schema))
+            .map(|(i, col)| {
+                StructField::from(col, i as i32, schemas, default_schema, struct_name, options)
+            })
             .collect::<Vec<_>>()
     }
 
@@ -194,10 +210,8 @@ impl TypeStruct {
         }
 
         let struct_name = pluralizer::pluralize(table_name.as_str(), 1, false);
-        let fields =
-            Self::column_to_struct_fields(&table.columns, &[schema.clone()], default_schema);
 
-        Self::new(
+        let mut s = Self::new(
             struct_name,
             Some(plugin::Identifier {
                 catalog: "".to_string(),
@@ -205,9 +219,18 @@ impl TypeStruct {
                 name: table_rel.name.clone(),
             }),
             StructType::Default,
-            fields,
             options,
-        )
+        );
+
+        s.fields = Self::column_to_struct_fields(
+            &table.columns,
+            &[schema.clone()],
+            default_schema,
+            &s.name(),
+            options,
+        );
+
+        s
     }
 
     pub fn from_columns(
@@ -217,9 +240,11 @@ impl TypeStruct {
         default_schema: &str,
         options: &crate::codegen::Options,
     ) -> Self {
-        let fields = Self::column_to_struct_fields(columns, schemas, default_schema);
+        let mut s = Self::new(struct_name, None, StructType::Row, options);
+        s.fields =
+            Self::column_to_struct_fields(columns, schemas, default_schema, &s.name(), options);
 
-        Self::new(struct_name, None, StructType::Row, fields, options)
+        s
     }
 
     pub fn from_params(
@@ -229,7 +254,8 @@ impl TypeStruct {
         default_schema: &str,
         options: &crate::codegen::Options,
     ) -> Self {
-        let fields = params
+        let mut s = Self::new(struct_name, None, StructType::Params, options);
+        s.fields = params
             .iter()
             .map(|field| {
                 StructField::from(
@@ -237,11 +263,12 @@ impl TypeStruct {
                     field.number,
                     &schemas,
                     &default_schema,
+                    &s.name(),
+                    options,
                 )
             })
             .collect::<Vec<_>>();
-
-        Self::new(struct_name, None, StructType::Params, fields, options)
+        s
     }
 
     pub fn has_same_fields(

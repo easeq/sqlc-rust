@@ -65,25 +65,23 @@ SET title = $1, tags = $2
 WHERE book_id = $3
 "#;
 #[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
-#[derive()]
+#[derive(Debug, PartialEq, Clone)]
 #[postgres(name = "book_type")]
 pub enum BookType {
     #[postgres(name = "FICTION")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "FICTION"))]
     Fiction,
     #[postgres(name = "NONFICTION")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "NONFICTION"))]
     Nonfiction,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct Author {
     pub author_id: i32,
     pub name: String,
     pub biography: Option<serde_json::Value>,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct Book {
     pub book_id: i32,
     pub author_id: i32,
@@ -95,7 +93,7 @@ pub(crate) struct Book {
     pub tags: Vec<String>,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct CreateBookParams {
     pub author_id: i32,
     pub isbn: String,
@@ -106,7 +104,7 @@ pub(crate) struct CreateBookParams {
     pub tags: Vec<String>,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct UpdateBookParams {
     pub title: String,
     pub tags: Vec<String>,

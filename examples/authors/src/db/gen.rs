@@ -46,24 +46,20 @@ from authors
 order by name
 "#;
 #[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
-#[derive()]
+#[derive(Debug, PartialEq, Clone)]
 #[postgres(name = "type_genre")]
 pub enum TypeGenre {
     #[postgres(name = "history")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "history"))]
     History,
     #[postgres(name = "Children")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "Children"))]
     Children,
     #[postgres(name = "cLaSSic")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "cLaSSic"))]
     CLaSSic,
     #[postgres(name = "ADVENTURE")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "ADVENTURE"))]
     Adventure,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct Author {
     pub id: i64,
     pub uuid: Option<uuid::Uuid>,
@@ -84,7 +80,7 @@ pub(crate) struct Author {
     pub updated_at: time::OffsetDateTime,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct CreateAuthorFullParams {
     pub name: String,
     pub bio: Option<String>,
@@ -103,7 +99,7 @@ pub(crate) struct CreateAuthorFullParams {
     pub updated_at: time::OffsetDateTime,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,

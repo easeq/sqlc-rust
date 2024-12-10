@@ -1,4 +1,3 @@
-use crate::codegen::{TypeEnum, TypeStruct};
 use core::panic;
 use serde::{Deserialize, Serialize};
 use sqlc_sqlc_community_neoeinstein_prost::plugin;
@@ -53,15 +52,6 @@ struct Rule {
     children: Option<HashSet<Child>>,
 }
 
-// impl Rule {
-//     fn empty_from_type(typ: RuleType) -> Self {
-//         Self {
-//             typ,
-//             ..Self::default()
-//         }
-//     }
-// }
-
 impl Hash for Rule {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.typ.hash(state);
@@ -80,7 +70,7 @@ impl Borrow<RuleType> for Rule {
     }
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, Hash, Eq, PartialEq)]
 pub(crate) enum RuleType {
     #[serde(rename = "*")]
     #[default]
@@ -144,22 +134,55 @@ impl Rules {
         attrs
     }
 
-    // fn get_child_attrs_by_type(&self, name: ChildName, type_name: String, typ: RuleType) -> Vec<String> {
-    //     let mut result = vec![];
-    //     if let Some(rule) = self.0.get(&typ) {
-    //         result.extend(if let Some(container) = &rule.container {
-    //             container.clone().into_iter().collect::<Vec<_>>()
-    //         } else {
-    //             vec![]
-    //         });
-    //     }
-    //
-    //     result
-    // }
-    //
-    // pub(crate) child_attr_for(&self, child_name: String, specific_type: Child) -> Vec<String> {
-    //     let mut attrs = self.get_container_attrs_by_type(ChildName::All);
-    // }
+    fn get_child_attrs_by_type(&self, name: ChildName, typ: RuleType) -> Vec<String> {
+        let mut result = vec![];
+        if let Some(rule) = self.0.get(&typ) {
+            result.extend(if let Some(ref children) = &rule.children {
+                children
+                    .iter()
+                    .filter_map(|child| {
+                        if child.name != name {
+                            None
+                        } else {
+                            Some(child.attributes.clone())
+                        }
+                    })
+                    .flatten()
+                    .collect::<Vec<_>>()
+            } else {
+                vec![]
+            });
+        }
+
+        result
+    }
+
+    pub(crate) fn child_attr_for(
+        &self,
+        child_name: String,
+        type_name: String,
+        specific_type: RuleType,
+    ) -> Vec<String> {
+        // Get rules that apply to all struct fields and enum variants
+        let mut attrs = self.get_child_attrs_by_type(ChildName::All, RuleType::All);
+        // Add rules specific to either all fields of structs or all variants of enums
+        attrs.extend(self.get_child_attrs_by_type(ChildName::All, specific_type.clone()));
+        // Add rules for specific fields/variants of either all structs or all enums
+        // (Not sure if this is needed)
+        attrs.extend(
+            self.get_child_attrs_by_type(ChildName::Other(child_name.clone()), specific_type),
+        );
+        // Add rules all fields/variants of the given type
+        attrs.extend(
+            self.get_child_attrs_by_type(ChildName::All, RuleType::Other(type_name.clone())),
+        );
+        // Add rules specific fields/variants of the given type
+        attrs.extend(
+            self.get_child_attrs_by_type(ChildName::Other(child_name), RuleType::Other(type_name)),
+        );
+
+        attrs
+    }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

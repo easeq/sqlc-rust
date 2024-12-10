@@ -48,21 +48,16 @@ limit $2::bigint
 offset $1::bigint
 "#;
 #[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone, Eq, Hash)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
 #[postgres(name = "type_genre")]
 pub enum TypeGenre {
     #[postgres(name = "history")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "history"))]
     History,
     #[postgres(name = "Children")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "Children"))]
     Children,
     #[postgres(name = "cLaSSic")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "cLaSSic"))]
     CLaSSic,
     #[postgres(name = "ADVENTURE")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "ADVENTURE"))]
     Adventure,
 }
 #[derive(sqlc_core::FromPostgresRow)]
