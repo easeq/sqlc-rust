@@ -101,10 +101,14 @@ impl Rules {
         result
     }
 
-    pub(crate) fn derive_for(&self, type_name: String, specific_type: RuleType) -> Vec<String> {
+    pub(crate) fn derive_for<S: Into<String>>(
+        &self,
+        type_name: S,
+        specific_type: RuleType,
+    ) -> Vec<String> {
         let mut derives = self.get_derive_by_type(RuleType::All);
         derives.extend(self.get_derive_by_type(specific_type));
-        derives.extend(self.get_derive_by_type(RuleType::Other(type_name)));
+        derives.extend(self.get_derive_by_type(RuleType::Other(type_name.into())));
 
         derives
     }
@@ -122,14 +126,14 @@ impl Rules {
         result
     }
 
-    pub(crate) fn container_attrs_for(
+    pub(crate) fn container_attrs_for<S: Into<String>>(
         &self,
-        type_name: String,
+        type_name: S,
         specific_type: RuleType,
     ) -> Vec<String> {
         let mut attrs = self.get_container_attrs_by_type(RuleType::All);
         attrs.extend(self.get_container_attrs_by_type(specific_type));
-        attrs.extend(self.get_container_attrs_by_type(RuleType::Other(type_name)));
+        attrs.extend(self.get_container_attrs_by_type(RuleType::Other(type_name.into())));
 
         attrs
     }
@@ -218,7 +222,6 @@ impl From<plugin::Settings> for Options {
                 )
                 .as_str(),
             );
-            // panic!("{:#?}", options);
         }
 
         options

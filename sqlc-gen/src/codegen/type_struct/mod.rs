@@ -1,8 +1,18 @@
 use crate::codegen::options::RuleType;
-use crate::codegen::{get_ident, plugin, DataType, PgDataType};
-use convert_case::{Case, Casing};
+use crate::codegen::{plugin, DataType};
+use convert_case::Casing;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
+
+pub(crate) use field::*;
+pub(crate) use params::*;
+pub(crate) use row::*;
+pub(crate) use table::*;
+
+mod field;
+mod params;
+mod row;
+mod table;
 
 fn column_name(name: &str, pos: i32) -> String {
     match name.is_empty() {
@@ -32,245 +42,69 @@ fn same_table(
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct StructField {
-    pub name: String,
-    pub is_array: bool,
-    pub not_null: bool,
-    pub number: i32,
-    pub data_type: PgDataType,
-    attrs: Vec<String>,
+trait Struct<'a> {
+    fn options(&self) -> &'a crate::codegen::Options;
+    fn name(&self) -> String;
+    fn fields(&self) -> Vec<StructField>;
+    fn derive(&self) -> Option<Vec<String>> {
+        if let Some(rules) = self.options().rules.as_ref() {
+            Some(rules.derive_for(&self.name(), RuleType::Structs))
+        } else {
+            None
+        }
+    }
+
+    fn attrs(&self) -> Option<Vec<String>> {
+        if let Some(rules) = self.options().rules.as_ref() {
+            Some(rules.container_attrs_for(&self.name(), RuleType::Structs))
+        } else {
+            None
+        }
+    }
+    fn table_identifier(&self) -> Option<plugin::Identifier> {
+        None
+    }
 }
 
-impl StructField {
-    pub fn new<S: Into<String>>(
-        name: S,
-        number: i32,
-        data_type: PgDataType,
-        is_array: bool,
-        not_null: bool,
-    ) -> Self {
+pub enum StructType<'a> {
+    Params(StructParams<'a>),
+    Row(StructRow<'a>),
+    Table(StructTable<'a>),
+}
+
+impl<'a> StructType<'a> {
+    fn as_trait(&self) -> &dyn Struct {
+        match self {
+            Self::Params(t) => t,
+            Self::Row(t) => t,
+            Self::Table(t) => t,
+        }
+    }
+}
+
+impl<'a> From<StructType<'a>> for TypeStruct {
+    fn from(struct_type: StructType<'a>) -> Self {
+        let st = struct_type.as_trait();
         Self {
-            name: name.into(),
-            number,
-            data_type,
-            is_array,
-            not_null,
-            attrs: vec![],
+            name: st.name(),
+            fields: st.fields(),
+            table: st.table_identifier(),
+            derive: st.derive().unwrap_or_default(),
+            attrs: st.attrs().unwrap_or_default(),
         }
     }
-
-    pub fn from(
-        col: &plugin::Column,
-        pos: i32,
-        schemas: &[plugin::Schema],
-        default_schema: &str,
-        struct_name: &str,
-        options: &crate::codegen::Options,
-    ) -> Self {
-        let mut sf = Self::new(
-            &col.name,
-            pos,
-            PgDataType::from_col(col, &schemas, default_schema),
-            col.is_array,
-            col.not_null,
-        );
-
-        if let Some(rules) = options.rules.as_ref() {
-            sf.attrs = rules.child_attr_for(sf.name(), struct_name.to_string(), RuleType::Structs);
-        }
-
-        sf
-    }
-
-    fn matches_column(
-        &self,
-        col: &crate::plugin::Column,
-        field_table: Option<&plugin::Identifier>,
-        schemas: &[plugin::Schema],
-        default_schema: &str,
-        pos: i32,
-    ) -> bool {
-        let same_name = self.name() == column_name(&col.name, pos);
-
-        let same_type = self.data_type.to_string()
-            == PgDataType::from_col(col, schemas, default_schema).to_string();
-
-        let same_table = same_table(col.table.as_ref(), field_table, default_schema);
-
-        same_name && same_type && same_table
-    }
-
-    fn name(&self) -> String {
-        column_name(&self.name, self.number)
-    }
-
-    fn data_type(&self) -> TokenStream {
-        let mut tokens = self.data_type.to_token_stream();
-
-        if self.is_array {
-            tokens = quote!(Vec<#tokens>);
-        }
-
-        if !self.not_null {
-            tokens = quote!(Option<#tokens>);
-        }
-
-        tokens
-    }
-
-    fn to_pg_query_slice_item(&self, var_name: &syn::Ident) -> TokenStream {
-        let ident_field_name = get_ident(&self.name());
-        quote! { &#var_name.#ident_field_name }
-    }
-}
-
-impl ToTokens for StructField {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let field_name_ident = get_ident(&self.name());
-        let field_type_ident = self.data_type();
-        let attrs_tokens = crate::codegen::list_tokenstream(&self.attrs);
-
-        tokens.extend(quote! {
-            // #[cfg_attr(feature = "serde_support", serde(default))]
-            #(#attrs_tokens)*
-            pub #field_name_ident: #field_type_ident
-        })
-    }
-}
-
-#[derive(Default, Debug, Clone)]
-pub enum StructType {
-    #[default]
-    Default,
-    Params,
-    Row,
 }
 
 #[derive(Default, Debug, Clone)]
 pub struct TypeStruct {
     name: String,
     pub table: Option<plugin::Identifier>,
-    struct_type: StructType,
     pub fields: Vec<StructField>,
     derive: Vec<String>,
     attrs: Vec<String>,
 }
 
 impl TypeStruct {
-    pub fn new<S: Into<String>>(
-        name: S,
-        table: Option<plugin::Identifier>,
-        struct_type: StructType,
-        // fields: Vec<StructField>,
-        options: &crate::codegen::Options,
-    ) -> Self {
-        let mut s = Self {
-            name: name.into(),
-            table,
-            struct_type,
-            // fields,
-            ..Default::default()
-        };
-
-        if let Some(rules) = options.rules.as_ref() {
-            s.derive = rules.derive_for(s.name(), RuleType::Structs);
-            s.attrs = rules.container_attrs_for(s.name(), RuleType::Structs);
-        }
-
-        s
-    }
-
-    fn column_to_struct_fields(
-        columns: &[plugin::Column],
-        schemas: &[plugin::Schema],
-        default_schema: &str,
-        struct_name: &str,
-        options: &crate::codegen::Options,
-    ) -> Vec<StructField> {
-        columns
-            .iter()
-            .enumerate()
-            .map(|(i, col)| {
-                StructField::from(col, i as i32, schemas, default_schema, struct_name, options)
-            })
-            .collect::<Vec<_>>()
-    }
-
-    pub fn from_table(
-        table: &crate::plugin::Table,
-        schema: &plugin::Schema,
-        default_schema: &str,
-        options: &crate::codegen::Options,
-    ) -> Self {
-        let table_rel = table.rel.as_ref().unwrap();
-        let mut table_name = table_rel.name.clone();
-        if schema.name != default_schema {
-            table_name = format!("{}_{table_name}", schema.name);
-        }
-
-        let struct_name = pluralizer::pluralize(table_name.as_str(), 1, false);
-
-        let mut s = Self::new(
-            struct_name,
-            Some(plugin::Identifier {
-                catalog: "".to_string(),
-                schema: schema.name.clone(),
-                name: table_rel.name.clone(),
-            }),
-            StructType::Default,
-            options,
-        );
-
-        s.fields = Self::column_to_struct_fields(
-            &table.columns,
-            &[schema.clone()],
-            default_schema,
-            &s.name(),
-            options,
-        );
-
-        s
-    }
-
-    pub fn from_columns(
-        struct_name: &str,
-        columns: &[plugin::Column],
-        schemas: &[plugin::Schema],
-        default_schema: &str,
-        options: &crate::codegen::Options,
-    ) -> Self {
-        let mut s = Self::new(struct_name, None, StructType::Row, options);
-        s.fields =
-            Self::column_to_struct_fields(columns, schemas, default_schema, &s.name(), options);
-
-        s
-    }
-
-    pub fn from_params(
-        struct_name: &str,
-        params: &[plugin::Parameter],
-        schemas: &[plugin::Schema],
-        default_schema: &str,
-        options: &crate::codegen::Options,
-    ) -> Self {
-        let mut s = Self::new(struct_name, None, StructType::Params, options);
-        s.fields = params
-            .iter()
-            .map(|field| {
-                StructField::from(
-                    &field.column.as_ref().unwrap(),
-                    field.number,
-                    &schemas,
-                    &default_schema,
-                    &s.name(),
-                    options,
-                )
-            })
-            .collect::<Vec<_>>();
-        s
-    }
-
     pub fn has_same_fields(
         &self,
         columns: &[plugin::Column],
@@ -297,17 +131,11 @@ impl TypeStruct {
     }
 
     pub(crate) fn name(&self) -> String {
-        let name = match &self.struct_type {
-            StructType::Default => format!("{}", self.name),
-            StructType::Params => format!("{}Params", self.name),
-            StructType::Row => format!("{}Row", self.name),
-        };
-
-        name.to_case(Case::Pascal)
+        self.name.clone()
     }
 
     pub(crate) fn data_type(&self) -> DataType {
-        DataType(self.name())
+        DataType(self.name.clone())
     }
 
     pub(crate) fn to_pg_query_slice(&self, var_name: &syn::Ident) -> TokenStream {
@@ -332,9 +160,6 @@ impl TypeStruct {
                 #[derive(sqlc_core::FromPostgresRow)]
                 #[derive(#(#derive_tokens),*)]
                 #(#attr_tokens)*
-                // #[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-                // #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-                // #[cfg_attr(feature = "hash", derive(Eq, Hash))]
                 pub(crate) struct #ident_struct {
                     #(#fields),*
                 }

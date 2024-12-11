@@ -7,7 +7,7 @@ use syn::Ident;
 use type_const::TypeConst;
 use type_enum::TypeEnum;
 use type_query::{QueryCommand, QueryValue, TypeQuery};
-use type_struct::TypeStruct;
+use type_struct::{StructTable, StructType, TypeStruct};
 
 pub(crate) use multi_line::*;
 pub(crate) use pg_data_type::*;
@@ -111,7 +111,15 @@ fn build_structs_from_schema(
     schema
         .tables
         .iter()
-        .map(|table| TypeStruct::from_table(table, schema, default_schema, options))
+        .map(|table| {
+            StructType::Table(StructTable {
+                table,
+                schema,
+                default_schema,
+                options,
+            })
+            .into()
+        })
         .collect::<Vec<_>>()
 }
 

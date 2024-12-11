@@ -1,4 +1,8 @@
-use crate::codegen::{get_ident, DataType, PgDataType, TypeStruct};
+use crate::codegen::{
+    get_ident,
+    type_struct::{StructParams, StructRow, StructType},
+    DataType, PgDataType, TypeStruct,
+};
 use check_keyword::CheckKeyword;
 use convert_case::{Case, Casing};
 use core::panic;
@@ -109,9 +113,15 @@ impl QueryValue {
                 is_batch,
             ))
         } else if params.len() > 1 {
-            let type_struct =
-                TypeStruct::from_params(query_name, params, schemas, default_schema, options);
-            Some(Self::new("arg", None, Some(type_struct.clone()), is_batch))
+            let type_struct: TypeStruct = StructType::Params(StructParams {
+                name: query_name,
+                params,
+                schemas,
+                default_schema,
+                options,
+            })
+            .into();
+            Some(Self::new("arg", None, Some(type_struct), is_batch))
         } else {
             None
         }
@@ -147,7 +157,15 @@ impl QueryValue {
             let gs = match found_struct {
                 None => {
                     new_struct = true;
-                    TypeStruct::from_columns(query_name, columns, schemas, default_schema, options)
+
+                    StructType::Row(StructRow {
+                        name: query_name,
+                        columns,
+                        schemas,
+                        default_schema,
+                        options,
+                    })
+                    .into()
                 }
                 Some(gs) => gs.clone(),
             };
