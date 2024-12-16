@@ -4,48 +4,32 @@ pub(crate) const DELETE_BOOK: &str = r#"
 delete from books
 where book_id = $1
 "#;
-#[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
+#[derive()]
 #[postgres(name = "book_type")]
 pub enum BookType {
     #[postgres(name = "FICTION")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "FICTION"))]
     Fiction,
     #[postgres(name = "NONFICTION")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "NONFICTION"))]
     Nonfiction,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct Author {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub author_id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub biography: Option<serde_json::Value>,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct Book {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub book_id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub author_id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub isbn: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub book_type: BookType,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub title: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub year: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub available: time::OffsetDateTime,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub tags: Vec<String>,
 }
 pub(crate) async fn delete_book<'a, C, I>(

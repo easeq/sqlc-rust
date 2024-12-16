@@ -63,113 +63,72 @@ UPDATE books
 SET title = $1, tags = $2, isbn = $4
 WHERE book_id = $3
 "#;
-#[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
+#[derive()]
 #[postgres(name = "book_type")]
 pub enum BookType {
     #[postgres(name = "FICTION")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "FICTION"))]
     Fiction,
     #[postgres(name = "NONFICTION")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "NONFICTION"))]
     Nonfiction,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct Author {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub author_id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: String,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct Book {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub book_id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub author_id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub isbn: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub book_type: BookType,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub title: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub year: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub available: time::OffsetDateTime,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub tags: Vec<String>,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct BooksByTagsRow {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub book_id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub title: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: Option<String>,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub isbn: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub tags: Vec<String>,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct BooksByTitleYearParams {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub title: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub year: i32,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct CreateBookParams {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub author_id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub isbn: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub book_type: BookType,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub title: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub year: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub available: time::OffsetDateTime,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub tags: Vec<String>,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct UpdateBookIsbnParams {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub title: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub tags: Vec<String>,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub book_id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub isbn: String,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct UpdateBookParams {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub title: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub tags: Vec<String>,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub book_id: i32,
 }
 pub(crate) async fn books_by_tags(

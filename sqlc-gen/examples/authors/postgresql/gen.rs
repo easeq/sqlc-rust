@@ -23,24 +23,17 @@ select id, name, bio
 from authors
 order by name
 "#;
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct Author {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub id: i64,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub bio: Option<String>,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct CreateAuthorParams {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub bio: Option<String>,
 }
 pub(crate) async fn create_author(

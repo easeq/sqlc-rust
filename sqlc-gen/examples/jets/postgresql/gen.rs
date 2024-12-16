@@ -3,46 +3,31 @@
 pub(crate) const COUNT_PILOTS: &str = r#"SELECT COUNT(*) FROM pilots"#;
 pub(crate) const DELETE_PILOT: &str = r#"DELETE FROM pilots WHERE id = $1"#;
 pub(crate) const LIST_PILOTS: &str = r#"SELECT id, name FROM pilots LIMIT 5"#;
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct Jet {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub pilot_id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub age: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub color: String,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct Language {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub language: String,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct Pilot {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: String,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct PilotLanguage {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub pilot_id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub language_id: i32,
 }
 pub(crate) async fn count_pilots(

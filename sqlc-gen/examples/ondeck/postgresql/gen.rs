@@ -76,123 +76,80 @@ FROM venue
 GROUP BY 1
 ORDER BY 1
 "#;
-#[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
+#[derive()]
 #[postgres(name = "status")]
 pub enum Status {
     #[postgres(name = "op!en")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "op!en"))]
     Open,
     #[postgres(name = "clo@sed")]
-    #[cfg_attr(feature = "serde_support", serde(rename = "clo@sed"))]
     Closed,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct City {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub slug: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: String,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct CreateCityParams {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub slug: String,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct CreateVenueParams {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub slug: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub city: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub spotify_playlist: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub status: Status,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub statuses: Option<Vec<Status>>,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub tags: Option<Vec<String>>,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct GetVenueParams {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub slug: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub city: String,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct ListCitiesParams {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub offset: i64,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub limit: i64,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct UpdateCityNameParams {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub slug: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: String,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct UpdateVenueNameParams {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub slug: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: String,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct Venue {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub id: i32,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub status: Status,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub statuses: Option<Vec<Status>>,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub slug: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub name: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub city: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub spotify_playlist: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub songkick_id: Option<String>,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub tags: Option<Vec<String>>,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub created_at: String,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
-#[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "hash", derive(Eq, Hash))]
+#[derive(sqlc_core::FromPostgresRow)]
+#[derive()]
 pub(crate) struct VenueCountByCityRow {
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub city: String,
-    #[cfg_attr(feature = "serde_support", serde(default))]
     pub count: i64,
 }
 pub(crate) async fn create_city(
