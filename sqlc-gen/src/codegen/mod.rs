@@ -41,11 +41,9 @@ fn build_query(
     query: &plugin::Query,
     schemas: &[plugin::Schema],
     default_schema: &str,
-    structs: &[TypeStruct],
+    structs: &mut Vec<TypeStruct>,
     options: &Options,
-) -> (TypeQuery, Vec<TypeStruct>) {
-    let mut associated_structs = vec![];
-
+) -> TypeQuery {
     // Query parameter limit, get it from the options
     let query_cmd = QueryCommand::from_str(&query.cmd).expect("invalid query annotation");
     let is_batch = query_cmd.is_batch();
@@ -62,11 +60,11 @@ fn build_query(
 
     if let Some(ref query_arg) = arg {
         if let Some(ref type_struct) = query_arg.type_struct {
-            associated_structs.push(type_struct.clone());
+            structs.push(type_struct.clone());
         }
     }
 
-    let (ret, has_new_struct) = QueryValue::from_query_columns(
+    let ret = QueryValue::from_query_columns(
         &query.columns,
         schemas,
         default_schema,
@@ -77,50 +75,34 @@ fn build_query(
         options,
     );
 
-    if has_new_struct {
-        if let Some(ref query_ret) = ret {
-            if let Some(ref type_struct) = query_ret.type_struct {
-                associated_structs.push(type_struct.clone());
-            }
-        }
-    }
-
-    (
-        TypeQuery::new(&query.name, &query.cmd, arg, ret, options.use_async),
-        associated_structs,
-    )
+    TypeQuery::new(&query.name, &query.cmd, arg, ret, options.use_async)
 }
 
-fn build_enums_from_schema(
-    schema: &plugin::Schema,
-    default_schema: &str,
-    options: &Options,
-) -> Vec<TypeEnum> {
+fn build_enums_from_schema<'a>(
+    schema: &'a plugin::Schema,
+    default_schema: &'a str,
+    options: &'a Options,
+) -> impl Iterator<Item = TypeEnum> + 'a {
     schema
         .enums
         .iter()
-        .map(|e| TypeEnum::from(e, &schema.name, default_schema, options))
-        .collect::<Vec<_>>()
+        .map(move |e| TypeEnum::from(e, &schema.name, default_schema, options))
 }
 
-fn build_structs_from_schema(
-    schema: &plugin::Schema,
-    default_schema: &str,
-    options: &Options,
-) -> Vec<TypeStruct> {
-    schema
-        .tables
-        .iter()
-        .map(|table| {
-            StructType::Table(StructTable {
-                table,
-                schema,
-                default_schema,
-                options,
-            })
-            .into()
+fn build_structs_from_schema<'a>(
+    schema: &'a plugin::Schema,
+    default_schema: &'a str,
+    options: &'a Options,
+) -> impl Iterator<Item = TypeStruct> + 'a {
+    schema.tables.iter().map(move |table| {
+        StructType::Table(StructTable {
+            table,
+            schema,
+            default_schema,
+            options,
         })
-        .collect::<Vec<_>>()
+        .into()
+    })
 }
 
 #[derive(Default)]
@@ -173,16 +155,14 @@ impl From<plugin::GenerateRequest> for CodePartials {
 
             code_partials.constants.push(query.into());
 
-            // panic!("{:#?}", query.clone());
-            let (query, associated_structs) = build_query(
+            let query = build_query(
                 &query,
                 &catalog.schemas,
                 &catalog.default_schema,
-                &code_partials.structs,
+                &mut code_partials.structs,
                 &options,
             );
             code_partials.queries.push(query);
-            code_partials.structs.extend(associated_structs);
         }
 
         code_partials.sort_all();

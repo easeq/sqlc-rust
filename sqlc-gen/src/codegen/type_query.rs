@@ -131,51 +131,45 @@ impl QueryValue {
         columns: &[crate::plugin::Column],
         schemas: &[crate::plugin::Schema],
         default_schema: &str,
-        structs: &[TypeStruct],
+        structs: &mut Vec<TypeStruct>,
         query_cmd: &QueryCommand,
         query_name: &str,
         is_batch: bool,
         options: &crate::codegen::Options,
-    ) -> (Option<Self>, bool) {
+    ) -> Option<Self> {
         if columns.len() == 1 {
             let col = columns.first().unwrap();
-            (
-                Some(Self::new(
-                    "",
-                    Some(PgDataType::from_col(col, &schemas, &default_schema)),
-                    None,
-                    is_batch,
-                )),
-                false,
-            )
+            Some(Self::new(
+                "",
+                Some(PgDataType::from_col(col, &schemas, &default_schema)),
+                None,
+                is_batch,
+            ))
         } else if query_cmd.has_return_value() {
             let found_struct = structs
                 .iter()
                 .find(|s| s.has_same_fields(&columns, schemas, default_schema));
 
-            let mut new_struct = false;
             let gs = match found_struct {
                 None => {
-                    new_struct = true;
-
-                    StructType::Row(StructRow {
+                    let s: TypeStruct = StructType::Row(StructRow {
                         name: query_name,
                         columns,
                         schemas,
                         default_schema,
                         options,
                     })
-                    .into()
+                    .into();
+                    structs.push(s.clone());
+                    s
                 }
+                .into(),
                 Some(gs) => gs.clone(),
             };
 
-            (
-                Some(QueryValue::new("", None, Some(gs), is_batch)),
-                new_struct,
-            )
+            Some(QueryValue::new("", None, Some(gs), is_batch))
         } else {
-            (None, false)
+            None
         }
     }
 
