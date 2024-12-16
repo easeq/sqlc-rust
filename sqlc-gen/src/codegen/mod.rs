@@ -20,17 +20,15 @@ mod type_enum;
 mod type_query;
 mod type_struct;
 
-pub(crate) fn list_tokenstream(list: &[String]) -> Vec<TokenStream> {
-    let mut tokenstream_list = vec![];
-    for item in list.iter() {
+pub(crate) fn list_tokenstream<'a>(list: &'a [String]) -> impl Iterator<Item = TokenStream> + 'a {
+    list.iter().map(|item| {
         let mut tokens = TokenStream::new();
         for c in item.chars() {
             tokens.extend(crate::codegen::get_punct_from_char_tokens(c));
         }
-        tokenstream_list.push(tokens);
-    }
 
-    tokenstream_list
+        tokens
+    })
 }
 
 pub fn get_ident(value: &str) -> Ident {
