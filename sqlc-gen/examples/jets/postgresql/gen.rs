@@ -4,7 +4,6 @@ pub(crate) const COUNT_PILOTS: &str = r#"SELECT COUNT(*) FROM pilots"#;
 pub(crate) const DELETE_PILOT: &str = r#"DELETE FROM pilots WHERE id = $1"#;
 pub(crate) const LIST_PILOTS: &str = r#"SELECT id, name FROM pilots LIMIT 5"#;
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct Jet {
     pub id: i32,
     pub pilot_id: i32,
@@ -13,19 +12,16 @@ pub(crate) struct Jet {
     pub color: String,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct Language {
     pub id: i32,
     pub language: String,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct Pilot {
     pub id: i32,
     pub name: String,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct PilotLanguage {
     pub pilot_id: i32,
     pub language_id: i32,

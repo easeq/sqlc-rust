@@ -64,7 +64,6 @@ SET title = $1, tags = $2, isbn = $4
 WHERE book_id = $3
 "#;
 #[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
-#[derive()]
 #[postgres(name = "book_type")]
 pub enum BookType {
     #[postgres(name = "FICTION")]
@@ -73,13 +72,11 @@ pub enum BookType {
     Nonfiction,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct Author {
     pub author_id: i32,
     pub name: String,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct Book {
     pub book_id: i32,
     pub author_id: i32,
@@ -91,7 +88,6 @@ pub(crate) struct Book {
     pub tags: Vec<String>,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct BooksByTagsRow {
     pub book_id: i32,
     pub title: String,
@@ -100,13 +96,11 @@ pub(crate) struct BooksByTagsRow {
     pub tags: Vec<String>,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct BooksByTitleYearParams {
     pub title: String,
     pub year: i32,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct CreateBookParams {
     pub author_id: i32,
     pub isbn: String,
@@ -117,7 +111,6 @@ pub(crate) struct CreateBookParams {
     pub tags: Vec<String>,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct UpdateBookIsbnParams {
     pub title: String,
     pub tags: Vec<String>,
@@ -125,7 +118,6 @@ pub(crate) struct UpdateBookIsbnParams {
     pub isbn: String,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct UpdateBookParams {
     pub title: String,
     pub tags: Vec<String>,

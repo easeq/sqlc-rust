@@ -5,7 +5,6 @@ delete from books
 where book_id = $1
 "#;
 #[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
-#[derive()]
 #[postgres(name = "book_type")]
 pub enum BookType {
     #[postgres(name = "FICTION")]
@@ -14,14 +13,12 @@ pub enum BookType {
     Nonfiction,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct Author {
     pub author_id: i32,
     pub name: String,
     pub biography: Option<serde_json::Value>,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct Book {
     pub book_id: i32,
     pub author_id: i32,

@@ -24,14 +24,12 @@ from authors
 order by name
 "#;
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct Author {
     pub id: i64,
     pub name: String,
     pub bio: Option<String>,
 }
 #[derive(sqlc_core::FromPostgresRow)]
-#[derive()]
 pub(crate) struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,

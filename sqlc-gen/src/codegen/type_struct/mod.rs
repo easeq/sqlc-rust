@@ -157,8 +157,7 @@ impl TypeStruct {
             let attr_tokens = crate::codegen::list_tokenstream(&self.attrs);
 
             quote! {
-                #[derive(sqlc_core::FromPostgresRow)]
-                #[derive(#(#derive_tokens),*)]
+                #[derive(sqlc_core::FromPostgresRow, #(#derive_tokens),*)]
                 #(#attr_tokens)*
                 pub(crate) struct #ident_struct {
                     #(#fields),*

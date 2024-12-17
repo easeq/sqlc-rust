@@ -134,8 +134,7 @@ impl TypeEnum {
         let attr_tokens = crate::codegen::list_tokenstream(&self.attrs);
 
         quote! {
-            #[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
-            #[derive(#(#derive_tokens),*)]
+            #[derive(postgres_derive::ToSql, postgres_derive::FromSql, #(#derive_tokens),*)]
             #(#attr_tokens)*
             // #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
             // #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
