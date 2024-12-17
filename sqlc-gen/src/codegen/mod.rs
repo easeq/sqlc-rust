@@ -42,25 +42,21 @@ fn build_query(
     structs: &mut Vec<TypeStruct>,
     options: &Options,
 ) -> TypeQuery {
-    // Query parameter limit, get it from the options
     let query_cmd = QueryCommand::from_str(&query.cmd).expect("invalid query annotation");
     let is_batch = query_cmd.is_batch();
+
+    // Query parameter limit, get it from the options
     let qpl = 3;
     let arg = QueryValue::from_query_params(
         &query.params,
         schemas,
         default_schema,
+        structs,
         &query.name,
         qpl,
         is_batch,
         options,
     );
-
-    if let Some(ref query_arg) = arg {
-        if let Some(ref type_struct) = query_arg.type_struct {
-            structs.push(type_struct.clone());
-        }
-    }
 
     let ret = QueryValue::from_query_columns(
         &query.columns,

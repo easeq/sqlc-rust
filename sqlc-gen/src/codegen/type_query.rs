@@ -98,6 +98,7 @@ impl QueryValue {
         params: &[crate::plugin::Parameter],
         schemas: &[crate::plugin::Schema],
         default_schema: &str,
+        structs: &mut Vec<TypeStruct>,
         query_name: &str,
         qpl: usize,
         is_batch: bool,
@@ -121,6 +122,9 @@ impl QueryValue {
                 options,
             })
             .into();
+
+            structs.push(type_struct.clone());
+
             Some(Self::new("arg", None, Some(type_struct), is_batch))
         } else {
             None
