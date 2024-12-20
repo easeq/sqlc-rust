@@ -6,7 +6,7 @@ plugins:
       - RUST_LOG
     wasm:
       url: file://./../../target/wasm32-wasip1/release/sqlc-gen.wasm
-      sha256: 2fa592006e7c94f5617b7e77c6f696432273c22480ff3455f260b5c02096ee27
+      sha256: e8f095f56c5fd9791518dbf2163e164e5e7bed456cf5da72d7fbb306291342d4
 # - name: js
 #   process:
 #     cmd: sqlc-gen-json
@@ -22,6 +22,8 @@ sql:
           use_deadpool: false
           rules:
             - type: '*'
+              # exclude: 
+              #   - TypeGenre
               derive:
                 # - postgres_derive::ToSql
                 # - postgres_derive::FromSql
@@ -30,44 +32,48 @@ sql:
                 - Clone
                 - Debug
                 - PartialEq
-                # - type: enums
-                #   derive:
-                #     - Eq
-                #   container:
-                #     - '#[serde(rename_all = "SCREAMING_SNAKE_CASE")]'
-                #     # variants:
-                #     #   - "I"
-                # - type: TypeGenre
-                #   derive:
-                #     - Hash
-                #   # container:
-                #   #   - ""
-                #   variants:
-                #     # "*":
-                #     #   - "something for all variants"
-                #     - name: history
-                #       attributes:
-                #         - '#[serde(rename = "HISTORY_NEW")]'
-                # - type: structs
-                #   # derive:
-                #   #   - Eq
-                #   # container: 
-                #   #   - "something"
-                #   fields:
-                #     - name: name
-                #       attributes:
-                #         - '#[serde(skip)]'
-                # - type: Author
-                #   derive:
-                #     - Hash
-                #   # container: 
-                #   #   - "#[serde(default)]"
-                #   fields:
-                #     - name: '*'
-                #       attributes:
-                #         - '#[serde(default)]'
-                #     - name: id
-                #       attributes:
-                #         - '#[serde(skip)]'
+            # - type: enums
+            #   # exclude: 
+            #   #   - TypeGenre
+            #   derive:
+            #     - Eq
+            #   container:
+            #     - '#[serde(rename_all = "SCREAMING_SNAKE_CASE")]'
+            #     # variants:
+            #     #   - "I"
+            # - type: TypeGenre
+            #   derive:
+            #     - Hash
+            #   # container:
+            #   #   - ""
+            #   variants:
+            #     # "*":
+            #     #   - "something for all variants"
+            #     - name: history
+            #       attributes:
+            #         - '#[serde(rename = "HISTORY_NEW")]'
+            # - type: structs
+            #   # exclude: 
+            #   #   - Author
+            #   # derive:
+            #   #   - Eq
+            #   # container: 
+            #   #   - "something"
+            #   fields:
+            #     - name: name
+            #       attributes:
+            #         - '#[serde(skip)]'
+            # - type: Author
+            #   derive:
+            #     - Hash
+            #   # container: 
+            #   #   - "#[serde(default)]"
+            #   fields:
+            #     - name: '*'
+            #       attributes:
+            #         - '#[serde(default)]'
+            #     - name: id
+            #       attributes:
+            #         - '#[serde(skip)]'
 # - out: gen
 #   plugin: js

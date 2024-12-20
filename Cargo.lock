@@ -2346,7 +2346,7 @@ dependencies = [
 
 [[package]]
 name = "sqlc-core"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "async-trait",
  "bit-vec",
@@ -2375,7 +2375,7 @@ dependencies = [
 
 [[package]]
 name = "sqlc-derive"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "postgres-types",
  "proc-macro2",

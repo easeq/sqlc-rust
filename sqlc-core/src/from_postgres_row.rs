@@ -15,7 +15,7 @@ macro_rules! from_primitive {
     ($t:ty) => {
         impl FromPostgresRow for $t {
             fn from_row(row: &Row) -> crate::Result<Self> {
-                Ok(row.try_get::<&str, $t>("0")?)
+                Ok(row.try_get(0)?)
             }
         }
     };

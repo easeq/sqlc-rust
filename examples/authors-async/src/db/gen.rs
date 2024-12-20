@@ -47,8 +47,15 @@ order by name
 limit $2::bigint
 offset $1::bigint
 "#;
-#[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
+#[derive(
+    postgres_derive::ToSql,
+    postgres_derive::FromSql,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Debug,
+    Clone
+)]
 #[postgres(name = "type_genre")]
 pub enum TypeGenre {
     #[postgres(name = "history")]
@@ -60,8 +67,14 @@ pub enum TypeGenre {
     #[postgres(name = "ADVENTURE")]
     Adventure,
 }
-#[derive(sqlc_core::FromPostgresRow)]
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
+#[derive(
+    sqlc_core::FromPostgresRow,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Debug,
+    Clone
+)]
 pub(crate) struct Author {
     pub id: i64,
     pub uuid: Option<uuid::Uuid>,
@@ -81,8 +94,14 @@ pub(crate) struct Author {
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
 }
-#[derive(sqlc_core::FromPostgresRow)]
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
+#[derive(
+    sqlc_core::FromPostgresRow,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Debug,
+    Clone
+)]
 pub(crate) struct CreateAuthorFullParams {
     pub name: String,
     pub bio: Option<String>,
@@ -100,14 +119,26 @@ pub(crate) struct CreateAuthorFullParams {
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
 }
-#[derive(sqlc_core::FromPostgresRow)]
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
+#[derive(
+    sqlc_core::FromPostgresRow,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Debug,
+    Clone
+)]
 pub(crate) struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,
 }
-#[derive(sqlc_core::FromPostgresRow)]
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
+#[derive(
+    sqlc_core::FromPostgresRow,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Debug,
+    Clone
+)]
 pub(crate) struct ListAuthorsParams {
     pub offset: i64,
     pub limit: i64,
