@@ -84,7 +84,7 @@ pub(crate) struct Book {
     pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams, PartialEq)]
 #[cfg_attr(
     feature = "serde_support",
     derive(serde::Serialize, serde::Deserialize)
@@ -99,7 +99,7 @@ pub(crate) struct CreateBookParams {
     pub tags: Vec<String>,
 }
 
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams, PartialEq)]
 #[cfg_attr(
     feature = "serde_support",
     derive(serde::Serialize, serde::Deserialize)
@@ -133,24 +133,12 @@ pub(crate) async fn create_book<'a, T: sqlc_core::DBTX>(
 ) -> sqlc_core::Result<
     impl futures::Stream<Item = impl futures::Future<Output = sqlc_core::Result<Book>> + 'a> + 'a,
 > {
+    use sqlc_core::AsPostgresParams;
     let stmt = client.prepare(CREATE_BOOK).await?;
     Ok(futures::stream::iter(arg_list.iter().map(move |arg| {
         let stmt = stmt.clone();
         Box::pin(async move {
-            let row = client
-                .query_one(
-                    &stmt,
-                    &[
-                        &arg.author_id,
-                        &arg.isbn,
-                        &arg.book_type,
-                        &arg.title,
-                        &arg.year,
-                        &arg.available,
-                        &arg.tags,
-                    ],
-                )
-                .await?;
+            let row = client.query_one(&stmt, &arg.as_params()).await?;
             let result: Book = sqlc_core::FromPostgresRow::from_row(&row)?;
             Ok::<Book, sqlc_core::Error>(result)
         })
@@ -168,15 +156,14 @@ where
     I: IntoIterator + 'a,
     I::Item: std::borrow::Borrow<UpdateBookParams> + 'a,
 {
+    use sqlc_core::AsPostgresParams;
     use std::borrow::Borrow;
     let stmt = client.prepare(UPDATE_BOOK).await?;
     let fut = move |item: <I as IntoIterator>::Item| {
         let stmt = stmt.clone();
         Box::pin(async move {
             let arg = item.borrow();
-            client
-                .execute(&stmt, &[&arg.title, &arg.tags, &arg.book_id])
-                .await?;
+            client.execute(&stmt, &arg.as_params()).await?;
             Ok(())
         })
     };
