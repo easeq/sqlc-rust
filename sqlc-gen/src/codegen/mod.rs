@@ -183,7 +183,6 @@ impl ToTokens for CodePartials {
 
         tokens.extend(quote! {
             #generated_comment
-            use sqlc_core::AsPostgresParams;
             #(#constants)*
             #(#enums)*
             #(#structs)*

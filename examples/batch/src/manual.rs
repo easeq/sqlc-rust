@@ -1,6 +1,7 @@
 use futures::StreamExt;
 use futures::TryStreamExt;
 use itertools::Itertools;
+use sqlc_core::AsPostgresParams;
 use std::ops::{Deref, DerefMut};
 
 pub(crate) const ALL_BOOKS: &str = r#"
@@ -113,30 +114,38 @@ pub(crate) struct UpdateBookParams {
 pub(crate) async fn all_books(
     client: &impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Book>>> {
-    Ok(client.query(ALL_BOOKS, &[]).await?)
+    Ok(client.query(ALL_BOOKS, ()).await?)
 }
 pub(crate) async fn create_author(
     client: &impl sqlc_core::DBTX,
-    name: &str,
+    name: String,
 ) -> sqlc_core::Result<Author> {
-    client.query_one(CREATE_AUTHOR, &[&name]).await
+    client.query_one(CREATE_AUTHOR, name).await
 }
 
-pub(crate) async fn create_book<'a, T: sqlc_core::DBTX>(
-    client: &'a T,
-    arg_list: &'a [CreateBookParams],
+pub(crate) async fn create_book<'a, C, I>(
+    client: &'a C,
+    arg_list: I,
 ) -> sqlc_core::Result<
     impl futures::Stream<Item = impl futures::Future<Output = sqlc_core::Result<Book>> + 'a> + 'a,
-> {
+>
+where
+    C: sqlc_core::DBTX,
+    I: IntoIterator + 'a,
+    I::Item: std::borrow::Borrow<CreateBookParams> + 'a,
+{
     use sqlc_core::AsPostgresParams;
+    use std::borrow::Borrow;
     let stmt = client.prepare(CREATE_BOOK).await?;
-    Ok(futures::stream::iter(arg_list.iter().map(move |arg| {
+    let fut = move |item: <I as IntoIterator>::Item| {
         let stmt = stmt.clone();
         Box::pin(async move {
-            let result: Book = client.query_one(&stmt, &arg.as_params()).await?;
+            let arg = item.borrow();
+            let result: Book = client.query_one(&stmt, arg).await?;
             Ok::<Book, sqlc_core::Error>(result)
         })
-    })))
+    };
+    Ok(futures::stream::iter(arg_list.into_iter().map(fut)))
 }
 
 pub(crate) async fn update_book<'a, C, I>(
@@ -157,7 +166,7 @@ where
         let stmt = stmt.clone();
         Box::pin(async move {
             let arg = item.borrow();
-            client.execute(&stmt, &arg.as_params()).await?;
+            client.execute(&stmt, arg).await?;
             Ok(())
         })
     };
@@ -177,7 +186,7 @@ pub(crate) async fn books_by_year<'a, C, I>(
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + 'a,
-    I::Item: std::borrow::Borrow<i32> + 'a,
+    I::Item: std::borrow::Borrow<i32> + sqlc_core::AsPostgresParams + 'a,
 {
     let stmt = client.prepare(BOOKS_BY_YEAR).await?;
     let fut = move |item: <I as IntoIterator>::Item| {
@@ -185,7 +194,7 @@ where
         Box::pin(async move {
             use std::borrow::Borrow;
             let year = item.borrow();
-            let result = client.query(&stmt, &[&year]).await?;
+            let result = client.query(&stmt, year).await?;
             Ok(Box::pin(futures::stream::iter(result)))
         })
     };
@@ -196,7 +205,9 @@ pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
     let db_client = pool.get().await.expect("failed to get client from pool");
     let client = db_client.deref().deref();
 
-    let a = create_author(client, "Unknown Master").await.unwrap();
+    let a = create_author(client, "Unknown Master".to_string())
+        .await
+        .unwrap();
     println!("author: {:#?}", a);
 
     let new_book_params = vec![

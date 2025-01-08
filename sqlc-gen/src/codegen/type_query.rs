@@ -196,12 +196,12 @@ impl QueryValue {
         let fields_list;
         if self.typ.is_some() {
             let ident_name = get_ident(&self.name);
-            fields_list = quote! { &[&#ident_name] };
+            fields_list = quote! { #ident_name };
         } else if let Some(_) = self.type_struct {
             let ident_name = get_ident(&self.name);
-            fields_list = quote! { &#ident_name.as_params() }
+            fields_list = quote! { #ident_name }
         } else {
-            fields_list = quote! { &[] }
+            fields_list = quote! { () }
         }
 
         fields_list

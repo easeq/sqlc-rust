@@ -8,10 +8,12 @@ compile_error!(
 #[cfg(all(not(feature = "with-postgres"), not(feature = "with-tokio-postgres")))]
 compile_error!("one of with-postgres and with-tokio-postgres features needs to be enabled");
 
+mod as_postgres_params;
 mod dbtx;
 mod error;
 mod from_postgres_row;
 
+pub use as_postgres_params::*;
 pub use error::*;
 pub use from_postgres_row::*;
 pub use sqlc_derive::AsPostgresParams;
@@ -25,8 +27,4 @@ cfg_block! {
     #[cfg(feature = "with-tokio-postgres")] {
         pub use dbtx::tokio_pg::*;
     }
-}
-
-pub trait AsPostgresParams {
-    fn as_params(&self) -> Vec<&(dyn postgres_types::ToSql + Sync)>;
 }

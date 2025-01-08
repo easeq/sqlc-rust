@@ -1,25 +1,27 @@
-use crate::{FromPostgresRow, Result};
+use crate::{AsPostgresParams, FromPostgresRow, Result};
 use async_trait::async_trait;
-use tokio_postgres::types::ToSql;
 use tokio_postgres::{Client, Statement, ToStatement, Transaction};
 
 #[async_trait]
 pub trait DBTX: Send + Sync {
     async fn prepare(&self, query: &str) -> Result<Statement>;
-    async fn execute<T>(&self, statement: &T, params: &[&(dyn ToSql + Sync)]) -> Result<u64>
-    where
-        T: ?Sized + ToStatement + Sync + Send;
-    async fn query_one<T, R>(&self, statement: &T, params: &[&(dyn ToSql + Sync)]) -> Result<R>
+    async fn execute<T, P>(&self, statement: &T, params: P) -> Result<u64>
     where
         T: ?Sized + ToStatement + Sync + Send,
+        P: AsPostgresParams + Send + Sync;
+    async fn query_one<T, P, R>(&self, statement: &T, params: P) -> Result<R>
+    where
+        T: ?Sized + ToStatement + Sync + Send,
+        P: AsPostgresParams + Send + Sync,
         R: FromPostgresRow;
-    async fn query<T, R>(
+    async fn query<T, P, R>(
         &self,
         statement: &T,
-        params: &[&(dyn ToSql + Sync)],
+        params: P,
     ) -> Result<Box<dyn std::iter::Iterator<Item = crate::Result<R>>>>
     where
         T: ?Sized + ToStatement + Sync + Send,
+        P: AsPostgresParams + Send + Sync,
         R: FromPostgresRow;
 }
 
@@ -29,32 +31,35 @@ impl DBTX for Transaction<'_> {
         Ok(Transaction::prepare(self, query).await?)
     }
 
-    async fn execute<T>(&self, statement: &T, params: &[&(dyn ToSql + Sync)]) -> Result<u64>
+    async fn execute<T, P>(&self, statement: &T, params: P) -> Result<u64>
     where
         T: ?Sized + ToStatement + Sync + Send,
+        P: AsPostgresParams + Send + Sync,
     {
-        Ok(Transaction::execute(self, statement, params).await?)
+        Ok(Transaction::execute(self, statement, &params.as_params()).await?)
     }
 
-    async fn query_one<T, R>(&self, statement: &T, params: &[&(dyn ToSql + Sync)]) -> Result<R>
+    async fn query_one<T, P, R>(&self, statement: &T, params: P) -> Result<R>
     where
         T: ?Sized + ToStatement + Sync + Send,
+        P: AsPostgresParams + Send + Sync,
         R: FromPostgresRow,
     {
-        let row = Transaction::query_one(self, statement, params).await?;
+        let row = Transaction::query_one(self, statement, &params.as_params()).await?;
         Ok(FromPostgresRow::from_row(&row)?)
     }
 
-    async fn query<T, R>(
+    async fn query<T, P, R>(
         &self,
         statement: &T,
-        params: &[&(dyn ToSql + Sync)],
+        params: P,
     ) -> Result<Box<dyn std::iter::Iterator<Item = crate::Result<R>>>>
     where
         T: ?Sized + ToStatement + Sync + Send,
+        P: AsPostgresParams + Send + Sync,
         R: FromPostgresRow,
     {
-        let rows = Transaction::query(self, statement, params).await?;
+        let rows = Transaction::query(self, statement, &params.as_params()).await?;
         let iter = rows
             .into_iter()
             .map(|row| Ok(FromPostgresRow::from_row(&row)?));
@@ -68,32 +73,35 @@ impl DBTX for Client {
         Ok(Client::prepare(self, query).await?)
     }
 
-    async fn execute<T>(&self, statement: &T, params: &[&(dyn ToSql + Sync)]) -> Result<u64>
+    async fn execute<T, P>(&self, statement: &T, params: P) -> Result<u64>
     where
         T: ?Sized + ToStatement + Sync + Send,
+        P: AsPostgresParams + Send + Sync,
     {
-        Ok(Client::execute(self, statement, params).await?)
+        Ok(Client::execute(self, statement, &params.as_params()).await?)
     }
 
-    async fn query_one<T, R>(&self, statement: &T, params: &[&(dyn ToSql + Sync)]) -> Result<R>
+    async fn query_one<T, P, R>(&self, statement: &T, params: P) -> Result<R>
     where
         T: ?Sized + ToStatement + Sync + Send,
+        P: AsPostgresParams + Send + Sync,
         R: FromPostgresRow,
     {
-        let row = Client::query_one(self, statement, params).await?;
+        let row = Client::query_one(self, statement, &params.as_params()).await?;
         Ok(FromPostgresRow::from_row(&row)?)
     }
 
-    async fn query<T, R>(
+    async fn query<T, P, R>(
         &self,
         statement: &T,
-        params: &[&(dyn ToSql + Sync)],
+        params: P,
     ) -> Result<Box<dyn std::iter::Iterator<Item = crate::Result<R>>>>
     where
         T: ?Sized + ToStatement + Sync + Send,
+        P: AsPostgresParams + Send + Sync,
         R: FromPostgresRow,
     {
-        let rows = Client::query(self, statement, params).await?;
+        let rows = Client::query(self, statement, &params.as_params()).await?;
         let iter = rows
             .into_iter()
             .map(|row| Ok(FromPostgresRow::from_row(&row)?));
