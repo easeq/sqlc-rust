@@ -49,3 +49,27 @@ pub fn from_postgres_row(input: TokenStream) -> TokenStream {
 
     TokenStream::from(expanded)
 }
+
+#[proc_macro_derive(AsPostgresParams)]
+pub fn as_postgres_params(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let DeriveInput { ident, data, .. } = input;
+
+    let fields = match data {
+        syn::Data::Struct(data_struct) => data_struct.fields.into_iter().map(|field| {
+            let ident_field_name = field.ident.clone().unwrap();
+            quote! {&self.#ident_field_name}
+        }),
+        _ => unimplemented!(),
+    };
+
+    let expanded = quote! {
+        impl ::sqlc_core::AsPostgresParams for #ident {
+            fn as_params(&self) -> Vec<&(dyn postgres_types::ToSql + Sync)> {
+                vec![#(#fields),*]
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}

@@ -153,14 +153,14 @@ pub(crate) async fn create_author(
     arg: CreateAuthorParams,
 ) -> sqlc_core::Result<Author> {
     let row = client.query_one(CREATE_AUTHOR, &arg.as_params()).await?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    Ok(row)
 }
 pub(crate) async fn create_author_full(
     client: &impl sqlc_core::DBTX,
     arg: CreateAuthorFullParams,
 ) -> sqlc_core::Result<Author> {
     let row = client.query_one(CREATE_AUTHOR_FULL, &arg.as_params()).await?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    Ok(row)
 }
 pub(crate) async fn delete_author(
     client: &impl sqlc_core::DBTX,
@@ -174,15 +174,12 @@ pub(crate) async fn get_author(
     id: i64,
 ) -> sqlc_core::Result<Author> {
     let row = client.query_one(GET_AUTHOR, &[&id]).await?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    Ok(row)
 }
 pub(crate) async fn list_authors(
     client: &impl sqlc_core::DBTX,
     arg: ListAuthorsParams,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Author>>> {
-    let rows = client.query(LIST_AUTHORS, &arg.as_params()).await?;
-    let iter = rows
-        .into_iter()
-        .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+    let iter = client.query(LIST_AUTHORS, &arg.as_params()).await?;
     Ok(iter)
 }

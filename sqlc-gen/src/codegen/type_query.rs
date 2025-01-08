@@ -193,23 +193,21 @@ impl QueryValue {
     }
 
     fn generate_fields_list(&self) -> TokenStream {
-        let mut fields_list = quote! {};
+        let fields_list;
         if self.typ.is_some() {
             let ident_name = get_ident(&self.name);
-            fields_list = quote! { &#ident_name };
-        } else if let Some(ref type_struct) = self.type_struct {
+            fields_list = quote! { &[&#ident_name] };
+        } else if let Some(_) = self.type_struct {
             let ident_name = get_ident(&self.name);
-            fields_list = type_struct.to_pg_query_slice(&ident_name);
+            fields_list = quote! { &#ident_name.as_params() }
         } else {
-            // add panic if necessary
-            // panic!("QueryValue neither has `typ` specified nor `type_struct`");
+            fields_list = quote! { &[] }
         }
 
         fields_list
     }
 
     fn to_named_fn_arg_ref(&self) -> TokenStream {
-        // let ident_type = self.get_type_tokens();
         let ident_name = get_ident(format!("{}_list", self.name).as_str());
         quote! {
             #ident_name: I
@@ -318,10 +316,10 @@ impl TypeQuery {
         let sig_fn_input = self.to_fn_input_signature();
         let sig = quote! { #sig_fn_input -> sqlc_core::Result<#ret> };
         let fetch_stmt = quote! {
-            let row = #client.query_one(#ident_const_name, &[#fields_list])
+            let row = #client.query_one(#ident_const_name, #fields_list)
         };
         let fn_body = quote! {
-            Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+            Ok(row)
         };
 
         QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
@@ -342,13 +340,9 @@ impl TypeQuery {
             >
         };
         let fetch_stmt = quote! {
-            let rows = #client.query(#ident_const_name, &[#fields_list])
+            let iter = #client.query(#ident_const_name, #fields_list)
         };
         let fn_body = quote! {
-            let iter = rows
-                .into_iter()
-                .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
-
             Ok(iter)
         };
 
@@ -364,7 +358,7 @@ impl TypeQuery {
         let sig_fn_input = self.to_fn_input_signature();
         let sig = quote! { #sig_fn_input -> sqlc_core::Result<()> };
         let fetch_stmt = quote! {
-            #client.execute(#ident_const_name, &[#fields_list])
+            #client.execute(#ident_const_name, #fields_list)
         };
         let fn_body = quote! {
             Ok(())
@@ -383,9 +377,7 @@ impl TypeQuery {
             } else {
                 quote! {
                     impl futures::Stream<
-                        Item = sqlc_core::Result<
-                            sqlc_core::Result<#ret>,
-                        >,
+                        Item = sqlc_core::Result<#ret>,
                     >
                 }
             }
@@ -422,26 +414,23 @@ impl TypeQuery {
         let fn_res = match command {
             QueryCommand::BatchExec => {
                 quote! {
-                    client.execute(&stmt, &[#fields_list]).await?;
+                    client.execute(&stmt, #fields_list).await?;
                     Ok(())
                 }
             }
             QueryCommand::BatchOne => {
                 quote! {
-                    let row = client
+                    client
                         .query_one(
                             &stmt,
-                            &[#fields_list],
+                            #fields_list,
                         )
-                        .await?;
-                    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+                        .await
                 }
             }
             QueryCommand::BatchMany => {
                 quote! {
-                    let rows = client.query(&stmt, &[#fields_list]).await?;
-                    let result = rows.into_iter().map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)));
-
+                    let result = client.query(&stmt, #fields_list).await?;
                     Ok(Box::pin(futures::stream::iter(result)))
                 }
             }

@@ -90,11 +90,6 @@ impl StructField {
 
         tokens
     }
-
-    pub(crate) fn to_pg_query_slice_item(&self, var_name: &syn::Ident) -> TokenStream {
-        let ident_field_name = get_ident(&self.name());
-        quote! { &#var_name.#ident_field_name }
-    }
 }
 
 impl ToTokens for StructField {

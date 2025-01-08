@@ -14,6 +14,7 @@ mod from_postgres_row;
 
 pub use error::*;
 pub use from_postgres_row::*;
+pub use sqlc_derive::AsPostgresParams;
 pub use sqlc_derive::FromPostgresRow;
 
 cfg_block! {
@@ -24,4 +25,8 @@ cfg_block! {
     #[cfg(feature = "with-tokio-postgres")] {
         pub use dbtx::tokio_pg::*;
     }
+}
+
+pub trait AsPostgresParams {
+    fn as_params(&self) -> Vec<&(dyn postgres_types::ToSql + Sync)>;
 }

@@ -98,7 +98,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
                     let db_client = pool.get().await.expect("failed to get client from pool");
                     let client = db_client.deref().deref();
 
-                    let book = book?.unwrap();
+                    let book = book?;
                     println!(
                         "Book {book_id} ({book_type:?}): {book_title} available: {book_available}",
                         book_id = book.book_id,

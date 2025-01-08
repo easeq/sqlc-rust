@@ -133,10 +133,7 @@ pub(crate) struct UpdateBookParams {
 pub(crate) async fn all_books(
     client: &impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Book>>> {
-    let rows = client.query(ALL_BOOKS, &[]).await?;
-    let iter = rows
-        .into_iter()
-        .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+    let iter = client.query(ALL_BOOKS, &[]).await?;
     Ok(iter)
 }
 pub(crate) async fn books_by_year<'a, C, I>(
@@ -146,7 +143,7 @@ pub(crate) async fn books_by_year<'a, C, I>(
     impl futures::Stream<
         Item = impl futures::Future<
             Output = sqlc_core::Result<
-                impl futures::Stream<Item = sqlc_core::Result<sqlc_core::Result<Book>>>,
+                impl futures::Stream<Item = sqlc_core::Result<Book>>,
             >,
         > + 'a,
     > + 'a,
@@ -162,10 +159,7 @@ where
         Box::pin(async move {
             use std::borrow::Borrow;
             let year = item.borrow();
-            let rows = client.query(&stmt, &[&year]).await?;
-            let result = rows
-                .into_iter()
-                .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)));
+            let result = client.query(&stmt, &[&year]).await?;
             Ok(Box::pin(futures::stream::iter(result)))
         })
     };
@@ -176,7 +170,7 @@ pub(crate) async fn create_author(
     name: String,
 ) -> sqlc_core::Result<Author> {
     let row = client.query_one(CREATE_AUTHOR, &[&name]).await?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    Ok(row)
 }
 pub(crate) async fn create_book<'a, C, I>(
     client: &'a C,
@@ -197,8 +191,7 @@ where
         Box::pin(async move {
             use std::borrow::Borrow;
             let arg = item.borrow();
-            let row = client.query_one(&stmt, &arg.as_params()).await?;
-            Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+            client.query_one(&stmt, &arg.as_params()).await
         })
     };
     Ok(futures::stream::iter(arg_list.into_iter().map(fut)))
@@ -290,7 +283,7 @@ pub(crate) async fn get_author(
     author_id: i32,
 ) -> sqlc_core::Result<Author> {
     let row = client.query_one(GET_AUTHOR, &[&author_id]).await?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    Ok(row)
 }
 pub(crate) async fn get_biography<'a, C, I>(
     client: &'a C,
@@ -311,8 +304,7 @@ where
         Box::pin(async move {
             use std::borrow::Borrow;
             let author_id = item.borrow();
-            let row = client.query_one(&stmt, &[&author_id]).await?;
-            Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+            client.query_one(&stmt, &[&author_id]).await
         })
     };
     Ok(futures::stream::iter(author_id_list.into_iter().map(fut)))

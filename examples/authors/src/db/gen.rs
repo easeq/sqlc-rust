@@ -124,14 +124,14 @@ pub(crate) fn create_author(
     arg: CreateAuthorParams,
 ) -> sqlc_core::Result<Author> {
     let row = client.query_one(CREATE_AUTHOR, &arg.as_params())?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    Ok(row)
 }
 pub(crate) fn create_author_full(
     client: &mut impl sqlc_core::DBTX,
     arg: CreateAuthorFullParams,
 ) -> sqlc_core::Result<Author> {
     let row = client.query_one(CREATE_AUTHOR_FULL, &arg.as_params())?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    Ok(row)
 }
 pub(crate) fn delete_author(
     client: &mut impl sqlc_core::DBTX,
@@ -145,14 +145,11 @@ pub(crate) fn get_author(
     id: i64,
 ) -> sqlc_core::Result<Author> {
     let row = client.query_one(GET_AUTHOR, &[&id])?;
-    Ok(sqlc_core::FromPostgresRow::from_row(&row)?)
+    Ok(row)
 }
 pub(crate) fn list_authors(
     client: &mut impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Author>>> {
-    let rows = client.query(LIST_AUTHORS, &[])?;
-    let iter = rows
-        .into_iter()
-        .map(|row| Ok(sqlc_core::FromPostgresRow::from_row(&row)?));
+    let iter = client.query(LIST_AUTHORS, &[])?;
     Ok(iter)
 }

@@ -138,15 +138,6 @@ impl TypeStruct {
         DataType(self.name.clone())
     }
 
-    pub(crate) fn to_pg_query_slice(&self, var_name: &syn::Ident) -> TokenStream {
-        let fields = self
-            .fields
-            .iter()
-            .map(|field| field.to_pg_query_slice_item(&var_name))
-            .collect::<Vec<_>>();
-        quote! { #(#fields),* }
-    }
-
     fn generate_code(&self) -> TokenStream {
         if self.fields.len() == 0 {
             quote! {}
@@ -157,7 +148,11 @@ impl TypeStruct {
             let attr_tokens = crate::codegen::list_tokenstream(&self.attrs);
 
             quote! {
-                #[derive(sqlc_core::FromPostgresRow, #(#derive_tokens),*)]
+                #[derive(
+                    sqlc_core::FromPostgresRow,
+                    sqlc_core::AsPostgresParams,
+                    #(#derive_tokens),*)
+                ]
                 #(#attr_tokens)*
                 pub(crate) struct #ident_struct {
                     #(#fields),*
