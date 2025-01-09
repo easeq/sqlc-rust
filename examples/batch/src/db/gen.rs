@@ -138,20 +138,14 @@ pub(crate) async fn books_by_year<'a, C, I>(
     client: &'a C,
     year_list: I,
 ) -> sqlc_core::Result<
-    impl futures::Stream<
-        Item = impl futures::Future<
-            Output = sqlc_core::Result<
-                impl futures::Stream<Item = sqlc_core::Result<Book>>,
-            >,
-        > + 'a,
-    > + 'a,
+    sqlc_core::BatchStream<sqlc_core::BoxStream<sqlc_core::Result<Book>>>,
 >
 where
     C: sqlc_core::DBTX,
-    I: IntoIterator + 'a,
+    I: IntoIterator + Send + 'a,
     I::Item: std::borrow::Borrow<i32> + 'a,
 {
-    sqlc_core::batch_many(client, BOOKS_BY_YEAR, year_list).await
+    client.batch_many(BOOKS_BY_YEAR, year_list).await
 }
 pub(crate) async fn create_author(
     client: &impl sqlc_core::DBTX,
@@ -162,32 +156,24 @@ pub(crate) async fn create_author(
 pub(crate) async fn create_book<'a, C, I>(
     client: &'a C,
     arg_list: I,
-) -> sqlc_core::Result<
-    impl futures::Stream<
-        Item = impl futures::Future<Output = sqlc_core::Result<Book>> + 'a,
-    > + 'a,
->
+) -> sqlc_core::Result<sqlc_core::BatchStream<Book>>
 where
     C: sqlc_core::DBTX,
-    I: IntoIterator + 'a,
+    I: IntoIterator + Send + 'a,
     I::Item: std::borrow::Borrow<CreateBookParams> + 'a,
 {
-    sqlc_core::batch_one(client, CREATE_BOOK, arg_list).await
+    client.batch_one(CREATE_BOOK, arg_list).await
 }
 pub(crate) async fn delete_book<'a, C, I>(
     client: &'a C,
     book_id_list: I,
-) -> sqlc_core::Result<
-    impl futures::Stream<
-        Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
-    > + 'a,
->
+) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
 where
     C: sqlc_core::DBTX,
-    I: IntoIterator + 'a,
+    I: IntoIterator + Send + 'a,
     I::Item: std::borrow::Borrow<i32> + 'a,
 {
-    sqlc_core::batch_execute(client, DELETE_BOOK, book_id_list).await
+    client.batch_execute(DELETE_BOOK, book_id_list).await
 }
 pub(crate) async fn delete_book_exec_result(
     client: &impl sqlc_core::DBTX,
@@ -198,32 +184,24 @@ pub(crate) async fn delete_book_exec_result(
 pub(crate) async fn delete_book_named_func<'a, C, I>(
     client: &'a C,
     book_id_list: I,
-) -> sqlc_core::Result<
-    impl futures::Stream<
-        Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
-    > + 'a,
->
+) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
 where
     C: sqlc_core::DBTX,
-    I: IntoIterator + 'a,
+    I: IntoIterator + Send + 'a,
     I::Item: std::borrow::Borrow<i32> + 'a,
 {
-    sqlc_core::batch_execute(client, DELETE_BOOK_NAMED_FUNC, book_id_list).await
+    client.batch_execute(DELETE_BOOK_NAMED_FUNC, book_id_list).await
 }
 pub(crate) async fn delete_book_named_sign<'a, C, I>(
     client: &'a C,
     book_id_list: I,
-) -> sqlc_core::Result<
-    impl futures::Stream<
-        Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
-    > + 'a,
->
+) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
 where
     C: sqlc_core::DBTX,
-    I: IntoIterator + 'a,
+    I: IntoIterator + Send + 'a,
     I::Item: std::borrow::Borrow<i32> + 'a,
 {
-    sqlc_core::batch_execute(client, DELETE_BOOK_NAMED_SIGN, book_id_list).await
+    client.batch_execute(DELETE_BOOK_NAMED_SIGN, book_id_list).await
 }
 pub(crate) async fn get_author(
     client: &impl sqlc_core::DBTX,
@@ -234,30 +212,22 @@ pub(crate) async fn get_author(
 pub(crate) async fn get_biography<'a, C, I>(
     client: &'a C,
     author_id_list: I,
-) -> sqlc_core::Result<
-    impl futures::Stream<
-        Item = impl futures::Future<Output = sqlc_core::Result<serde_json::Value>> + 'a,
-    > + 'a,
->
+) -> sqlc_core::Result<sqlc_core::BatchStream<serde_json::Value>>
 where
     C: sqlc_core::DBTX,
-    I: IntoIterator + 'a,
+    I: IntoIterator + Send + 'a,
     I::Item: std::borrow::Borrow<i32> + 'a,
 {
-    sqlc_core::batch_one(client, GET_BIOGRAPHY, author_id_list).await
+    client.batch_one(GET_BIOGRAPHY, author_id_list).await
 }
 pub(crate) async fn update_book<'a, C, I>(
     client: &'a C,
     arg_list: I,
-) -> sqlc_core::Result<
-    impl futures::Stream<
-        Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
-    > + 'a,
->
+) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
 where
     C: sqlc_core::DBTX,
-    I: IntoIterator + 'a,
+    I: IntoIterator + Send + 'a,
     I::Item: std::borrow::Borrow<UpdateBookParams> + 'a,
 {
-    sqlc_core::batch_execute(client, UPDATE_BOOK, arg_list).await
+    client.batch_execute(UPDATE_BOOK, arg_list).await
 }

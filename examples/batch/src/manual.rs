@@ -1,7 +1,6 @@
 use futures::StreamExt;
 use futures::TryStreamExt;
 use itertools::Itertools;
-use sqlc_core::AsPostgresParams;
 use std::ops::{Deref, DerefMut};
 
 pub(crate) const ALL_BOOKS: &str = r#"
@@ -44,10 +43,7 @@ WHERE book_id = $3
 "#;
 
 #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
-#[cfg_attr(
-    feature = "serde_support",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[cfg_attr(feature = "serde_support")]
 #[postgres(name = "book_type")]
 pub enum BookType {
     #[postgres(name = "FICTION")]
@@ -126,48 +122,39 @@ pub(crate) async fn create_author(
 pub(crate) async fn create_book<'a, C, I, R>(
     client: &'a C,
     arg_list: I,
-) -> sqlc_core::Result<
-    impl futures::Stream<Item = impl futures::Future<Output = sqlc_core::Result<R>> + 'a> + 'a,
->
+) -> sqlc_core::Result<sqlc_core::BatchStream<R>>
 where
     C: sqlc_core::DBTX,
-    I: IntoIterator + 'a,
+    I: IntoIterator + Send + 'a,
     I::Item: std::borrow::Borrow<CreateBookParams> + 'a,
-    R: sqlc_core::FromPostgresRow,
+    R: sqlc_core::FromPostgresRow + 'a,
 {
-    sqlc_core::batch_one(client, CREATE_BOOK, arg_list).await
+    client.batch_one(CREATE_BOOK, arg_list).await
 }
 
 pub(crate) async fn update_book<'a, C, I>(
     client: &'a C,
     arg_list: I,
-) -> sqlc_core::Result<
-    impl futures::Stream<Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a> + 'a,
->
+) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
 where
     C: sqlc_core::DBTX,
-    I: IntoIterator + 'a,
+    I: IntoIterator + Send + 'a,
     I::Item: std::borrow::Borrow<UpdateBookParams> + 'a,
 {
-    sqlc_core::batch_execute(client, UPDATE_BOOK, arg_list).await
+    client.batch_execute(UPDATE_BOOK, arg_list).await
 }
 
-pub(crate) async fn books_by_year<'a, C, I>(
+pub(crate) async fn books_by_year<'a, C, I, R>(
     client: &'a C,
     year_list: I,
-) -> sqlc_core::Result<
-    impl futures::Stream<
-            Item = impl futures::Future<
-                Output = sqlc_core::Result<impl futures::Stream<Item = sqlc_core::Result<Book>>>,
-            > + 'a,
-        > + 'a,
->
+) -> sqlc_core::Result<sqlc_core::BatchStream<sqlc_core::BoxStream<sqlc_core::Result<R>>>>
 where
     C: sqlc_core::DBTX,
-    I: IntoIterator + 'a,
+    I: IntoIterator + Send + 'a,
     I::Item: std::borrow::Borrow<i32> + sqlc_core::AsPostgresParams + 'a,
+    R: sqlc_core::FromPostgresRow + 'a,
 {
-    sqlc_core::batch_many(client, BOOKS_BY_YEAR, year_list).await
+    client.batch_many(BOOKS_BY_YEAR, year_list).await
 }
 
 pub(crate) async fn execute(pool: deadpool_postgres::Pool) {

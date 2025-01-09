@@ -359,7 +359,6 @@ impl TypeQuery {
     }
 
     fn method_for_batch(&self) -> QueryMethod {
-        let client = quote!(client);
         let command = self.command();
         let fut_ret = if command.has_return_value() {
             let ret = self.ret.as_ref().unwrap();
@@ -367,9 +366,7 @@ impl TypeQuery {
                 quote!(#ret)
             } else {
                 quote! {
-                    impl futures::Stream<
-                        Item = sqlc_core::Result<#ret>,
-                    >
+                    sqlc_core::BoxStream<sqlc_core::Result<#ret>>
                 }
             }
         } else {
@@ -386,37 +383,21 @@ impl TypeQuery {
 
         let sig = quote! {
             fn #ident_name<'a, C, I>(client: &'a C, #arg) -> sqlc_core::Result<
-                impl futures::Stream<
-                        Item = impl futures::Future<
-                            Output = sqlc_core::Result<#fut_ret>
-                        > + 'a,
-                    > + 'a,
+                sqlc_core::BatchStream<#fut_ret>
             >
             where
                 C: sqlc_core::DBTX,
-                I: IntoIterator + 'a,
+                I: IntoIterator + Send + 'a,
                 I::Item: std::borrow::Borrow<#arg_type> + 'a,
         };
         let batch_fn_ident = match command {
-            QueryCommand::BatchExec => {
-                quote! {
-                    batch_execute
-                }
-            }
-            QueryCommand::BatchOne => {
-                quote! {
-                    batch_one
-                }
-            }
-            QueryCommand::BatchMany => {
-                quote! {
-                    batch_many
-                }
-            }
+            QueryCommand::BatchExec => quote!(batch_execute),
+            QueryCommand::BatchOne => quote!(batch_one),
+            QueryCommand::BatchMany => quote!(batch_many),
             _ => unimplemented!(),
         };
         let fn_body = quote! {
-            sqlc_core::#batch_fn_ident(#client, #ident_const_name, #arg_list)
+            client.#batch_fn_ident(#ident_const_name, #arg_list)
         };
         QueryMethod::new(sig, fn_body, self.use_async)
     }

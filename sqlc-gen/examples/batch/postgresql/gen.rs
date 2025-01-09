@@ -32,15 +32,11 @@ pub(crate) struct Book {
 pub(crate) async fn delete_book<'a, C, I>(
     client: &'a C,
     book_id_list: I,
-) -> sqlc_core::Result<
-    impl futures::Stream<
-        Item = impl futures::Future<Output = sqlc_core::Result<()>> + 'a,
-    > + 'a,
->
+) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
 where
     C: sqlc_core::DBTX,
-    I: IntoIterator + 'a,
+    I: IntoIterator + Send + 'a,
     I::Item: std::borrow::Borrow<i32> + 'a,
 {
-    sqlc_core::batch_execute(client, DELETE_BOOK, book_id_list).await
+    client.batch_execute(DELETE_BOOK, book_id_list).await
 }
