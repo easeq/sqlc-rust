@@ -132,8 +132,7 @@ pub(crate) struct UpdateBookParams {
 pub(crate) async fn all_books(
     client: &impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Book>>> {
-    let iter = client.query(ALL_BOOKS, ()).await?;
-    Ok(iter)
+    client.query(ALL_BOOKS, ()).await
 }
 pub(crate) async fn books_by_year<'a, C, I>(
     client: &'a C,
@@ -152,24 +151,13 @@ where
     I: IntoIterator + 'a,
     I::Item: std::borrow::Borrow<i32> + 'a,
 {
-    let stmt = client.prepare(BOOKS_BY_YEAR).await?;
-    let fut = move |item: <I as IntoIterator>::Item| {
-        let stmt = stmt.clone();
-        Box::pin(async move {
-            use std::borrow::Borrow;
-            let year = item.borrow();
-            let result = client.query(&stmt, year).await?;
-            Ok(Box::pin(futures::stream::iter(result)))
-        })
-    };
-    Ok(futures::stream::iter(year_list.into_iter().map(fut)))
+    sqlc_core::batch_many(client, BOOKS_BY_YEAR, year_list).await
 }
 pub(crate) async fn create_author(
     client: &impl sqlc_core::DBTX,
     name: String,
 ) -> sqlc_core::Result<Author> {
-    let row = client.query_one(CREATE_AUTHOR, name).await?;
-    Ok(row)
+    client.query_one(CREATE_AUTHOR, name).await
 }
 pub(crate) async fn create_book<'a, C, I>(
     client: &'a C,
@@ -184,16 +172,7 @@ where
     I: IntoIterator + 'a,
     I::Item: std::borrow::Borrow<CreateBookParams> + 'a,
 {
-    let stmt = client.prepare(CREATE_BOOK).await?;
-    let fut = move |item: <I as IntoIterator>::Item| {
-        let stmt = stmt.clone();
-        Box::pin(async move {
-            use std::borrow::Borrow;
-            let arg = item.borrow();
-            client.query_one(&stmt, arg).await
-        })
-    };
-    Ok(futures::stream::iter(arg_list.into_iter().map(fut)))
+    sqlc_core::batch_one(client, CREATE_BOOK, arg_list).await
 }
 pub(crate) async fn delete_book<'a, C, I>(
     client: &'a C,
@@ -208,24 +187,13 @@ where
     I: IntoIterator + 'a,
     I::Item: std::borrow::Borrow<i32> + 'a,
 {
-    let stmt = client.prepare(DELETE_BOOK).await?;
-    let fut = move |item: <I as IntoIterator>::Item| {
-        let stmt = stmt.clone();
-        Box::pin(async move {
-            use std::borrow::Borrow;
-            let book_id = item.borrow();
-            client.execute(&stmt, book_id).await?;
-            Ok(())
-        })
-    };
-    Ok(futures::stream::iter(book_id_list.into_iter().map(fut)))
+    sqlc_core::batch_execute(client, DELETE_BOOK, book_id_list).await
 }
 pub(crate) async fn delete_book_exec_result(
     client: &impl sqlc_core::DBTX,
     book_id: i32,
-) -> sqlc_core::Result<()> {
-    client.execute(DELETE_BOOK_EXEC_RESULT, book_id).await?;
-    Ok(())
+) -> sqlc_core::Result<u64> {
+    client.execute(DELETE_BOOK_EXEC_RESULT, book_id).await
 }
 pub(crate) async fn delete_book_named_func<'a, C, I>(
     client: &'a C,
@@ -240,17 +208,7 @@ where
     I: IntoIterator + 'a,
     I::Item: std::borrow::Borrow<i32> + 'a,
 {
-    let stmt = client.prepare(DELETE_BOOK_NAMED_FUNC).await?;
-    let fut = move |item: <I as IntoIterator>::Item| {
-        let stmt = stmt.clone();
-        Box::pin(async move {
-            use std::borrow::Borrow;
-            let book_id = item.borrow();
-            client.execute(&stmt, book_id).await?;
-            Ok(())
-        })
-    };
-    Ok(futures::stream::iter(book_id_list.into_iter().map(fut)))
+    sqlc_core::batch_execute(client, DELETE_BOOK_NAMED_FUNC, book_id_list).await
 }
 pub(crate) async fn delete_book_named_sign<'a, C, I>(
     client: &'a C,
@@ -265,24 +223,13 @@ where
     I: IntoIterator + 'a,
     I::Item: std::borrow::Borrow<i32> + 'a,
 {
-    let stmt = client.prepare(DELETE_BOOK_NAMED_SIGN).await?;
-    let fut = move |item: <I as IntoIterator>::Item| {
-        let stmt = stmt.clone();
-        Box::pin(async move {
-            use std::borrow::Borrow;
-            let book_id = item.borrow();
-            client.execute(&stmt, book_id).await?;
-            Ok(())
-        })
-    };
-    Ok(futures::stream::iter(book_id_list.into_iter().map(fut)))
+    sqlc_core::batch_execute(client, DELETE_BOOK_NAMED_SIGN, book_id_list).await
 }
 pub(crate) async fn get_author(
     client: &impl sqlc_core::DBTX,
     author_id: i32,
 ) -> sqlc_core::Result<Author> {
-    let row = client.query_one(GET_AUTHOR, author_id).await?;
-    Ok(row)
+    client.query_one(GET_AUTHOR, author_id).await
 }
 pub(crate) async fn get_biography<'a, C, I>(
     client: &'a C,
@@ -297,16 +244,7 @@ where
     I: IntoIterator + 'a,
     I::Item: std::borrow::Borrow<i32> + 'a,
 {
-    let stmt = client.prepare(GET_BIOGRAPHY).await?;
-    let fut = move |item: <I as IntoIterator>::Item| {
-        let stmt = stmt.clone();
-        Box::pin(async move {
-            use std::borrow::Borrow;
-            let author_id = item.borrow();
-            client.query_one(&stmt, author_id).await
-        })
-    };
-    Ok(futures::stream::iter(author_id_list.into_iter().map(fut)))
+    sqlc_core::batch_one(client, GET_BIOGRAPHY, author_id_list).await
 }
 pub(crate) async fn update_book<'a, C, I>(
     client: &'a C,
@@ -321,15 +259,5 @@ where
     I: IntoIterator + 'a,
     I::Item: std::borrow::Borrow<UpdateBookParams> + 'a,
 {
-    let stmt = client.prepare(UPDATE_BOOK).await?;
-    let fut = move |item: <I as IntoIterator>::Item| {
-        let stmt = stmt.clone();
-        Box::pin(async move {
-            use std::borrow::Borrow;
-            let arg = item.borrow();
-            client.execute(&stmt, arg).await?;
-            Ok(())
-        })
-    };
-    Ok(futures::stream::iter(arg_list.into_iter().map(fut)))
+    sqlc_core::batch_execute(client, UPDATE_BOOK, arg_list).await
 }

@@ -34,7 +34,7 @@ sqlc-derive = { version = "0.4.1", path = "../sqlc-derive" }
 [features]
 default = ["with-postgres"]
 with-postgres = ["postgres", "sqlc-derive/with-postgres"]
-with-tokio-postgres = ["tokio-postgres", "sqlc-derive/with-tokio-postgres"]
+with-tokio-postgres = ["tokio-postgres", "sqlc-derive/with-tokio-postgres", "futures"]
 with-deadpool = ["futures", "deadpool-postgres", "with-tokio-postgres", "sqlc-derive/with-deadpool"]
 
 with-bit-vec-0_6 = ["bit-vec-06", "postgres/with-bit-vec-0_6", "tokio-postgres/with-bit-vec-0_6"]

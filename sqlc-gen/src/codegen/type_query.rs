@@ -315,14 +315,11 @@ impl TypeQuery {
 
         let sig_fn_input = self.to_fn_input_signature();
         let sig = quote! { #sig_fn_input -> sqlc_core::Result<#ret> };
-        let fetch_stmt = quote! {
-            let row = #client.query_one(#ident_const_name, #fields_list)
-        };
         let fn_body = quote! {
-            Ok(row)
+            #client.query_one(#ident_const_name, #fields_list)
         };
 
-        QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
+        QueryMethod::new(sig, fn_body, self.use_async)
     }
 
     fn method_for_many(&self) -> QueryMethod {
@@ -339,14 +336,11 @@ impl TypeQuery {
                 impl std::iter::Iterator<Item = sqlc_core::Result<#ret>>
             >
         };
-        let fetch_stmt = quote! {
-            let iter = #client.query(#ident_const_name, #fields_list)
-        };
         let fn_body = quote! {
-            Ok(iter)
+            #client.query(#ident_const_name, #fields_list)
         };
 
-        QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
+        QueryMethod::new(sig, fn_body, self.use_async)
     }
 
     fn method_for_exec(&self) -> QueryMethod {
@@ -356,15 +350,12 @@ impl TypeQuery {
         let fields_list = self.to_field_list();
 
         let sig_fn_input = self.to_fn_input_signature();
-        let sig = quote! { #sig_fn_input -> sqlc_core::Result<()> };
-        let fetch_stmt = quote! {
+        let sig = quote! { #sig_fn_input -> sqlc_core::Result<u64> };
+        let fn_body = quote! {
             #client.execute(#ident_const_name, #fields_list)
         };
-        let fn_body = quote! {
-            Ok(())
-        };
 
-        QueryMethod::new(sig, fn_body, fetch_stmt, self.use_async)
+        QueryMethod::new(sig, fn_body, self.use_async)
     }
 
     fn method_for_batch(&self) -> QueryMethod {
@@ -390,11 +381,9 @@ impl TypeQuery {
 
         let arg = self.arg.clone().unwrap_or_default();
         let arg_name_str = arg.name.clone();
-        let arg_name = get_ident(&arg_name_str);
         let arg_list = get_ident(format!("{arg_name_str}_list").as_str());
         let arg_type = arg.get_type();
 
-        let fields_list = self.to_field_list();
         let sig = quote! {
             fn #ident_name<'a, C, I>(client: &'a C, #arg) -> sqlc_core::Result<
                 impl futures::Stream<
@@ -408,46 +397,28 @@ impl TypeQuery {
                 I: IntoIterator + 'a,
                 I::Item: std::borrow::Borrow<#arg_type> + 'a,
         };
-        let stmt = quote! {
-            let stmt = #client.prepare(#ident_const_name)
-        };
-        let fn_res = match command {
+        let batch_fn_ident = match command {
             QueryCommand::BatchExec => {
                 quote! {
-                    client.execute(&stmt, #fields_list).await?;
-                    Ok(())
+                    batch_execute
                 }
             }
             QueryCommand::BatchOne => {
                 quote! {
-                    client
-                        .query_one(
-                            &stmt,
-                            #fields_list,
-                        )
-                        .await
+                    batch_one
                 }
             }
             QueryCommand::BatchMany => {
                 quote! {
-                    let result = client.query(&stmt, #fields_list).await?;
-                    Ok(Box::pin(futures::stream::iter(result)))
+                    batch_many
                 }
             }
             _ => unimplemented!(),
         };
         let fn_body = quote! {
-            let fut = move |item: <I as IntoIterator>::Item| {
-                let stmt = stmt.clone();
-                Box::pin(async move {
-                    use std::borrow::Borrow;
-                    let #arg_name = item.borrow();
-                    #fn_res
-                })
-            };
-            Ok(futures::stream::iter(#arg_list.into_iter().map(fut)))
+            sqlc_core::#batch_fn_ident(#client, #ident_const_name, #arg_list)
         };
-        QueryMethod::new(sig, fn_body, stmt, self.use_async)
+        QueryMethod::new(sig, fn_body, self.use_async)
     }
 }
 
@@ -460,21 +431,14 @@ impl ToTokens for TypeQuery {
 
 struct QueryMethod {
     sig: TokenStream,
-    fetch_stmt: TokenStream,
     fn_body: TokenStream,
     use_async: bool,
 }
 
 impl QueryMethod {
-    fn new(
-        sig: TokenStream,
-        fn_body: TokenStream,
-        fetch_stmt: TokenStream,
-        use_async: bool,
-    ) -> Self {
+    fn new(sig: TokenStream, fn_body: TokenStream, use_async: bool) -> Self {
         Self {
             sig,
-            fetch_stmt,
             fn_body,
             use_async,
         }
@@ -504,18 +468,15 @@ impl ToTokens for QueryMethod {
         let fn_code;
         let sig = &self.sig;
         let fn_body = &self.fn_body;
-        let fetch_stmt = &self.fetch_stmt;
         if self.use_async {
             fn_code = quote! {
                 pub(crate) async #sig {
-                    #fetch_stmt.await?;
-                    #fn_body
+                    #fn_body.await
                 }
             }
         } else {
             fn_code = quote! {
                 pub(crate) #sig {
-                    #fetch_stmt?;
                     #fn_body
                 }
             }

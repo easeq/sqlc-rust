@@ -29,19 +29,16 @@ pub(crate) struct PilotLanguage {
 pub(crate) async fn count_pilots(
     client: &impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<i64> {
-    let row = client.query_one(COUNT_PILOTS, ()).await?;
-    Ok(row)
+    client.query_one(COUNT_PILOTS, ()).await
 }
 pub(crate) async fn delete_pilot(
     client: &impl sqlc_core::DBTX,
     id: i32,
-) -> sqlc_core::Result<()> {
-    client.execute(DELETE_PILOT, id).await?;
-    Ok(())
+) -> sqlc_core::Result<u64> {
+    client.execute(DELETE_PILOT, id).await
 }
 pub(crate) async fn list_pilots(
     client: &impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Pilot>>> {
-    let iter = client.query(LIST_PILOTS, ()).await?;
-    Ok(iter)
+    client.query(LIST_PILOTS, ()).await
 }

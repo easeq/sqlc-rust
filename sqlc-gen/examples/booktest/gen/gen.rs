@@ -129,69 +129,59 @@ pub(crate) async fn books_by_tags(
 ) -> sqlc_core::Result<
     impl std::iter::Iterator<Item = sqlc_core::Result<BooksByTagsRow>>,
 > {
-    let iter = client.query(BOOKS_BY_TAGS, dollar_1).await?;
-    Ok(iter)
+    client.query(BOOKS_BY_TAGS, dollar_1).await
 }
 pub(crate) async fn books_by_title_year(
     client: &impl sqlc_core::DBTX,
     arg: BooksByTitleYearParams,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Book>>> {
-    let iter = client.query(BOOKS_BY_TITLE_YEAR, arg).await?;
-    Ok(iter)
+    client.query(BOOKS_BY_TITLE_YEAR, arg).await
 }
 pub(crate) async fn create_author(
     client: &impl sqlc_core::DBTX,
     name: String,
 ) -> sqlc_core::Result<Author> {
-    let row = client.query_one(CREATE_AUTHOR, name).await?;
-    Ok(row)
+    client.query_one(CREATE_AUTHOR, name).await
 }
 pub(crate) async fn create_book(
     client: &impl sqlc_core::DBTX,
     arg: CreateBookParams,
 ) -> sqlc_core::Result<Book> {
-    let row = client.query_one(CREATE_BOOK, arg).await?;
-    Ok(row)
+    client.query_one(CREATE_BOOK, arg).await
 }
 pub(crate) async fn delete_book(
     client: &impl sqlc_core::DBTX,
     book_id: i32,
-) -> sqlc_core::Result<()> {
-    client.execute(DELETE_BOOK, book_id).await?;
-    Ok(())
+) -> sqlc_core::Result<u64> {
+    client.execute(DELETE_BOOK, book_id).await
 }
 pub(crate) async fn get_author(
     client: &impl sqlc_core::DBTX,
     author_id: i32,
 ) -> sqlc_core::Result<Author> {
-    let row = client.query_one(GET_AUTHOR, author_id).await?;
-    Ok(row)
+    client.query_one(GET_AUTHOR, author_id).await
 }
 pub(crate) async fn get_book(
     client: &impl sqlc_core::DBTX,
     book_id: i32,
 ) -> sqlc_core::Result<Book> {
-    let row = client.query_one(GET_BOOK, book_id).await?;
-    Ok(row)
+    client.query_one(GET_BOOK, book_id).await
 }
 pub(crate) async fn say_hello(
     client: &impl sqlc_core::DBTX,
     s: String,
 ) -> sqlc_core::Result<String> {
-    let row = client.query_one(SAY_HELLO, s).await?;
-    Ok(row)
+    client.query_one(SAY_HELLO, s).await
 }
 pub(crate) async fn update_book(
     client: &impl sqlc_core::DBTX,
     arg: UpdateBookParams,
-) -> sqlc_core::Result<()> {
-    client.execute(UPDATE_BOOK, arg).await?;
-    Ok(())
+) -> sqlc_core::Result<u64> {
+    client.execute(UPDATE_BOOK, arg).await
 }
 pub(crate) async fn update_book_isbn(
     client: &impl sqlc_core::DBTX,
     arg: UpdateBookIsbnParams,
-) -> sqlc_core::Result<()> {
-    client.execute(UPDATE_BOOK_ISBN, arg).await?;
-    Ok(())
+) -> sqlc_core::Result<u64> {
+    client.execute(UPDATE_BOOK_ISBN, arg).await
 }

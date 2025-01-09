@@ -146,70 +146,60 @@ pub(crate) async fn create_city(
     client: &impl sqlc_core::DBTX,
     arg: CreateCityParams,
 ) -> sqlc_core::Result<City> {
-    let row = client.query_one(CREATE_CITY, arg).await?;
-    Ok(row)
+    client.query_one(CREATE_CITY, arg).await
 }
 pub(crate) async fn create_venue(
     client: &impl sqlc_core::DBTX,
     arg: CreateVenueParams,
 ) -> sqlc_core::Result<i32> {
-    let row = client.query_one(CREATE_VENUE, arg).await?;
-    Ok(row)
+    client.query_one(CREATE_VENUE, arg).await
 }
 pub(crate) async fn delete_venue(
     client: &impl sqlc_core::DBTX,
     slug: String,
-) -> sqlc_core::Result<()> {
-    client.execute(DELETE_VENUE, slug).await?;
-    Ok(())
+) -> sqlc_core::Result<u64> {
+    client.execute(DELETE_VENUE, slug).await
 }
 pub(crate) async fn get_city(
     client: &impl sqlc_core::DBTX,
     slug: String,
 ) -> sqlc_core::Result<City> {
-    let row = client.query_one(GET_CITY, slug).await?;
-    Ok(row)
+    client.query_one(GET_CITY, slug).await
 }
 pub(crate) async fn get_venue(
     client: &impl sqlc_core::DBTX,
     arg: GetVenueParams,
 ) -> sqlc_core::Result<Venue> {
-    let row = client.query_one(GET_VENUE, arg).await?;
-    Ok(row)
+    client.query_one(GET_VENUE, arg).await
 }
 pub(crate) async fn list_cities(
     client: &impl sqlc_core::DBTX,
     arg: ListCitiesParams,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<City>>> {
-    let iter = client.query(LIST_CITIES, arg).await?;
-    Ok(iter)
+    client.query(LIST_CITIES, arg).await
 }
 pub(crate) async fn list_venues(
     client: &impl sqlc_core::DBTX,
     city: String,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Venue>>> {
-    let iter = client.query(LIST_VENUES, city).await?;
-    Ok(iter)
+    client.query(LIST_VENUES, city).await
 }
 pub(crate) async fn update_city_name(
     client: &impl sqlc_core::DBTX,
     arg: UpdateCityNameParams,
-) -> sqlc_core::Result<()> {
-    client.execute(UPDATE_CITY_NAME, arg).await?;
-    Ok(())
+) -> sqlc_core::Result<u64> {
+    client.execute(UPDATE_CITY_NAME, arg).await
 }
 pub(crate) async fn update_venue_name(
     client: &impl sqlc_core::DBTX,
     arg: UpdateVenueNameParams,
 ) -> sqlc_core::Result<i32> {
-    let row = client.query_one(UPDATE_VENUE_NAME, arg).await?;
-    Ok(row)
+    client.query_one(UPDATE_VENUE_NAME, arg).await
 }
 pub(crate) async fn venue_count_by_city(
     client: &impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<
     impl std::iter::Iterator<Item = sqlc_core::Result<VenueCountByCityRow>>,
 > {
-    let iter = client.query(VENUE_COUNT_BY_CITY, ()).await?;
-    Ok(iter)
+    client.query(VENUE_COUNT_BY_CITY, ()).await
 }

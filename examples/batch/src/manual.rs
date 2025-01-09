@@ -123,29 +123,19 @@ pub(crate) async fn create_author(
     client.query_one(CREATE_AUTHOR, name).await
 }
 
-pub(crate) async fn create_book<'a, C, I>(
+pub(crate) async fn create_book<'a, C, I, R>(
     client: &'a C,
     arg_list: I,
 ) -> sqlc_core::Result<
-    impl futures::Stream<Item = impl futures::Future<Output = sqlc_core::Result<Book>> + 'a> + 'a,
+    impl futures::Stream<Item = impl futures::Future<Output = sqlc_core::Result<R>> + 'a> + 'a,
 >
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + 'a,
     I::Item: std::borrow::Borrow<CreateBookParams> + 'a,
+    R: sqlc_core::FromPostgresRow,
 {
-    use sqlc_core::AsPostgresParams;
-    use std::borrow::Borrow;
-    let stmt = client.prepare(CREATE_BOOK).await?;
-    let fut = move |item: <I as IntoIterator>::Item| {
-        let stmt = stmt.clone();
-        Box::pin(async move {
-            let arg = item.borrow();
-            let result: Book = client.query_one(&stmt, arg).await?;
-            Ok::<Book, sqlc_core::Error>(result)
-        })
-    };
-    Ok(futures::stream::iter(arg_list.into_iter().map(fut)))
+    sqlc_core::batch_one(client, CREATE_BOOK, arg_list).await
 }
 
 pub(crate) async fn update_book<'a, C, I>(
@@ -159,18 +149,7 @@ where
     I: IntoIterator + 'a,
     I::Item: std::borrow::Borrow<UpdateBookParams> + 'a,
 {
-    use sqlc_core::AsPostgresParams;
-    use std::borrow::Borrow;
-    let stmt = client.prepare(UPDATE_BOOK).await?;
-    let fut = move |item: <I as IntoIterator>::Item| {
-        let stmt = stmt.clone();
-        Box::pin(async move {
-            let arg = item.borrow();
-            client.execute(&stmt, arg).await?;
-            Ok(())
-        })
-    };
-    Ok(futures::stream::iter(arg_list.into_iter().map(fut)))
+    sqlc_core::batch_execute(client, UPDATE_BOOK, arg_list).await
 }
 
 pub(crate) async fn books_by_year<'a, C, I>(
@@ -188,17 +167,7 @@ where
     I: IntoIterator + 'a,
     I::Item: std::borrow::Borrow<i32> + sqlc_core::AsPostgresParams + 'a,
 {
-    let stmt = client.prepare(BOOKS_BY_YEAR).await?;
-    let fut = move |item: <I as IntoIterator>::Item| {
-        let stmt = stmt.clone();
-        Box::pin(async move {
-            use std::borrow::Borrow;
-            let year = item.borrow();
-            let result = client.query(&stmt, year).await?;
-            Ok(Box::pin(futures::stream::iter(result)))
-        })
-    };
-    Ok(futures::stream::iter(year_list.into_iter().map(fut)))
+    sqlc_core::batch_many(client, BOOKS_BY_YEAR, year_list).await
 }
 
 pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
@@ -282,7 +251,7 @@ pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
     //     },
     // ];
 
-    let update_new_books_iter = new_books.iter().filter_map(|book| {
+    let update_new_books_iter = new_books.iter().filter_map(|book: &Book| {
         if book.book_id % 2 == 0 {
             None
         } else {

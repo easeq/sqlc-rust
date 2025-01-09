@@ -42,15 +42,5 @@ where
     I: IntoIterator + 'a,
     I::Item: std::borrow::Borrow<i32> + 'a,
 {
-    let stmt = client.prepare(DELETE_BOOK).await?;
-    let fut = move |item: <I as IntoIterator>::Item| {
-        let stmt = stmt.clone();
-        Box::pin(async move {
-            use std::borrow::Borrow;
-            let book_id = item.borrow();
-            client.execute(&stmt, book_id).await?;
-            Ok(())
-        })
-    };
-    Ok(futures::stream::iter(book_id_list.into_iter().map(fut)))
+    sqlc_core::batch_execute(client, DELETE_BOOK, book_id_list).await
 }

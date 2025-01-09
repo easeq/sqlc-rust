@@ -26,5 +26,8 @@ cfg_block! {
 
     #[cfg(feature = "with-tokio-postgres")] {
         pub use dbtx::tokio_pg::*;
+
+        mod batch_helpers;
+        pub use batch_helpers::*;
     }
 }
