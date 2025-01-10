@@ -17,8 +17,8 @@ pub fn postgres_row(input: TokenStream) -> TokenStream {
 
     let fields = match data {
         syn::Data::Struct(data_struct) => data_struct.fields.into_iter().map(|field| {
-            let ident_field_name = field.ident.clone().unwrap();
-            let field_name = field.ident.unwrap().to_string();
+            let ident_field_name = field.ident.as_ref().unwrap();
+            let field_name = field.ident.as_ref().unwrap().to_string();
             quote! {
                 #ident_field_name: row.try_get(#field_name)?
             }
@@ -57,7 +57,7 @@ pub fn postgres_params(input: TokenStream) -> TokenStream {
 
     let fields = match data {
         syn::Data::Struct(data_struct) => data_struct.fields.into_iter().map(|field| {
-            let ident_field_name = field.ident.clone().unwrap();
+            let ident_field_name = field.ident.as_ref().unwrap();
             quote! {&self.#ident_field_name}
         }),
         _ => unimplemented!(),

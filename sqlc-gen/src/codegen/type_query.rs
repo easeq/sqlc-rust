@@ -66,8 +66,18 @@ impl QueryCommand {
         }
     }
 
-    pub fn is_one(&self) -> bool {
-        *self == Self::One || *self == Self::BatchOne
+    pub fn client_method_name(&self) -> TokenStream {
+        match *self {
+            QueryCommand::One => quote!(query_one),
+            QueryCommand::Many => quote!(query),
+            QueryCommand::Exec
+            | QueryCommand::ExecRows
+            | QueryCommand::ExecResult
+            | QueryCommand::ExecLastId => quote!(execute),
+            QueryCommand::BatchOne => quote!(batch_one),
+            QueryCommand::BatchMany => quote!(batch_many),
+            QueryCommand::BatchExec => quote!(batch_execute),
+        }
     }
 }
 
@@ -193,18 +203,15 @@ impl QueryValue {
     }
 
     fn generate_fields_list(&self) -> TokenStream {
-        let fields_list;
-        if self.typ.is_some() {
+        if self.is_batch {
+            let ident_name = get_ident(format!("{}_list", self.name).as_str());
+            quote!(#ident_name)
+        } else if self.typ.is_some() || self.type_struct.is_some() {
             let ident_name = get_ident(&self.name);
-            fields_list = quote! { #ident_name };
-        } else if let Some(_) = self.type_struct {
-            let ident_name = get_ident(&self.name);
-            fields_list = quote! { #ident_name }
+            quote!(#ident_name)
         } else {
-            fields_list = quote! { () }
+            quote!(())
         }
-
-        fields_list
     }
 
     fn to_named_fn_arg_ref(&self) -> TokenStream {
@@ -288,7 +295,12 @@ impl TypeQuery {
         QueryCommand::from_str(&self.cmd).unwrap()
     }
 
-    fn to_fn_input_signature(&self) -> TokenStream {
+    fn query_arg(&self) -> TokenStream {
+        let arg = self.arg.clone().unwrap_or_default();
+        arg.generate_fields_list()
+    }
+
+    fn non_batch_fn_signature(&self) -> TokenStream {
         let ident_name = get_ident(&self.name());
         let arg = self.arg.clone().unwrap_or_default();
         let client_mut = if self.use_async {
@@ -297,91 +309,38 @@ impl TypeQuery {
             quote!(mut)
         };
 
-        quote!(fn #ident_name(client: &#client_mut impl sqlc_core::DBTX, #arg))
-    }
-
-    fn to_field_list(&self) -> TokenStream {
-        let arg = self.arg.clone().unwrap_or_default();
-        arg.generate_fields_list()
-    }
-
-    fn method_for_one(&self) -> QueryMethod {
-        let client = quote!(client);
-        let ident_const_name = get_ident(&self.constant_name());
-
-        let fields_list = self.to_field_list();
-
-        let ret = self.ret.as_ref().unwrap();
-
-        let sig_fn_input = self.to_fn_input_signature();
-        let sig = quote! { #sig_fn_input -> sqlc_core::Result<#ret> };
-        let fn_body = quote! {
-            #client.query_one(#ident_const_name, #fields_list)
+        let ret = self.ret.clone().unwrap_or_default();
+        let ret_sig = match self.command() {
+            QueryCommand::One => quote!(#ret),
+            QueryCommand::Many => quote!(impl std::iter::Iterator<Item = sqlc_core::Result<#ret>>),
+            QueryCommand::Exec
+            | QueryCommand::ExecRows
+            | QueryCommand::ExecResult
+            | QueryCommand::ExecLastId => quote!(u64),
+            _ => unimplemented!(),
         };
 
-        QueryMethod::new(sig, fn_body, self.use_async)
+        quote! {
+            fn #ident_name(
+                client: &#client_mut impl sqlc_core::DBTX,
+                #arg
+            ) -> sqlc_core::Result<#ret_sig>
+        }
     }
 
-    fn method_for_many(&self) -> QueryMethod {
-        let client = quote!(client);
-        let ident_const_name = get_ident(&self.constant_name());
-
-        let fields_list = self.to_field_list();
-
-        let ret = self.ret.as_ref().unwrap();
-
-        let sig_fn_input = self.to_fn_input_signature();
-        let sig = quote! {
-            #sig_fn_input -> sqlc_core::Result<
-                impl std::iter::Iterator<Item = sqlc_core::Result<#ret>>
-            >
-        };
-        let fn_body = quote! {
-            #client.query(#ident_const_name, #fields_list)
-        };
-
-        QueryMethod::new(sig, fn_body, self.use_async)
-    }
-
-    fn method_for_exec(&self) -> QueryMethod {
-        let client = quote!(client);
-        let ident_const_name = get_ident(&self.constant_name());
-
-        let fields_list = self.to_field_list();
-
-        let sig_fn_input = self.to_fn_input_signature();
-        let sig = quote! { #sig_fn_input -> sqlc_core::Result<u64> };
-        let fn_body = quote! {
-            #client.execute(#ident_const_name, #fields_list)
-        };
-
-        QueryMethod::new(sig, fn_body, self.use_async)
-    }
-
-    fn method_for_batch(&self) -> QueryMethod {
-        let command = self.command();
-        let fut_ret = if command.has_return_value() {
-            let ret = self.ret.as_ref().unwrap();
-            if command.is_one() {
-                quote!(#ret)
-            } else {
-                quote! {
-                    sqlc_core::BoxStream<sqlc_core::Result<#ret>>
-                }
-            }
-        } else {
-            quote!(())
-        };
-
-        let ident_const_name = get_ident(&self.constant_name());
+    fn batch_fn_signature(&self) -> TokenStream {
         let ident_name = get_ident(&self.name());
-
         let arg = self.arg.clone().unwrap_or_default();
-        let arg_name_str = arg.name.clone();
-        let arg_list = get_ident(format!("{arg_name_str}_list").as_str());
         let arg_type = arg.get_type();
+        let ret = self.ret.clone().unwrap_or_default();
+        let fut_ret = match self.command() {
+            QueryCommand::BatchOne => quote!(#ret),
+            QueryCommand::BatchMany => quote!(sqlc_core::BoxStream<sqlc_core::Result<#ret>>),
+            QueryCommand::BatchExec => quote!(()),
+            _ => unimplemented!(),
+        };
 
-        let sig = quote! {
+        quote! {
             fn #ident_name<'a, C, I>(client: &'a C, #arg) -> sqlc_core::Result<
                 sqlc_core::BatchStream<#fut_ret>
             >
@@ -389,17 +348,26 @@ impl TypeQuery {
                 C: sqlc_core::DBTX,
                 I: IntoIterator + Send + 'a,
                 I::Item: std::borrow::Borrow<#arg_type> + 'a,
-        };
-        let batch_fn_ident = match command {
-            QueryCommand::BatchExec => quote!(batch_execute),
-            QueryCommand::BatchOne => quote!(batch_one),
-            QueryCommand::BatchMany => quote!(batch_many),
-            _ => unimplemented!(),
-        };
+        }
+    }
+
+    fn fn_signature(&self) -> TokenStream {
+        if self.command().is_batch() {
+            self.batch_fn_signature()
+        } else {
+            self.non_batch_fn_signature()
+        }
+    }
+
+    fn prepare_method(&self) -> QueryMethod {
+        let client_method_name = self.command().client_method_name();
+        let ident_const_name = get_ident(&self.constant_name());
+        let query_arg = self.query_arg();
         let fn_body = quote! {
-            client.#batch_fn_ident(#ident_const_name, #arg_list)
+            client.#client_method_name(#ident_const_name, #query_arg)
         };
-        QueryMethod::new(sig, fn_body, self.use_async)
+
+        QueryMethod::new(self.fn_signature(), fn_body, self.use_async)
     }
 }
 
@@ -428,19 +396,7 @@ impl QueryMethod {
 
 impl From<&TypeQuery> for QueryMethod {
     fn from(query: &TypeQuery) -> Self {
-        let query_method = match query.command() {
-            QueryCommand::One => query.method_for_one(),
-            QueryCommand::Many => query.method_for_many(),
-            QueryCommand::Exec
-            | QueryCommand::ExecRows
-            | QueryCommand::ExecResult
-            | QueryCommand::ExecLastId => query.method_for_exec(),
-            QueryCommand::BatchMany | QueryCommand::BatchOne | QueryCommand::BatchExec => {
-                query.method_for_batch()
-            } // _ => quote! {},
-        };
-
-        query_method
+        query.prepare_method()
     }
 }
 
