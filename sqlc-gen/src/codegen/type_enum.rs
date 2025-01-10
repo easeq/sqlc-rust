@@ -55,12 +55,11 @@ impl Variant {
     }
 
     fn generate_code(&self) -> TokenStream {
-        let orig_name = self.orig_name.clone();
+        let orig_name = &self.orig_name;
         let ident_variant = get_ident(&self.name.to_case(Case::Pascal));
         let attrs_tokens = crate::codegen::list_tokenstream(&self.attrs);
         quote! {
             #[postgres(name=#orig_name)]
-            // #[cfg_attr(feature = "serde_support", serde(rename=#val))]
             #(#attrs_tokens)*
             #ident_variant
         }
@@ -99,7 +98,7 @@ impl TypeEnum {
         let mut seen = HashSet::new();
         let enum_name = enum_name(&e.name, schema_name, default_schema);
         let mut type_enum = Self::new(
-            enum_name.clone(),
+            &enum_name,
             e.vals
                 .iter()
                 .enumerate()
@@ -136,9 +135,6 @@ impl TypeEnum {
         quote! {
             #[derive(postgres_derive::ToSql, postgres_derive::FromSql, #(#derive_tokens),*)]
             #(#attr_tokens)*
-            // #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
-            // #[cfg_attr(feature = "serde_support", derive(serde::Serialize, serde::Deserialize))]
-            // #[cfg_attr(feature = "hash", derive(Eq, Hash))]
             #[postgres(name=#type_name)]
             pub enum #ident_enum_name {
                 #(#variants),*
