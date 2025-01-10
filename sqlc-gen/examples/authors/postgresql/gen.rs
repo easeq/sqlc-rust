@@ -23,13 +23,13 @@ select id, name, bio
 from authors
 order by name
 "#;
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct Author {
     pub id: i64,
     pub name: String,
     pub bio: Option<String>,
 }
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,

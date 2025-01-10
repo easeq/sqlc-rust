@@ -84,17 +84,17 @@ pub enum Status {
     #[postgres(name = "clo@sed")]
     Closed,
 }
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct City {
     pub slug: String,
     pub name: String,
 }
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct CreateCityParams {
     pub name: String,
     pub slug: String,
 }
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct CreateVenueParams {
     pub slug: String,
     pub name: String,
@@ -104,27 +104,27 @@ pub(crate) struct CreateVenueParams {
     pub statuses: Option<Vec<Status>>,
     pub tags: Option<Vec<String>>,
 }
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct GetVenueParams {
     pub slug: String,
     pub city: String,
 }
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct ListCitiesParams {
     pub offset: i64,
     pub limit: i64,
 }
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct UpdateCityNameParams {
     pub slug: String,
     pub name: String,
 }
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct UpdateVenueNameParams {
     pub slug: String,
     pub name: String,
 }
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct Venue {
     pub id: i32,
     pub status: Status,
@@ -137,7 +137,7 @@ pub(crate) struct Venue {
     pub tags: Option<Vec<String>>,
     pub created_at: String,
 }
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct VenueCountByCityRow {
     pub city: String,
     pub count: i64,

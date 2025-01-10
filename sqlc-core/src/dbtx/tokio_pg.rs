@@ -1,4 +1,4 @@
-use crate::{AsPostgresParams, FromPostgresRow, Result};
+use crate::{PostgresParams, PostgresRow, Result};
 use async_trait::async_trait;
 use futures::stream::Stream;
 use futures::Future;
@@ -16,12 +16,12 @@ pub trait DBTX: Send + Sync {
     async fn execute<T, P>(&self, statement: &T, params: P) -> Result<u64>
     where
         T: ?Sized + ToStatement + Sync + Send,
-        P: AsPostgresParams + Send + Sync;
+        P: PostgresParams + Send + Sync;
     async fn query_one<T, P, R>(&self, statement: &T, params: P) -> Result<R>
     where
         T: ?Sized + ToStatement + Sync + Send,
-        P: AsPostgresParams + Send + Sync,
-        R: FromPostgresRow;
+        P: PostgresParams + Send + Sync,
+        R: PostgresRow;
     async fn query<T, P, R>(
         &self,
         statement: &T,
@@ -29,8 +29,8 @@ pub trait DBTX: Send + Sync {
     ) -> Result<Box<dyn std::iter::Iterator<Item = crate::Result<R>>>>
     where
         T: ?Sized + ToStatement + Sync + Send,
-        P: AsPostgresParams + Send + Sync,
-        R: FromPostgresRow;
+        P: PostgresParams + Send + Sync,
+        R: PostgresRow;
     async fn batch_execute<'a, I, P>(
         &'a self,
         query: &'a str,
@@ -39,7 +39,7 @@ pub trait DBTX: Send + Sync {
     where
         I: IntoIterator + Send + 'a,
         I::Item: std::borrow::Borrow<P> + 'a,
-        P: AsPostgresParams + Sync;
+        P: PostgresParams + Sync;
     async fn batch_one<'a, I, P, R>(
         &'a self,
         query: &'a str,
@@ -48,8 +48,8 @@ pub trait DBTX: Send + Sync {
     where
         I: IntoIterator + Send + 'a,
         I::Item: std::borrow::Borrow<P> + 'a,
-        P: AsPostgresParams + Sync,
-        R: FromPostgresRow + 'a;
+        P: PostgresParams + Sync,
+        R: PostgresRow + 'a;
     async fn batch_many<'a, I, P, R>(
         &'a self,
         query: &'a str,
@@ -58,8 +58,8 @@ pub trait DBTX: Send + Sync {
     where
         I: IntoIterator + Send + 'a,
         I::Item: std::borrow::Borrow<P> + 'a,
-        P: AsPostgresParams + Sync + 'a,
-        R: FromPostgresRow + 'a;
+        P: PostgresParams + Sync + 'a,
+        R: PostgresRow + 'a;
 }
 
 #[async_trait]
@@ -71,7 +71,7 @@ impl DBTX for Transaction<'_> {
     async fn execute<T, P>(&self, statement: &T, params: P) -> Result<u64>
     where
         T: ?Sized + ToStatement + Sync + Send,
-        P: AsPostgresParams + Send + Sync,
+        P: PostgresParams + Send + Sync,
     {
         Ok(Transaction::execute(self, statement, &params.as_params()).await?)
     }
@@ -79,11 +79,11 @@ impl DBTX for Transaction<'_> {
     async fn query_one<T, P, R>(&self, statement: &T, params: P) -> Result<R>
     where
         T: ?Sized + ToStatement + Sync + Send,
-        P: AsPostgresParams + Send + Sync,
-        R: FromPostgresRow,
+        P: PostgresParams + Send + Sync,
+        R: PostgresRow,
     {
         let row = Transaction::query_one(self, statement, &params.as_params()).await?;
-        Ok(FromPostgresRow::from_row(&row)?)
+        Ok(PostgresRow::from_row(&row)?)
     }
 
     async fn query<T, P, R>(
@@ -93,13 +93,11 @@ impl DBTX for Transaction<'_> {
     ) -> Result<Box<dyn std::iter::Iterator<Item = crate::Result<R>>>>
     where
         T: ?Sized + ToStatement + Sync + Send,
-        P: AsPostgresParams + Send + Sync,
-        R: FromPostgresRow,
+        P: PostgresParams + Send + Sync,
+        R: PostgresRow,
     {
         let rows = Transaction::query(self, statement, &params.as_params()).await?;
-        let iter = rows
-            .into_iter()
-            .map(|row| Ok(FromPostgresRow::from_row(&row)?));
+        let iter = rows.into_iter().map(|row| Ok(PostgresRow::from_row(&row)?));
         Ok(Box::new(iter))
     }
 
@@ -111,7 +109,7 @@ impl DBTX for Transaction<'_> {
     where
         I: IntoIterator + Send + 'a,
         I::Item: std::borrow::Borrow<P> + 'a,
-        P: AsPostgresParams + Sync,
+        P: PostgresParams + Sync,
     {
         let stmt = DBTX::prepare(self, query).await?;
         let fut = move |item: <I as IntoIterator>::Item| -> BoxedFuture<()> {
@@ -131,8 +129,8 @@ impl DBTX for Transaction<'_> {
     where
         I: IntoIterator + Send + 'a,
         I::Item: std::borrow::Borrow<P> + 'a,
-        P: AsPostgresParams + Sync,
-        R: FromPostgresRow + 'a,
+        P: PostgresParams + Sync,
+        R: PostgresRow + 'a,
     {
         let stmt = DBTX::prepare(self, query).await?;
         let fut = move |item: <I as IntoIterator>::Item| -> BoxedFuture<R> {
@@ -156,8 +154,8 @@ impl DBTX for Transaction<'_> {
     where
         I: IntoIterator + Send + 'a,
         I::Item: std::borrow::Borrow<P> + 'a,
-        P: AsPostgresParams + Sync + 'a,
-        R: FromPostgresRow + 'a,
+        P: PostgresParams + Sync + 'a,
+        R: PostgresRow + 'a,
     {
         let stmt = DBTX::prepare(self, query).await?;
         let fut = move |item: <I as IntoIterator>::Item| -> BoxedFuture<BoxStream<Result<R>>> {
@@ -184,7 +182,7 @@ impl DBTX for Client {
     async fn execute<T, P>(&self, statement: &T, params: P) -> Result<u64>
     where
         T: ?Sized + ToStatement + Sync + Send,
-        P: AsPostgresParams + Send + Sync,
+        P: PostgresParams + Send + Sync,
     {
         Ok(Client::execute(self, statement, &params.as_params()).await?)
     }
@@ -192,11 +190,11 @@ impl DBTX for Client {
     async fn query_one<T, P, R>(&self, statement: &T, params: P) -> Result<R>
     where
         T: ?Sized + ToStatement + Sync + Send,
-        P: AsPostgresParams + Send + Sync,
-        R: FromPostgresRow,
+        P: PostgresParams + Send + Sync,
+        R: PostgresRow,
     {
         let row = Client::query_one(self, statement, &params.as_params()).await?;
-        Ok(FromPostgresRow::from_row(&row)?)
+        Ok(PostgresRow::from_row(&row)?)
     }
 
     async fn query<T, P, R>(
@@ -206,13 +204,11 @@ impl DBTX for Client {
     ) -> Result<Box<dyn std::iter::Iterator<Item = crate::Result<R>>>>
     where
         T: ?Sized + ToStatement + Sync + Send,
-        P: AsPostgresParams + Send + Sync,
-        R: FromPostgresRow,
+        P: PostgresParams + Send + Sync,
+        R: PostgresRow,
     {
         let rows = Client::query(self, statement, &params.as_params()).await?;
-        let iter = rows
-            .into_iter()
-            .map(|row| Ok(FromPostgresRow::from_row(&row)?));
+        let iter = rows.into_iter().map(|row| Ok(PostgresRow::from_row(&row)?));
         Ok(Box::new(iter))
     }
 
@@ -224,7 +220,7 @@ impl DBTX for Client {
     where
         I: IntoIterator + Send + 'a,
         I::Item: std::borrow::Borrow<P> + 'a,
-        P: AsPostgresParams + Sync,
+        P: PostgresParams + Sync,
     {
         let stmt = DBTX::prepare(self, query).await?;
         let fut = move |item: <I as IntoIterator>::Item| -> BoxedFuture<()> {
@@ -244,8 +240,8 @@ impl DBTX for Client {
     where
         I: IntoIterator + Send + 'a,
         I::Item: std::borrow::Borrow<P> + 'a,
-        P: AsPostgresParams + Sync,
-        R: FromPostgresRow + 'a,
+        P: PostgresParams + Sync,
+        R: PostgresRow + 'a,
     {
         let stmt = DBTX::prepare(self, query).await?;
         let fut = move |item: <I as IntoIterator>::Item| -> BoxedFuture<R> {
@@ -269,8 +265,8 @@ impl DBTX for Client {
     where
         I: IntoIterator + Send + 'a,
         I::Item: std::borrow::Borrow<P> + 'a,
-        P: AsPostgresParams + Sync + 'a,
-        R: FromPostgresRow + 'a,
+        P: PostgresParams + Sync + 'a,
+        R: PostgresRow + 'a,
     {
         let stmt = DBTX::prepare(self, query).await?;
         let fut = move |item: <I as IntoIterator>::Item| -> BoxedFuture<BoxStream<Result<R>>> {

@@ -1,13 +1,13 @@
 use cfg_block::cfg_block;
 use std::collections::HashMap;
 
-pub trait AsPostgresParams {
+pub trait PostgresParams {
     fn as_params(&self) -> Vec<&(dyn postgres_types::ToSql + Sync)>;
 }
 
-impl<T> AsPostgresParams for &T
+impl<T> PostgresParams for &T
 where
-    T: AsPostgresParams,
+    T: PostgresParams,
 {
     fn as_params(&self) -> Vec<&(dyn postgres_types::ToSql + Sync)> {
         return (**self).as_params();
@@ -16,7 +16,7 @@ where
 
 macro_rules! as_params {
     ($t:ty) => {
-        impl AsPostgresParams for $t {
+        impl PostgresParams for $t {
             fn as_params(&self) -> Vec<&(dyn postgres_types::ToSql + Sync)> {
                 vec![self]
             }
@@ -24,7 +24,7 @@ macro_rules! as_params {
     };
 }
 
-impl AsPostgresParams for () {
+impl PostgresParams for () {
     fn as_params(&self) -> Vec<&(dyn postgres_types::ToSql + Sync)> {
         vec![]
     }

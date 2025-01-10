@@ -8,16 +8,16 @@ compile_error!(
 #[cfg(all(not(feature = "with-postgres"), not(feature = "with-tokio-postgres")))]
 compile_error!("one of with-postgres and with-tokio-postgres features needs to be enabled");
 
-mod as_postgres_params;
 mod dbtx;
 mod error;
-mod from_postgres_row;
+mod postgres_params;
+mod postgres_row;
 
-pub use as_postgres_params::*;
 pub use error::*;
-pub use from_postgres_row::*;
-pub use sqlc_derive::AsPostgresParams;
-pub use sqlc_derive::FromPostgresRow;
+pub use postgres_params::*;
+pub use postgres_row::*;
+pub use sqlc_derive::PostgresParams;
+pub use sqlc_derive::PostgresRow;
 
 cfg_block! {
     #[cfg(feature = "with-postgres")] {

@@ -43,7 +43,10 @@ WHERE book_id = $3
 "#;
 
 #[derive(Clone, Debug, PartialEq, postgres_derive::ToSql, postgres_derive::FromSql)]
-#[cfg_attr(feature = "serde_support")]
+#[cfg_attr(
+    feature = "serde_support",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[postgres(name = "book_type")]
 pub enum BookType {
     #[postgres(name = "FICTION")]
@@ -56,7 +59,7 @@ pub enum BookType {
     // #[cfg_attr(feature = "serde_support", serde(rename = "INVALID"))]
     // Invalid,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::PostgresRow, PartialEq)]
 #[cfg_attr(
     feature = "serde_support",
     derive(serde::Serialize, serde::Deserialize)
@@ -66,7 +69,7 @@ pub(crate) struct Author {
     pub name: String,
     pub biography: Option<serde_json::Value>,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::PostgresRow, PartialEq)]
 #[cfg_attr(
     feature = "serde_support",
     derive(serde::Serialize, serde::Deserialize)
@@ -81,7 +84,7 @@ pub(crate) struct Book {
     pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::PostgresRow, sqlc_core::PostgresParams, PartialEq)]
 #[cfg_attr(
     feature = "serde_support",
     derive(serde::Serialize, serde::Deserialize)
@@ -96,7 +99,7 @@ pub(crate) struct CreateBookParams {
     pub tags: Vec<String>,
 }
 
-#[derive(Clone, Debug, sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams, PartialEq)]
+#[derive(Clone, Debug, sqlc_core::PostgresRow, sqlc_core::PostgresParams, PartialEq)]
 #[cfg_attr(
     feature = "serde_support",
     derive(serde::Serialize, serde::Deserialize)
@@ -119,15 +122,14 @@ pub(crate) async fn create_author(
     client.query_one(CREATE_AUTHOR, name).await
 }
 
-pub(crate) async fn create_book<'a, C, I, R>(
+pub(crate) async fn create_book<'a, C, I>(
     client: &'a C,
     arg_list: I,
-) -> sqlc_core::Result<sqlc_core::BatchStream<R>>
+) -> sqlc_core::Result<sqlc_core::BatchStream<Book>>
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
     I::Item: std::borrow::Borrow<CreateBookParams> + 'a,
-    R: sqlc_core::FromPostgresRow + 'a,
 {
     client.batch_one(CREATE_BOOK, arg_list).await
 }
@@ -144,15 +146,14 @@ where
     client.batch_execute(UPDATE_BOOK, arg_list).await
 }
 
-pub(crate) async fn books_by_year<'a, C, I, R>(
+pub(crate) async fn books_by_year<'a, C, I>(
     client: &'a C,
     year_list: I,
-) -> sqlc_core::Result<sqlc_core::BatchStream<sqlc_core::BoxStream<sqlc_core::Result<R>>>>
+) -> sqlc_core::Result<sqlc_core::BatchStream<sqlc_core::BoxStream<sqlc_core::Result<Book>>>>
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
-    I::Item: std::borrow::Borrow<i32> + sqlc_core::AsPostgresParams + 'a,
-    R: sqlc_core::FromPostgresRow + 'a,
+    I::Item: std::borrow::Borrow<i32> + 'a,
 {
     client.batch_many(BOOKS_BY_YEAR, year_list).await
 }

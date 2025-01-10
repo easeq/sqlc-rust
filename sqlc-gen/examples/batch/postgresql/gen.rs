@@ -12,13 +12,13 @@ pub enum BookType {
     #[postgres(name = "NONFICTION")]
     Nonfiction,
 }
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct Author {
     pub author_id: i32,
     pub name: String,
     pub biography: Option<serde_json::Value>,
 }
-#[derive(sqlc_core::FromPostgresRow, sqlc_core::AsPostgresParams)]
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub(crate) struct Book {
     pub book_id: i32,
     pub author_id: i32,

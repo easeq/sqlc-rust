@@ -68,8 +68,8 @@ pub enum TypeGenre {
     Adventure,
 }
 #[derive(
-    sqlc_core::FromPostgresRow,
-    sqlc_core::AsPostgresParams,
+    sqlc_core::PostgresRow,
+    sqlc_core::PostgresParams,
     serde::Serialize,
     serde::Deserialize,
     PartialEq,
@@ -96,8 +96,8 @@ pub(crate) struct Author {
     pub updated_at: time::OffsetDateTime,
 }
 #[derive(
-    sqlc_core::FromPostgresRow,
-    sqlc_core::AsPostgresParams,
+    sqlc_core::PostgresRow,
+    sqlc_core::PostgresParams,
     serde::Serialize,
     serde::Deserialize,
     PartialEq,
@@ -122,8 +122,8 @@ pub(crate) struct CreateAuthorFullParams {
     pub updated_at: time::OffsetDateTime,
 }
 #[derive(
-    sqlc_core::FromPostgresRow,
-    sqlc_core::AsPostgresParams,
+    sqlc_core::PostgresRow,
+    sqlc_core::PostgresParams,
     serde::Serialize,
     serde::Deserialize,
     PartialEq,
@@ -135,8 +135,8 @@ pub(crate) struct CreateAuthorParams {
     pub bio: Option<String>,
 }
 #[derive(
-    sqlc_core::FromPostgresRow,
-    sqlc_core::AsPostgresParams,
+    sqlc_core::PostgresRow,
+    sqlc_core::PostgresParams,
     serde::Serialize,
     serde::Deserialize,
     PartialEq,

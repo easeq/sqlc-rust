@@ -7,13 +7,13 @@ use postgres::Row;
 #[cfg(feature = "with-tokio-postgres")]
 use tokio_postgres::Row;
 
-pub trait FromPostgresRow: Sized {
+pub trait PostgresRow: Sized {
     fn from_row(row: &Row) -> Result<Self, crate::Error>;
 }
 
 macro_rules! from_primitive {
     ($t:ty) => {
-        impl FromPostgresRow for $t {
+        impl PostgresRow for $t {
             fn from_row(row: &Row) -> crate::Result<Self> {
                 Ok(row.try_get(0)?)
             }

@@ -10,8 +10,8 @@ compile_error!(
     "with-postgres and with-tokio-postgres are mutually exclusive and cannot be enabled together"
 );
 
-#[proc_macro_derive(FromPostgresRow)]
-pub fn from_postgres_row(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(PostgresRow)]
+pub fn postgres_row(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let DeriveInput { ident, data, .. } = input;
 
@@ -38,7 +38,7 @@ pub fn from_postgres_row(input: TokenStream) -> TokenStream {
     }
 
     let expanded = quote! {
-        impl ::sqlc_core::FromPostgresRow for #ident {
+        impl ::sqlc_core::PostgresRow for #ident {
             fn from_row(row: &#module::Row) -> ::sqlc_core::Result<Self> {
                 Ok(Self {
                     #(#fields),*
@@ -50,8 +50,8 @@ pub fn from_postgres_row(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-#[proc_macro_derive(AsPostgresParams)]
-pub fn as_postgres_params(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(PostgresParams)]
+pub fn postgres_params(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let DeriveInput { ident, data, .. } = input;
 
@@ -64,7 +64,7 @@ pub fn as_postgres_params(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        impl ::sqlc_core::AsPostgresParams for #ident {
+        impl ::sqlc_core::PostgresParams for #ident {
             fn as_params(&self) -> Vec<&(dyn postgres_types::ToSql + Sync)> {
                 vec![#(#fields),*]
             }

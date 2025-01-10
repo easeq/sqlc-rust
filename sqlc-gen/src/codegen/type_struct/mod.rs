@@ -149,8 +149,8 @@ impl TypeStruct {
 
             quote! {
                 #[derive(
-                    sqlc_core::FromPostgresRow,
-                    sqlc_core::AsPostgresParams,
+                    sqlc_core::PostgresRow,
+                    sqlc_core::PostgresParams,
                     #(#derive_tokens),*)
                 ]
                 #(#attr_tokens)*
@@ -277,7 +277,7 @@ mod tests {
         assert_eq!(
             type_struct.generate_code().to_string(),
             quote! {
-                #[derive(Clone, Debug, sqlc_core::FromPostgresRow, PartialEq)]
+                #[derive(Clone, Debug, sqlc_core::PostgresRow, PartialEq)]
                 pub(crate) struct StructNameParams {
                     pub(crate) f_1:  Option<i32>,
                     pub(crate) f_2: i32,
