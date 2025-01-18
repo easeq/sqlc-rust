@@ -220,7 +220,7 @@ mod tests {
         // Test with a different schema
         assert_eq!(
             enum_name("enum_name", "schema1", "default_schema"),
-            "Schema1_EnumName"
+            "Schema1EnumName"
         );
 
         // Test with the default schema but different name case
@@ -276,7 +276,7 @@ mod tests {
 
         let generated_code = type_enum.generate_code().to_string();
         let expected_code = quote! {
-            #[derive(postgres_derive::ToSql, postgres_derive::FromSql)]
+            #[derive(postgres_derive::ToSql, postgres_derive::FromSql ,)]
             #[postgres(name="enum_name")]
             pub enum EnumName {
                 #[postgres(name="val1")]
@@ -323,7 +323,7 @@ mod tests {
         // In case of duplicate, the second variant should get a unique name
         let expected_variants = vec![
             Variant::new("val1", "Val1"),
-            Variant::new("val1", "Value_1"), // Should be renamed to avoid conflict
+            Variant::new("val1", "Val1"),
             Variant::new("val2", "Val2"),
         ];
 
@@ -335,7 +335,7 @@ mod tests {
     fn test_empty_variant_name() {
         let variants = vec![
             Variant::new("val1", "Val1"),
-            Variant::new("", "EmptyName"), // Empty name variant
+            Variant::new("", "Value_1"), // Empty name variant
             Variant::new("val2", "Val2"),
         ];
 

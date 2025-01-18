@@ -477,7 +477,9 @@ mod tests {
         // Simulate a plugin settings conversion
         let plugin_settings = plugin::Settings {
             codegen: Some(plugin::Codegen {
-                options: b"{\"use_async\":true,\"use_deadpool\":false}".to_vec(),
+                options: prost::bytes::Bytes::from_static(
+                    b"{\"use_async\":true,\"use_deadpool\":false}",
+                ),
                 ..plugin::Codegen::default()
             }),
             ..Default::default()
@@ -495,7 +497,7 @@ mod tests {
         // Simulate invalid JSON in the plugin settings
         let plugin_settings = plugin::Settings {
             codegen: Some(plugin::Codegen {
-                options: b"{use_async:true}".to_vec(), // Invalid JSON format (missing quotes)
+                options: prost::bytes::Bytes::from_static(b"{use_async:true}"), // Invalid JSON format (missing quotes)
                 ..plugin::Codegen::default()
             }),
             ..Default::default()

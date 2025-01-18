@@ -8,7 +8,7 @@ use std::hash::Hash;
 
 /// A wrapper around a `String` representing a generic data type.
 /// TODO: remove if not necessary
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct DataType(pub String);
 
 impl ToTokens for DataType {
@@ -18,17 +18,6 @@ impl ToTokens for DataType {
     /// to the corresponding punctuation token via `get_punct_from_char_tokens`.
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(self.0.chars().map(|c| get_punct_from_char_tokens(c)));
-    }
-}
-
-/// A wrapper around a `String` representing a PostgreSQL data type.
-#[derive(Debug, Clone, Hash, PartialEq)]
-pub struct PgDataType(pub String);
-
-impl ToTokens for PgDataType {
-    /// Converts the `PgDataType` into a `TokenStream` for procedural macros.
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(self.as_data_type().into_token_stream());
     }
 }
 
@@ -167,6 +156,17 @@ impl PgType {
     }
 }
 
+/// A wrapper around a `String` representing a PostgreSQL data type.
+#[derive(Debug, Default, Clone, Hash, PartialEq)]
+pub struct PgDataType(pub String);
+
+impl ToTokens for PgDataType {
+    /// Converts the `PgDataType` into a `TokenStream` for procedural macros.
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.as_data_type().into_token_stream());
+    }
+}
+
 impl PgDataType {
     /// Converts the `PgDataType` to a `DataType`.
     ///
@@ -185,7 +185,11 @@ impl PgDataType {
         default_schema: &str,
     ) -> Self {
         Self::from_str(
-            col.r#type.as_ref().unwrap().name.as_str(),
+            col.r#type
+                .as_ref()
+                .map(|col_type| col_type.name.as_str())
+                // TODO: check if this can be improved another way
+                .unwrap_or("text"),
             &schemas,
             &default_schema,
         )

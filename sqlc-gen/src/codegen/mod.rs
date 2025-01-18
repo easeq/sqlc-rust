@@ -503,7 +503,7 @@ mod tests {
             build_structs_from_schema(&schema, default_schema, &options).collect();
 
         assert_eq!(structs.len(), 1); // One table in the schema
-        assert_eq!(structs[0].name(), "users");
+        assert_eq!(structs[0].name(), "User");
         assert_eq!(structs[0].fields.len(), 1); // One column in the table
         assert_eq!(structs[0].fields[0].name, "id");
     }

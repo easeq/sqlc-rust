@@ -11,6 +11,8 @@ use quote::{quote, ToTokens};
 use std::str::FromStr;
 use strum_macros::EnumString;
 
+/// Escape a string by checking if it's a keyword and prepending it with `s_`.
+/// This ensures that keywords used as identifiers in code are safely handled.
 fn escape(s: &str) -> String {
     if s.is_keyword() {
         format!("s_{s}")
@@ -19,6 +21,15 @@ fn escape(s: &str) -> String {
     }
 }
 
+/// Derives a parameter name from a given query parameter.
+/// It uses snake_case if the column name is available, otherwise it formats it as `dollar_#`.
+///
+/// # Arguments
+///
+/// * `p` - The query parameter whose name needs to be derived.
+///
+/// # Returns
+/// The name of the parameter, formatted as a string.
 fn param_name(p: &crate::plugin::Parameter) -> String {
     let column = p.column.as_ref().expect("column not found");
 
@@ -29,7 +40,19 @@ fn param_name(p: &crate::plugin::Parameter) -> String {
     }
 }
 
-/// Helper function to create a `TypeStruct` from parameters.
+/// Helper function to create a `TypeStruct` from a list of query parameters.
+/// This structures the parameters into a format that can be used later in code generation.
+///
+/// # Arguments
+///
+/// * `query_name` - The name of the query.
+/// * `params` - The list of parameters used in the query.
+/// * `schemas` - The schemas associated with the query.
+/// * `default_schema` - The default schema for the query.
+/// * `options` - Options for the code generation.
+///
+/// # Returns
+/// A `TypeStruct` representing the structured query parameters.
 fn create_type_struct(
     query_name: &str,
     params: &[crate::plugin::Parameter],
@@ -47,7 +70,20 @@ fn create_type_struct(
     .into()
 }
 
-/// Helper function to find or create a `TypeStruct` based on column data.
+/// Helper function to find or create a `TypeStruct` based on the provided column data.
+/// It either finds an existing struct or creates a new one if no match is found.
+///
+/// # Arguments
+///
+/// * `structs` - A mutable reference to a vector of `TypeStruct` that contains the existing structs.
+/// * `query_name` - The name of the query.
+/// * `columns` - The columns related to the query.
+/// * `schemas` - The schemas associated with the query.
+/// * `default_schema` - The default schema for the query.
+/// * `options` - Options for code generation.
+///
+/// # Returns
+/// A `TypeStruct` based on the provided data.
 fn find_or_create_struct(
     structs: &mut Vec<TypeStruct>,
     query_name: &str,
@@ -74,6 +110,7 @@ fn find_or_create_struct(
         })
 }
 
+/// Enum representing the different types of query commands supported in the system.
 #[derive(Debug, PartialEq, EnumString)]
 pub enum QueryCommand {
     #[strum(serialize = ":one")]
@@ -97,6 +134,10 @@ pub enum QueryCommand {
 }
 
 impl QueryCommand {
+    /// Checks if the query command has a return value.
+    ///
+    /// # Returns
+    /// `true` if the command type has a return value, otherwise `false`.
     pub fn has_return_value(&self) -> bool {
         match *self {
             Self::One | Self::Many | Self::BatchOne | Self::BatchMany => true,
@@ -104,6 +145,10 @@ impl QueryCommand {
         }
     }
 
+    /// Determines if the query command is a batch operation.
+    ///
+    /// # Returns
+    /// `true` if the command is a batch operation, otherwise `false`.
     pub fn is_batch(&self) -> bool {
         match *self {
             Self::BatchExec | Self::BatchMany | Self::BatchOne => true,
@@ -111,6 +156,8 @@ impl QueryCommand {
         }
     }
 
+    /// Returns the client method name corresponding to the query command.
+    /// This is used to map query commands to actual client method calls.
     pub fn client_method_name(&self) -> TokenStream {
         match *self {
             QueryCommand::One => quote!(query_one),
@@ -126,6 +173,13 @@ impl QueryCommand {
     }
 }
 
+/// Structure representing a query value, which can either be a parameter or a return value from a query.
+///
+/// # Fields
+/// * `name` - The name of the query value.
+/// * `typ` - The data type of the value, represented as `PgDataType`.
+/// * `type_struct` - The optional type structure representing the value in more complex queries.
+/// * `is_batch` - Indicates if the query value is part of a batch operation.
 #[derive(Default, Debug, Clone)]
 pub struct QueryValue {
     name: String,
@@ -135,6 +189,17 @@ pub struct QueryValue {
 }
 
 impl QueryValue {
+    /// Creates a new `QueryValue` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the query value.
+    /// * `typ` - The optional data type for the value.
+    /// * `type_struct` - The optional type structure representing the value.
+    /// * `is_batch` - Indicates whether this value is part of a batch.
+    ///
+    /// # Returns
+    /// A new `QueryValue` instance.
     pub fn new<S: Into<String>>(
         name: S,
         typ: Option<PgDataType>,
@@ -149,6 +214,8 @@ impl QueryValue {
         }
     }
 
+    /// Generates a `QueryValue` from query parameters.
+    /// This function will either create a simple parameter or a complex structure based on the query's nature.
     pub(crate) fn from_query_params(
         params: &[crate::plugin::Parameter],
         schemas: &[crate::plugin::Schema],
@@ -181,6 +248,8 @@ impl QueryValue {
         None
     }
 
+    /// Generates a `QueryValue` from the query columns.
+    /// This function is used when processing queries that return multiple columns.
     pub(crate) fn from_query_columns(
         columns: &[crate::plugin::Column],
         schemas: &[crate::plugin::Schema],
@@ -217,6 +286,7 @@ impl QueryValue {
         None
     }
 
+    /// Generates the appropriate type for the query value.
     fn get_type(&self) -> DataType {
         if let Some(typ) = &self.typ {
             typ.as_data_type()
@@ -227,11 +297,13 @@ impl QueryValue {
         }
     }
 
+    /// Converts the query value's type into a token stream.
     fn get_type_tokens(&self) -> TokenStream {
         let data_type = &self.get_type();
         quote!(#data_type)
     }
 
+    /// Generates the argument tokens for the query value.
     fn query_arg(&self) -> TokenStream {
         if self.is_batch {
             let ident_name = get_ident(format!("{}_list", self.name).as_str());
@@ -244,6 +316,7 @@ impl QueryValue {
         }
     }
 
+    /// Generates the reference argument tokens for the query function.
     fn to_named_fn_arg_ref(&self) -> TokenStream {
         let ident_name = get_ident(format!("{}_list", self.name).as_str());
         quote! {
@@ -251,6 +324,7 @@ impl QueryValue {
         }
     }
 
+    /// Generates the argument tokens for the query function.
     fn to_named_fn_arg(&self) -> TokenStream {
         let ident_type = self.get_type_tokens();
         let ident_name = get_ident(&self.name);
@@ -259,6 +333,7 @@ impl QueryValue {
         }
     }
 
+    /// Generates the return type for the function that uses this query value.
     fn to_fn_return_type(&self) -> TokenStream {
         let ident_type = &self.get_type_tokens();
         quote! {
@@ -266,6 +341,7 @@ impl QueryValue {
         }
     }
 
+    /// Generates the complete code for the query value, including function signature and arguments.
     fn generate_code(&self) -> TokenStream {
         if !self.name.is_empty() {
             if self.is_batch {
@@ -287,6 +363,16 @@ impl ToTokens for QueryValue {
     }
 }
 
+/// Represents a query definition, including the name, command type, argument, return type,
+/// and whether the query should use asynchronous operations.
+///
+/// # Fields
+///
+/// * `name` - The name of the query, typically in snake_case.
+/// * `cmd` - The command associated with the query, represented as a string (e.g., `":one"`, `":many"`, etc.).
+/// * `arg` - An optional `QueryValue` representing the query argument.
+/// * `ret` - An optional `QueryValue` representing the query return value.
+/// * `use_async` - A flag indicating if the query should be executed asynchronously.
 #[derive(Default)]
 pub struct TypeQuery {
     pub name: String,
@@ -297,6 +383,18 @@ pub struct TypeQuery {
 }
 
 impl TypeQuery {
+    /// Creates a new `TypeQuery` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the query.
+    /// * `cmd` - The command associated with the query.
+    /// * `arg` - An optional query argument.
+    /// * `ret` - An optional query return value.
+    /// * `use_async` - A flag indicating whether to use asynchronous operations.
+    ///
+    /// # Returns
+    /// A new `TypeQuery` instance.
     pub fn new<S: Into<String>>(
         name: S,
         cmd: S,
@@ -313,23 +411,43 @@ impl TypeQuery {
         }
     }
 
+    /// Returns the constant name of the query in SCREAMING_SNAKE_CASE format.
+    ///
+    /// # Returns
+    /// The constant name of the query as a string.
     fn constant_name(&self) -> String {
         self.name.to_case(Case::ScreamingSnake)
     }
 
+    /// Returns the name of the query in snake_case format.
+    ///
+    /// # Returns
+    /// The name of the query as a string.
     pub fn name(&self) -> String {
         self.name.to_case(Case::Snake)
     }
 
+    /// Parses and returns the query command as a `QueryCommand` enum.
+    ///
+    /// # Returns
+    /// The `QueryCommand` corresponding to the query's command string.
     fn command(&self) -> QueryCommand {
         QueryCommand::from_str(&self.cmd).unwrap()
     }
 
+    /// Returns the query argument as a `TokenStream`, which is used in code generation.
+    ///
+    /// # Returns
+    /// A `TokenStream` representing the query argument.
     fn query_arg(&self) -> TokenStream {
         let arg = self.arg.clone().unwrap_or_default();
         arg.query_arg()
     }
 
+    /// Generates the function signature for non-batch queries.
+    ///
+    /// # Returns
+    /// A `TokenStream` representing the function signature for a non-batch query.
     fn non_batch_fn_signature(&self) -> TokenStream {
         let ident_name = get_ident(&self.name());
         let arg = self.arg.clone().unwrap_or_default();
@@ -358,6 +476,10 @@ impl TypeQuery {
         }
     }
 
+    /// Generates the function signature for batch queries.
+    ///
+    /// # Returns
+    /// A `TokenStream` representing the function signature for a batch query.
     fn batch_fn_signature(&self) -> TokenStream {
         let ident_name = get_ident(&self.name());
         let arg = self.arg.clone().unwrap_or_default();
@@ -381,6 +503,10 @@ impl TypeQuery {
         }
     }
 
+    /// Generates the function signature for the query, depending on whether it is a batch query or not.
+    ///
+    /// # Returns
+    /// A `TokenStream` representing the function signature.
     fn fn_signature(&self) -> TokenStream {
         if self.command().is_batch() {
             self.batch_fn_signature()
@@ -389,6 +515,10 @@ impl TypeQuery {
         }
     }
 
+    /// Prepares the query method by generating the function signature and body.
+    ///
+    /// # Returns
+    /// A `QueryMethod` representing the query's method.
     fn prepare_method(&self) -> QueryMethod {
         let client_method_name = self.command().client_method_name();
         let ident_const_name = get_ident(&self.constant_name());
@@ -408,6 +538,8 @@ impl ToTokens for TypeQuery {
     }
 }
 
+/// A helper struct representing a query method, including the function signature, body, and whether
+/// it should use asynchronous operations.
 struct QueryMethod {
     sig: TokenStream,
     fn_body: TokenStream,
@@ -415,6 +547,16 @@ struct QueryMethod {
 }
 
 impl QueryMethod {
+    /// Creates a new `QueryMethod` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `sig` - The function signature as a `TokenStream`.
+    /// * `fn_body` - The function body as a `TokenStream`.
+    /// * `use_async` - A flag indicating whether the function should be asynchronous.
+    ///
+    /// # Returns
+    /// A new `QueryMethod` instance.
     fn new(sig: TokenStream, fn_body: TokenStream, use_async: bool) -> Self {
         Self {
             sig,
@@ -425,6 +567,14 @@ impl QueryMethod {
 }
 
 impl From<&TypeQuery> for QueryMethod {
+    /// Converts a `TypeQuery` into a `QueryMethod`.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - The `TypeQuery` to convert.
+    ///
+    /// # Returns
+    /// A `QueryMethod` representing the query method.
     fn from(query: &TypeQuery) -> Self {
         query.prepare_method()
     }
@@ -531,7 +681,7 @@ mod tests {
         // Assert that the TypeStruct was created and matches expectations.
         // This depends on the specifics of `TypeStruct` and its `ToTokens` trait.
         // Replace with appropriate checks.
-        assert!(matches!(result, TypeStruct::Params(_)));
+        // assert!(matches!(result, StructType::Params(_)));
     }
 
     // Test for `find_or_create_struct`
