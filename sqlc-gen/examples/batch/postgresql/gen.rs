@@ -36,7 +36,7 @@ pub(crate) async fn delete_book<'a, C, I>(
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
-    I::Item: std::borrow::Borrow<i32> + 'a,
+    I::Item: std::borrow::Borrow<i32> + Send + 'a,
 {
     client.batch_execute(DELETE_BOOK, book_id_list).await
 }

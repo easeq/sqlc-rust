@@ -26,7 +26,7 @@ pub fn create_codegen_response(content: &str) -> plugin::GenerateResponse {
     resp
 }
 
-pub fn generate_rust_code(req: plugin::GenerateRequest) -> String {
+pub fn generate_rust_code(req: &plugin::GenerateRequest) -> String {
     let code_partials: codegen::CodePartials = req.into();
     let tokens = code_partials.to_token_stream();
     let syntax_tree = syn::parse_file(tokens.to_string().as_str()).unwrap();
@@ -42,7 +42,7 @@ fn main() -> Result<(), prost::DecodeError> {
 
     let req = deserialize_codegen_request(&buffer)?;
 
-    let out = generate_rust_code(req);
+    let out = generate_rust_code(&req);
 
     let resp = create_codegen_response(&out);
     let out = serialize_codegen_response(&resp);
