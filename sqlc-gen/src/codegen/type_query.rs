@@ -499,7 +499,9 @@ impl TypeQuery {
             where
                 C: sqlc_core::DBTX,
                 I: IntoIterator + Send + 'a,
+                I::IntoIter: Send,
                 I::Item: std::borrow::Borrow<#arg_type> + Send + 'a,
+                <I as IntoIterator>::IntoIter: Send,
         }
     }
 

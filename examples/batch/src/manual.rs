@@ -128,8 +128,10 @@ pub(crate) async fn create_book<'a, C, I>(
 ) -> sqlc_core::Result<sqlc_core::BatchStream<Book>>
 where
     C: sqlc_core::DBTX,
+    I::IntoIter: Send,
     I: IntoIterator + Send + 'a,
-    I::Item: std::borrow::Borrow<CreateBookParams> + 'a,
+    I::Item: std::borrow::Borrow<CreateBookParams> + Send + 'a,
+    <I as IntoIterator>::IntoIter: Send,
 {
     client.batch_one(CREATE_BOOK, arg_list).await
 }
@@ -140,8 +142,10 @@ pub(crate) async fn update_book<'a, C, I>(
 ) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
 where
     C: sqlc_core::DBTX,
+    I::IntoIter: Send,
     I: IntoIterator + Send + 'a,
-    I::Item: std::borrow::Borrow<UpdateBookParams> + 'a,
+    I::Item: std::borrow::Borrow<UpdateBookParams> + Send + 'a,
+    <I as IntoIterator>::IntoIter: Send,
 {
     client.batch_execute(UPDATE_BOOK, arg_list).await
 }
@@ -152,8 +156,10 @@ pub(crate) async fn books_by_year<'a, C, I>(
 ) -> sqlc_core::Result<sqlc_core::BatchStream<sqlc_core::BoxStream<sqlc_core::Result<Book>>>>
 where
     C: sqlc_core::DBTX,
+    I::IntoIter: Send,
     I: IntoIterator + Send + 'a,
-    I::Item: std::borrow::Borrow<i32> + 'a,
+    I::Item: std::borrow::Borrow<i32> + Send + 'a,
+    <I as IntoIterator>::IntoIter: Send,
 {
     client.batch_many(BOOKS_BY_YEAR, year_list).await
 }
@@ -218,51 +224,55 @@ pub(crate) async fn execute(pool: deadpool_postgres::Pool) {
     println!("books: {:#?}", new_books);
     assert_eq!(new_books.len(), new_book_params.len());
 
-    let mut db_client = pool.get().await.expect("failed to get client from pool");
-    let client = db_client.deref_mut().deref_mut();
+    let handle = tokio::task::spawn(async move {
+        let mut db_client = pool.get().await.expect("failed to get client from pool");
+        let client = db_client.deref_mut().deref_mut();
 
-    let transaction = client
-        .transaction()
-        .await
-        .expect("could not create transaction");
+        let transaction = client
+            .transaction()
+            .await
+            .expect("could not create transaction");
 
-    // let update_books_params = vec![
-    //     UpdateBookParams {
-    //         book_id: new_books[1].book_id,
-    //         title: "changed second txn title".to_string(),
-    //         tags: vec!["cool".to_string(), "disastor".to_string()],
-    //     },
-    //     UpdateBookParams {
-    //         book_id: new_books[2].book_id,
-    //         title: "changed third txn title".to_string(),
-    //         tags: vec!["cool".to_string(), "disastor".to_string()],
-    //     },
-    // ];
+        // let update_books_params = vec![
+        //     UpdateBookParams {
+        //         book_id: new_books[1].book_id,
+        //         title: "changed second txn title".to_string(),
+        //         tags: vec!["cool".to_string(), "disastor".to_string()],
+        //     },
+        //     UpdateBookParams {
+        //         book_id: new_books[2].book_id,
+        //         title: "changed third txn title".to_string(),
+        //         tags: vec!["cool".to_string(), "disastor".to_string()],
+        //     },
+        // ];
 
-    let update_new_books_iter = new_books.iter().filter_map(|book: &Book| {
-        if book.book_id % 2 == 0 {
-            None
-        } else {
-            Some(UpdateBookParams {
-                book_id: book.book_id,
-                title: format!("{} updated", book.title),
-                tags: book.tags.clone(),
-            })
-        }
+        let update_new_books_iter = new_books.iter().filter_map(|book: &Book| {
+            if book.book_id % 2 == 0 {
+                None
+            } else {
+                Some(UpdateBookParams {
+                    book_id: book.book_id,
+                    title: format!("{} updated", book.title),
+                    tags: book.tags.clone(),
+                })
+            }
+        });
+
+        update_book(&transaction, update_new_books_iter)
+            .await
+            .expect("failed to create update books results")
+            .buffer_unordered(1)
+            .try_collect::<Vec<_>>()
+            .await
+            .expect("failed to update books");
+
+        transaction
+            .commit()
+            .await
+            .expect("failed to commit transaction");
     });
 
-    update_book(&transaction, update_new_books_iter)
-        .await
-        .expect("failed to create update books results")
-        .buffer_unordered(1)
-        .try_collect::<Vec<_>>()
-        .await
-        .expect("failed to update books");
-
-    transaction
-        .commit()
-        .await
-        .expect("failed to commit transaction");
+    handle.await.expect("failed to run transaction");
 
     let books: Vec<_> = all_books(client)
         .await

@@ -119,7 +119,9 @@ pub(crate) async fn books_by_year<'a, C, I>(
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
+    I::IntoIter: Send,
     I::Item: std::borrow::Borrow<i32> + Send + 'a,
+    <I as IntoIterator>::IntoIter: Send,
 {
     client.batch_many(BOOKS_BY_YEAR, year_list).await
 }
@@ -136,7 +138,9 @@ pub(crate) async fn create_book<'a, C, I>(
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
+    I::IntoIter: Send,
     I::Item: std::borrow::Borrow<CreateBookParams> + Send + 'a,
+    <I as IntoIterator>::IntoIter: Send,
 {
     client.batch_one(CREATE_BOOK, arg_list).await
 }
@@ -147,7 +151,9 @@ pub(crate) async fn delete_book<'a, C, I>(
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
+    I::IntoIter: Send,
     I::Item: std::borrow::Borrow<i32> + Send + 'a,
+    <I as IntoIterator>::IntoIter: Send,
 {
     client.batch_execute(DELETE_BOOK, book_id_list).await
 }
@@ -164,7 +170,9 @@ pub(crate) async fn delete_book_named_func<'a, C, I>(
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
+    I::IntoIter: Send,
     I::Item: std::borrow::Borrow<i32> + Send + 'a,
+    <I as IntoIterator>::IntoIter: Send,
 {
     client.batch_execute(DELETE_BOOK_NAMED_FUNC, book_id_list).await
 }
@@ -175,7 +183,9 @@ pub(crate) async fn delete_book_named_sign<'a, C, I>(
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
+    I::IntoIter: Send,
     I::Item: std::borrow::Borrow<i32> + Send + 'a,
+    <I as IntoIterator>::IntoIter: Send,
 {
     client.batch_execute(DELETE_BOOK_NAMED_SIGN, book_id_list).await
 }
@@ -192,7 +202,9 @@ pub(crate) async fn get_biography<'a, C, I>(
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
+    I::IntoIter: Send,
     I::Item: std::borrow::Borrow<i32> + Send + 'a,
+    <I as IntoIterator>::IntoIter: Send,
 {
     client.batch_one(GET_BIOGRAPHY, author_id_list).await
 }
@@ -203,7 +215,9 @@ pub(crate) async fn update_book<'a, C, I>(
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
+    I::IntoIter: Send,
     I::Item: std::borrow::Borrow<UpdateBookParams> + Send + 'a,
+    <I as IntoIterator>::IntoIter: Send,
 {
     client.batch_execute(UPDATE_BOOK, arg_list).await
 }

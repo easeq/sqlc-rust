@@ -3,12 +3,14 @@ use async_trait::async_trait;
 use futures::stream::Stream;
 use futures::Future;
 use std::borrow::Borrow;
+use std::iter::Iterator;
 use std::pin::Pin;
 use tokio_postgres::{Client, Statement, ToStatement, Transaction};
 
 pub type BoxedFuture<'a, R> = Pin<Box<dyn Future<Output = Result<R>> + Send + 'a>>;
-pub type BoxStream<'a, T> = Pin<Box<dyn Stream<Item = T> + 'a>>;
+pub type BoxStream<'a, T> = Pin<Box<dyn Stream<Item = T> + Send + 'a>>;
 pub type BatchStream<'a, R> = BoxStream<'a, BoxedFuture<'a, R>>;
+pub type BoxedIterator<R> = Box<dyn Iterator<Item = Result<R>> + Send>;
 
 #[async_trait]
 pub trait DBTX: Send + Sync {
@@ -22,11 +24,7 @@ pub trait DBTX: Send + Sync {
         T: ?Sized + ToStatement + Sync + Send,
         P: PostgresParams + Send + Sync,
         R: PostgresRow;
-    async fn query<T, P, R>(
-        &self,
-        statement: &T,
-        params: P,
-    ) -> Result<Box<dyn std::iter::Iterator<Item = crate::Result<R>>>>
+    async fn query<T, P, R>(&self, statement: &T, params: P) -> Result<BoxedIterator<R>>
     where
         T: ?Sized + ToStatement + Sync + Send,
         P: PostgresParams + Send + Sync,
@@ -38,6 +36,7 @@ pub trait DBTX: Send + Sync {
     ) -> Result<BatchStream<()>>
     where
         I: IntoIterator + Send + 'a,
+        I::IntoIter: Send,
         I::Item: std::borrow::Borrow<P> + Send + 'a,
         P: PostgresParams + Sync;
     async fn batch_one<'a, I, P, R>(
@@ -47,6 +46,7 @@ pub trait DBTX: Send + Sync {
     ) -> Result<BatchStream<R>>
     where
         I: IntoIterator + Send + 'a,
+        I::IntoIter: Send,
         I::Item: std::borrow::Borrow<P> + Send + 'a,
         P: PostgresParams + Sync,
         R: PostgresRow + 'a;
@@ -57,6 +57,7 @@ pub trait DBTX: Send + Sync {
     ) -> Result<BatchStream<BoxStream<Result<R>>>>
     where
         I: IntoIterator + Send + 'a,
+        I::IntoIter: Send,
         I::Item: std::borrow::Borrow<P> + Send + 'a,
         P: PostgresParams + Sync + 'a,
         R: PostgresRow + 'a;
@@ -86,11 +87,7 @@ impl DBTX for Transaction<'_> {
         Ok(PostgresRow::from_row(&row)?)
     }
 
-    async fn query<T, P, R>(
-        &self,
-        statement: &T,
-        params: P,
-    ) -> Result<Box<dyn std::iter::Iterator<Item = crate::Result<R>>>>
+    async fn query<T, P, R>(&self, statement: &T, params: P) -> Result<BoxedIterator<R>>
     where
         T: ?Sized + ToStatement + Sync + Send,
         P: PostgresParams + Send + Sync,
@@ -108,6 +105,7 @@ impl DBTX for Transaction<'_> {
     ) -> Result<BatchStream<()>>
     where
         I: IntoIterator + Send + 'a,
+        I::IntoIter: Send,
         I::Item: std::borrow::Borrow<P> + Send + 'a,
         P: PostgresParams + Sync,
     {
@@ -128,6 +126,7 @@ impl DBTX for Transaction<'_> {
     async fn batch_one<'a, I, P, R>(&'a self, query: &'a str, arg_list: I) -> Result<BatchStream<R>>
     where
         I: IntoIterator + Send + 'a,
+        I::IntoIter: Send,
         I::Item: std::borrow::Borrow<P> + Send + 'a,
         P: PostgresParams + Sync,
         R: PostgresRow + 'a,
@@ -153,6 +152,7 @@ impl DBTX for Transaction<'_> {
     ) -> Result<BatchStream<BoxStream<Result<R>>>>
     where
         I: IntoIterator + Send + 'a,
+        I::IntoIter: Send,
         I::Item: std::borrow::Borrow<P> + Send + 'a,
         P: PostgresParams + Sync + 'a,
         R: PostgresRow + 'a,
@@ -197,11 +197,7 @@ impl DBTX for Client {
         Ok(PostgresRow::from_row(&row)?)
     }
 
-    async fn query<T, P, R>(
-        &self,
-        statement: &T,
-        params: P,
-    ) -> Result<Box<dyn std::iter::Iterator<Item = crate::Result<R>>>>
+    async fn query<T, P, R>(&self, statement: &T, params: P) -> Result<BoxedIterator<R>>
     where
         T: ?Sized + ToStatement + Sync + Send,
         P: PostgresParams + Send + Sync,
@@ -219,6 +215,7 @@ impl DBTX for Client {
     ) -> Result<BatchStream<()>>
     where
         I: IntoIterator + Send + 'a,
+        I::IntoIter: Send,
         I::Item: std::borrow::Borrow<P> + Send + 'a,
         P: PostgresParams + Sync,
     {
@@ -239,6 +236,7 @@ impl DBTX for Client {
     async fn batch_one<'a, I, P, R>(&'a self, query: &'a str, arg_list: I) -> Result<BatchStream<R>>
     where
         I: IntoIterator + Send + 'a,
+        I::IntoIter: Send,
         I::Item: std::borrow::Borrow<P> + Send + 'a,
         P: PostgresParams + Sync,
         R: PostgresRow + 'a,
@@ -264,6 +262,7 @@ impl DBTX for Client {
     ) -> Result<BatchStream<BoxStream<Result<R>>>>
     where
         I: IntoIterator + Send + 'a,
+        I::IntoIter: Send,
         I::Item: std::borrow::Borrow<P> + Send + 'a,
         P: PostgresParams + Sync + 'a,
         R: PostgresRow + 'a,

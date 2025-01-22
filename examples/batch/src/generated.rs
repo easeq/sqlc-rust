@@ -133,35 +133,42 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
 
     assert_eq!(deleted_books.len(), want_num_deletes_processed);
 
-    let transaction = client
-        .transaction()
-        .await
-        .expect("could not create transaction");
+    let handle = tokio::task::spawn(async move {
+        let mut db_client = pool.get().await.expect("failed to get client from pool");
+        let client = db_client.deref_mut().deref_mut();
 
-    let update_new_books_iter = new_books.iter().filter_map(|book| {
-        if book.book_id % 2 == 0 {
-            None
-        } else {
-            Some(db::UpdateBookParams {
-                book_id: book.book_id,
-                title: format!("{} updated in txn", book.title),
-                tags: book.tags.clone(),
-            })
-        }
+        let transaction = client
+            .transaction()
+            .await
+            .expect("could not create transaction");
+
+        let update_new_books_iter = new_books.iter().filter_map(|book| {
+            if book.book_id % 2 == 0 {
+                None
+            } else {
+                Some(db::UpdateBookParams {
+                    book_id: book.book_id,
+                    title: format!("{} updated in txn", book.title),
+                    tags: book.tags.clone(),
+                })
+            }
+        });
+
+        db::update_book(&transaction, update_new_books_iter)
+            .await
+            .expect("failed to create update books results")
+            .buffer_unordered(1)
+            .try_collect::<Vec<_>>()
+            .await
+            .expect("failed to update books");
+
+        transaction
+            .commit()
+            .await
+            .expect("failed to commit transaction");
     });
 
-    db::update_book(&transaction, update_new_books_iter)
-        .await
-        .expect("failed to create update books results")
-        .buffer_unordered(1)
-        .try_collect::<Vec<_>>()
-        .await
-        .expect("failed to update books");
-
-    transaction
-        .commit()
-        .await
-        .expect("failed to commit transaction");
+    handle.await.expect("failed to run transaction");
 
     let books: Vec<_> = db::all_books(client)
         .await
