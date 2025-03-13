@@ -70,7 +70,7 @@ impl PgType {
             "bytea" | "blob" | "pg_catalog.bytea" => PgType::Bytea,
             "date" => PgType::Date,
             "pg_catalog.time" | "pg_catalog.timez" => PgType::Time,
-            "pg_catalog.timestamp" => PgType::Timestamp,
+            "pg_catalog.timestamp" | "timestamp" => PgType::Timestamp,
             "pg_catalog.timestamptz" | "timestamptz" => PgType::Timestamptz,
             "interval" | "pg_catalog.interval" => PgType::Interval,
             "text" | "pg_catalog.varchar" | "pg_catalog.bpchar" | "string" | "citext" | "ltree"
