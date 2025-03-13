@@ -1,6 +1,6 @@
 use crate::{PostgresParams, PostgresRow, Result};
 use async_trait::async_trait;
-use futures::stream::Stream;
+use futures::stream::{self, Stream};
 use futures::Future;
 use std::borrow::Borrow;
 use std::iter::Iterator;
@@ -11,6 +11,51 @@ pub type BoxedFuture<'a, R> = Pin<Box<dyn Future<Output = Result<R>> + Send + 'a
 pub type BoxStream<'a, T> = Pin<Box<dyn Stream<Item = T> + Send + 'a>>;
 pub type BatchStream<'a, R> = BoxStream<'a, BoxedFuture<'a, R>>;
 pub type BoxedIterator<R> = Box<dyn Iterator<Item = Result<R>> + Send>;
+
+async fn batch_helper<'a, T, I, P, R, Fut>(
+    dbtx: &'a T,
+    query: &'a str,
+    arg_list: I,
+    f: Fut,
+) -> Result<BatchStream<'a, R>>
+where
+    T: DBTX + ?Sized,
+    I: IntoIterator<Item = P> + Send + 'a,
+    <I as IntoIterator>::IntoIter: Send,
+    <I as IntoIterator>::Item: PostgresParams + Send + Sync,
+    P: PostgresParams + Sync + 'a,
+    Fut: Fn(&'a T, Statement, P) -> BoxedFuture<'a, R> + Copy + Send + Sync + 'a,
+{
+    let stmt = dbtx.prepare(query).await?;
+    let futures = arg_list.into_iter().map(move |arg| {
+        let stmt = stmt.clone();
+        f(dbtx, stmt, arg)
+    });
+    Ok(Box::pin(stream::iter(futures)))
+}
+
+async fn batch_execute<'a, T, I, P>(
+    client: &'a T,
+    query: &'a str,
+    arg_list: I,
+) -> Result<BatchStream<'a, ()>>
+where
+    T: DBTX + ?Sized,
+    I: IntoIterator + Send + 'a,
+    I::IntoIter: Send,
+    I::Item: std::borrow::Borrow<P> + Send + 'a,
+    <I as IntoIterator>::IntoIter: Send,
+    <I as IntoIterator>::Item: PostgresParams + Send + Sync,
+    P: PostgresParams + Sync,
+{
+    batch_helper(client, query, arg_list, |db, stmt, arg| {
+        Box::pin(async move {
+            db.execute(&stmt, arg).await?;
+            Ok(())
+        })
+    })
+    .await
+}
 
 #[async_trait]
 pub trait DBTX: Send + Sync {
