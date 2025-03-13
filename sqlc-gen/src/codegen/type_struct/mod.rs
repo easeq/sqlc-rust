@@ -203,7 +203,7 @@ impl TypeStruct {
                 #(#derive_tokens),*
             )]
             #(#attr_tokens)*
-            pub(crate) struct #ident_struct {
+            pub struct #ident_struct {
                 #(#fields_tokens),*
             }
         }
@@ -482,7 +482,7 @@ mod tests {
                 Clone
             )]
             #[serde(rename_all="screaming-snake-case")]
-            pub(crate) struct TestStruct {
+            pub struct TestStruct {
                 pub column_1: Option< String>,
                 pub column_2: Option< String>,
             }

@@ -13,13 +13,13 @@ pub enum BookType {
     Nonfiction,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct Author {
+pub struct Author {
     pub author_id: i32,
     pub name: String,
     pub biography: Option<serde_json::Value>,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct Book {
+pub struct Book {
     pub book_id: i32,
     pub author_id: i32,
     pub isbn: String,
@@ -29,7 +29,7 @@ pub(crate) struct Book {
     pub available: time::OffsetDateTime,
     pub tags: Vec<String>,
 }
-pub(crate) async fn delete_book<'a, C, I>(
+pub async fn delete_book<'a, C, I>(
     client: &'a C,
     book_id_list: I,
 ) -> sqlc_core::Result<sqlc_core::BatchStream<()>>

@@ -73,13 +73,13 @@ pub enum BookType {
     Nonfiction,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams, Debug, PartialEq, Clone)]
-pub(crate) struct Author {
+pub struct Author {
     pub author_id: i32,
     pub name: String,
     pub biography: Option<serde_json::Value>,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams, Debug, PartialEq, Clone)]
-pub(crate) struct Book {
+pub struct Book {
     pub book_id: i32,
     pub author_id: i32,
     pub isbn: String,
@@ -90,7 +90,7 @@ pub(crate) struct Book {
     pub tags: Vec<String>,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams, Debug, PartialEq, Clone)]
-pub(crate) struct CreateBookParams {
+pub struct CreateBookParams {
     pub author_id: i32,
     pub isbn: String,
     pub book_type: BookType,
@@ -100,17 +100,17 @@ pub(crate) struct CreateBookParams {
     pub tags: Vec<String>,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams, Debug, PartialEq, Clone)]
-pub(crate) struct UpdateBookParams {
+pub struct UpdateBookParams {
     pub title: String,
     pub tags: Vec<String>,
     pub book_id: i32,
 }
-pub(crate) async fn all_books(
+pub async fn all_books(
     client: &impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Book>>> {
     client.query(ALL_BOOKS, ()).await
 }
-pub(crate) async fn books_by_year<'a, C, I>(
+pub async fn books_by_year<'a, C, I>(
     client: &'a C,
     year_list: I,
 ) -> sqlc_core::Result<
@@ -125,13 +125,13 @@ where
 {
     client.batch_many(BOOKS_BY_YEAR, year_list).await
 }
-pub(crate) async fn create_author(
+pub async fn create_author(
     client: &impl sqlc_core::DBTX,
     name: String,
 ) -> sqlc_core::Result<Author> {
     client.query_one(CREATE_AUTHOR, name).await
 }
-pub(crate) async fn create_book<'a, C, I>(
+pub async fn create_book<'a, C, I>(
     client: &'a C,
     arg_list: I,
 ) -> sqlc_core::Result<sqlc_core::BatchStream<Book>>
@@ -144,7 +144,7 @@ where
 {
     client.batch_one(CREATE_BOOK, arg_list).await
 }
-pub(crate) async fn delete_book<'a, C, I>(
+pub async fn delete_book<'a, C, I>(
     client: &'a C,
     book_id_list: I,
 ) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
@@ -157,13 +157,13 @@ where
 {
     client.batch_execute(DELETE_BOOK, book_id_list).await
 }
-pub(crate) async fn delete_book_exec_result(
+pub async fn delete_book_exec_result(
     client: &impl sqlc_core::DBTX,
     book_id: i32,
 ) -> sqlc_core::Result<u64> {
     client.execute(DELETE_BOOK_EXEC_RESULT, book_id).await
 }
-pub(crate) async fn delete_book_named_func<'a, C, I>(
+pub async fn delete_book_named_func<'a, C, I>(
     client: &'a C,
     book_id_list: I,
 ) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
@@ -176,7 +176,7 @@ where
 {
     client.batch_execute(DELETE_BOOK_NAMED_FUNC, book_id_list).await
 }
-pub(crate) async fn delete_book_named_sign<'a, C, I>(
+pub async fn delete_book_named_sign<'a, C, I>(
     client: &'a C,
     book_id_list: I,
 ) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
@@ -189,13 +189,13 @@ where
 {
     client.batch_execute(DELETE_BOOK_NAMED_SIGN, book_id_list).await
 }
-pub(crate) async fn get_author(
+pub async fn get_author(
     client: &impl sqlc_core::DBTX,
     author_id: i32,
 ) -> sqlc_core::Result<Author> {
     client.query_one(GET_AUTHOR, author_id).await
 }
-pub(crate) async fn get_biography<'a, C, I>(
+pub async fn get_biography<'a, C, I>(
     client: &'a C,
     author_id_list: I,
 ) -> sqlc_core::Result<sqlc_core::BatchStream<serde_json::Value>>
@@ -208,7 +208,7 @@ where
 {
     client.batch_one(GET_BIOGRAPHY, author_id_list).await
 }
-pub(crate) async fn update_book<'a, C, I>(
+pub async fn update_book<'a, C, I>(
     client: &'a C,
     arg_list: I,
 ) -> sqlc_core::Result<sqlc_core::BatchStream<()>>

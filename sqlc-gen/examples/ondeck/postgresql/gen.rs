@@ -85,17 +85,17 @@ pub enum Status {
     Closed,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct City {
+pub struct City {
     pub slug: String,
     pub name: String,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct CreateCityParams {
+pub struct CreateCityParams {
     pub name: String,
     pub slug: String,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct CreateVenueParams {
+pub struct CreateVenueParams {
     pub slug: String,
     pub name: String,
     pub city: String,
@@ -105,27 +105,27 @@ pub(crate) struct CreateVenueParams {
     pub tags: Option<Vec<String>>,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct GetVenueParams {
+pub struct GetVenueParams {
     pub slug: String,
     pub city: String,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct ListCitiesParams {
+pub struct ListCitiesParams {
     pub offset: i64,
     pub limit: i64,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct UpdateCityNameParams {
+pub struct UpdateCityNameParams {
     pub slug: String,
     pub name: String,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct UpdateVenueNameParams {
+pub struct UpdateVenueNameParams {
     pub slug: String,
     pub name: String,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct Venue {
+pub struct Venue {
     pub id: i32,
     pub status: Status,
     pub statuses: Option<Vec<Status>>,
@@ -138,65 +138,65 @@ pub(crate) struct Venue {
     pub created_at: String,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct VenueCountByCityRow {
+pub struct VenueCountByCityRow {
     pub city: String,
     pub count: i64,
 }
-pub(crate) async fn create_city(
+pub async fn create_city(
     client: &impl sqlc_core::DBTX,
     arg: CreateCityParams,
 ) -> sqlc_core::Result<City> {
     client.query_one(CREATE_CITY, arg).await
 }
-pub(crate) async fn create_venue(
+pub async fn create_venue(
     client: &impl sqlc_core::DBTX,
     arg: CreateVenueParams,
 ) -> sqlc_core::Result<i32> {
     client.query_one(CREATE_VENUE, arg).await
 }
-pub(crate) async fn delete_venue(
+pub async fn delete_venue(
     client: &impl sqlc_core::DBTX,
     slug: String,
 ) -> sqlc_core::Result<u64> {
     client.execute(DELETE_VENUE, slug).await
 }
-pub(crate) async fn get_city(
+pub async fn get_city(
     client: &impl sqlc_core::DBTX,
     slug: String,
 ) -> sqlc_core::Result<City> {
     client.query_one(GET_CITY, slug).await
 }
-pub(crate) async fn get_venue(
+pub async fn get_venue(
     client: &impl sqlc_core::DBTX,
     arg: GetVenueParams,
 ) -> sqlc_core::Result<Venue> {
     client.query_one(GET_VENUE, arg).await
 }
-pub(crate) async fn list_cities(
+pub async fn list_cities(
     client: &impl sqlc_core::DBTX,
     arg: ListCitiesParams,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<City>>> {
     client.query(LIST_CITIES, arg).await
 }
-pub(crate) async fn list_venues(
+pub async fn list_venues(
     client: &impl sqlc_core::DBTX,
     city: String,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Venue>>> {
     client.query(LIST_VENUES, city).await
 }
-pub(crate) async fn update_city_name(
+pub async fn update_city_name(
     client: &impl sqlc_core::DBTX,
     arg: UpdateCityNameParams,
 ) -> sqlc_core::Result<u64> {
     client.execute(UPDATE_CITY_NAME, arg).await
 }
-pub(crate) async fn update_venue_name(
+pub async fn update_venue_name(
     client: &impl sqlc_core::DBTX,
     arg: UpdateVenueNameParams,
 ) -> sqlc_core::Result<i32> {
     client.query_one(UPDATE_VENUE_NAME, arg).await
 }
-pub(crate) async fn venue_count_by_city(
+pub async fn venue_count_by_city(
     client: &impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<
     impl std::iter::Iterator<Item = sqlc_core::Result<VenueCountByCityRow>>,

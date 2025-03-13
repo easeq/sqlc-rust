@@ -4,7 +4,7 @@ pub(crate) const COUNT_PILOTS: &str = r#"SELECT COUNT(*) FROM pilots"#;
 pub(crate) const DELETE_PILOT: &str = r#"DELETE FROM pilots WHERE id = $1"#;
 pub(crate) const LIST_PILOTS: &str = r#"SELECT id, name FROM pilots LIMIT 5"#;
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct Jet {
+pub struct Jet {
     pub id: i32,
     pub pilot_id: i32,
     pub age: i32,
@@ -12,32 +12,30 @@ pub(crate) struct Jet {
     pub color: String,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct Language {
+pub struct Language {
     pub id: i32,
     pub language: String,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct Pilot {
+pub struct Pilot {
     pub id: i32,
     pub name: String,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct PilotLanguage {
+pub struct PilotLanguage {
     pub pilot_id: i32,
     pub language_id: i32,
 }
-pub(crate) async fn count_pilots(
-    client: &impl sqlc_core::DBTX,
-) -> sqlc_core::Result<i64> {
+pub async fn count_pilots(client: &impl sqlc_core::DBTX) -> sqlc_core::Result<i64> {
     client.query_one(COUNT_PILOTS, ()).await
 }
-pub(crate) async fn delete_pilot(
+pub async fn delete_pilot(
     client: &impl sqlc_core::DBTX,
     id: i32,
 ) -> sqlc_core::Result<u64> {
     client.execute(DELETE_PILOT, id).await
 }
-pub(crate) async fn list_pilots(
+pub async fn list_pilots(
     client: &impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Pilot>>> {
     client.query(LIST_PILOTS, ()).await

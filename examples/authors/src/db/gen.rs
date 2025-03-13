@@ -58,7 +58,7 @@ pub enum TypeGenre {
     Adventure,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams, Debug, PartialEq, Clone)]
-pub(crate) struct Author {
+pub struct Author {
     pub id: i64,
     pub uuid: Option<uuid::Uuid>,
     pub name: String,
@@ -78,7 +78,7 @@ pub(crate) struct Author {
     pub updated_at: time::OffsetDateTime,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams, Debug, PartialEq, Clone)]
-pub(crate) struct CreateAuthorFullParams {
+pub struct CreateAuthorFullParams {
     pub name: String,
     pub bio: Option<String>,
     pub data: Option<serde_json::Value>,
@@ -96,35 +96,35 @@ pub(crate) struct CreateAuthorFullParams {
     pub updated_at: time::OffsetDateTime,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams, Debug, PartialEq, Clone)]
-pub(crate) struct CreateAuthorParams {
+pub struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,
 }
-pub(crate) fn create_author(
+pub fn create_author(
     client: &mut impl sqlc_core::DBTX,
     arg: CreateAuthorParams,
 ) -> sqlc_core::Result<Author> {
     client.query_one(CREATE_AUTHOR, arg)
 }
-pub(crate) fn create_author_full(
+pub fn create_author_full(
     client: &mut impl sqlc_core::DBTX,
     arg: CreateAuthorFullParams,
 ) -> sqlc_core::Result<Author> {
     client.query_one(CREATE_AUTHOR_FULL, arg)
 }
-pub(crate) fn delete_author(
+pub fn delete_author(
     client: &mut impl sqlc_core::DBTX,
     id: i64,
 ) -> sqlc_core::Result<u64> {
     client.execute(DELETE_AUTHOR, id)
 }
-pub(crate) fn get_author(
+pub fn get_author(
     client: &mut impl sqlc_core::DBTX,
     id: i64,
 ) -> sqlc_core::Result<Author> {
     client.query_one(GET_AUTHOR, id)
 }
-pub(crate) fn list_authors(
+pub fn list_authors(
     client: &mut impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Author>>> {
     client.query(LIST_AUTHORS, ())

@@ -72,12 +72,12 @@ pub enum BookType {
     Nonfiction,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct Author {
+pub struct Author {
     pub author_id: i32,
     pub name: String,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct Book {
+pub struct Book {
     pub book_id: i32,
     pub author_id: i32,
     pub isbn: String,
@@ -88,7 +88,7 @@ pub(crate) struct Book {
     pub tags: Vec<String>,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct BooksByTagsRow {
+pub struct BooksByTagsRow {
     pub book_id: i32,
     pub title: String,
     pub name: Option<String>,
@@ -96,12 +96,12 @@ pub(crate) struct BooksByTagsRow {
     pub tags: Vec<String>,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct BooksByTitleYearParams {
+pub struct BooksByTitleYearParams {
     pub title: String,
     pub year: i32,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct CreateBookParams {
+pub struct CreateBookParams {
     pub author_id: i32,
     pub isbn: String,
     pub book_type: BookType,
@@ -111,19 +111,19 @@ pub(crate) struct CreateBookParams {
     pub tags: Vec<String>,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct UpdateBookIsbnParams {
+pub struct UpdateBookIsbnParams {
     pub title: String,
     pub tags: Vec<String>,
     pub book_id: i32,
     pub isbn: String,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct UpdateBookParams {
+pub struct UpdateBookParams {
     pub title: String,
     pub tags: Vec<String>,
     pub book_id: i32,
 }
-pub(crate) async fn books_by_tags(
+pub async fn books_by_tags(
     client: &impl sqlc_core::DBTX,
     dollar_1: String,
 ) -> sqlc_core::Result<
@@ -131,55 +131,55 @@ pub(crate) async fn books_by_tags(
 > {
     client.query(BOOKS_BY_TAGS, dollar_1).await
 }
-pub(crate) async fn books_by_title_year(
+pub async fn books_by_title_year(
     client: &impl sqlc_core::DBTX,
     arg: BooksByTitleYearParams,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Book>>> {
     client.query(BOOKS_BY_TITLE_YEAR, arg).await
 }
-pub(crate) async fn create_author(
+pub async fn create_author(
     client: &impl sqlc_core::DBTX,
     name: String,
 ) -> sqlc_core::Result<Author> {
     client.query_one(CREATE_AUTHOR, name).await
 }
-pub(crate) async fn create_book(
+pub async fn create_book(
     client: &impl sqlc_core::DBTX,
     arg: CreateBookParams,
 ) -> sqlc_core::Result<Book> {
     client.query_one(CREATE_BOOK, arg).await
 }
-pub(crate) async fn delete_book(
+pub async fn delete_book(
     client: &impl sqlc_core::DBTX,
     book_id: i32,
 ) -> sqlc_core::Result<u64> {
     client.execute(DELETE_BOOK, book_id).await
 }
-pub(crate) async fn get_author(
+pub async fn get_author(
     client: &impl sqlc_core::DBTX,
     author_id: i32,
 ) -> sqlc_core::Result<Author> {
     client.query_one(GET_AUTHOR, author_id).await
 }
-pub(crate) async fn get_book(
+pub async fn get_book(
     client: &impl sqlc_core::DBTX,
     book_id: i32,
 ) -> sqlc_core::Result<Book> {
     client.query_one(GET_BOOK, book_id).await
 }
-pub(crate) async fn say_hello(
+pub async fn say_hello(
     client: &impl sqlc_core::DBTX,
     s: String,
 ) -> sqlc_core::Result<String> {
     client.query_one(SAY_HELLO, s).await
 }
-pub(crate) async fn update_book(
+pub async fn update_book(
     client: &impl sqlc_core::DBTX,
     arg: UpdateBookParams,
 ) -> sqlc_core::Result<u64> {
     client.execute(UPDATE_BOOK, arg).await
 }
-pub(crate) async fn update_book_isbn(
+pub async fn update_book_isbn(
     client: &impl sqlc_core::DBTX,
     arg: UpdateBookIsbnParams,
 ) -> sqlc_core::Result<u64> {

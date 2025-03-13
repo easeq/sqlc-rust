@@ -24,35 +24,35 @@ from authors
 order by name
 "#;
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct Author {
+pub struct Author {
     pub id: i64,
     pub name: String,
     pub bio: Option<String>,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
-pub(crate) struct CreateAuthorParams {
+pub struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,
 }
-pub(crate) async fn create_author(
+pub async fn create_author(
     client: &impl sqlc_core::DBTX,
     arg: CreateAuthorParams,
 ) -> sqlc_core::Result<Author> {
     client.query_one(CREATE_AUTHOR, arg).await
 }
-pub(crate) async fn delete_author(
+pub async fn delete_author(
     client: &impl sqlc_core::DBTX,
     id: i64,
 ) -> sqlc_core::Result<u64> {
     client.execute(DELETE_AUTHOR, id).await
 }
-pub(crate) async fn get_author(
+pub async fn get_author(
     client: &impl sqlc_core::DBTX,
     id: i64,
 ) -> sqlc_core::Result<Author> {
     client.query_one(GET_AUTHOR, id).await
 }
-pub(crate) async fn list_authors(
+pub async fn list_authors(
     client: &impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Author>>> {
     client.query(LIST_AUTHORS, ()).await
