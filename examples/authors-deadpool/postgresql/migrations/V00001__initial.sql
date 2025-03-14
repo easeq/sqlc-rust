@@ -22,6 +22,7 @@ CREATE TABLE authors (
   geo_path path, 
   bit_a bit(3),
   varbit_a bit varying(5),
+  created_at_1 timestamp NOT NULL DEFAULT (now()),
   created_at timestamptz NOT NULL DEFAULT (now()),
   updated_at timestamptz NOT NULL DEFAULT (now())
 );

@@ -6,10 +6,10 @@ plugins:
       - RUST_LOG
     wasm:
       url: file://./../../target/wasm32-wasip1/release/sqlc-gen.wasm
-      sha256: 626cd08c97574aaa0ecad8e99f65fcb383e7a7df0a6aa750107dcfb0297bfea8
-# - name: js
-#   process:
-#     cmd: sqlc-gen-json
+      sha256: 4968a8a3f657a22c606d7a69992d40bd3094fbe0475feafb0b255af98ef92e53
+  - name: js
+    process:
+      cmd: sqlc-gen-json
 sql:
   - schema: postgresql/migrations/
     queries: postgresql/query.sql
@@ -26,5 +26,5 @@ sql:
                 - Clone
                 - Debug
                 - PartialEq
-    # - out: gen
-    #   plugin: js
+      - out: gen
+        plugin: js

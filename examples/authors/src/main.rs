@@ -1,7 +1,7 @@
-use geo_types::line_string;
 use itertools::Itertools;
 use postgresql_embedded::blocking::PostgreSQL;
 use postgresql_embedded::Result;
+use sqlc_core::geo_types::line_string;
 
 #[path = "./db/gen.rs"]
 pub mod db;
@@ -51,7 +51,7 @@ fn main() -> Result<()> {
         name: "Author Full".to_string(),
         bio: None,
         genre: db::TypeGenre::CLaSSic,
-        data: Some(serde_json::json!({
+        data: Some(sqlc_core::serde_json::json!({
             "age":  50,
             "gender": "male",
         })),
@@ -63,17 +63,20 @@ fn main() -> Result<()> {
             .into_iter()
             .collect(),
         ),
-        ip_inet: cidr::IpInet::V6(
+        ip_inet: sqlc_core::cidr::IpInet::V6(
             "2001:DB8:1234:5678::/64"
-                .parse::<cidr::Ipv6Inet>()
+                .parse::<sqlc_core::cidr::Ipv6Inet>()
                 .expect("ip_inet init failed"),
         ),
-        ip_cidr: cidr::IpCidr::V6(cidr::Ipv6Cidr::new_host(core::net::Ipv6Addr::UNSPECIFIED)),
-        mac_address: eui48::MacAddress::parse_str("01-02-03-0A-0b-0f").expect("Parse error {}"),
-        geo_point: Some(geo_types::point! { x: 1., y: 181.2 }),
-        geo_rect: Some(geo_types::Rect::new(
-            geo_types::coord! { x: 10., y: 20. },
-            geo_types::coord! { x: 30., y: 10. },
+        ip_cidr: sqlc_core::cidr::IpCidr::V6(sqlc_core::cidr::Ipv6Cidr::new_host(
+            core::net::Ipv6Addr::UNSPECIFIED,
+        )),
+        mac_address: sqlc_core::eui48::MacAddress::parse_str("01-02-03-0A-0b-0f")
+            .expect("Parse error {}"),
+        geo_point: Some(sqlc_core::geo_types::point! { x: 1., y: 181.2 }),
+        geo_rect: Some(sqlc_core::geo_types::Rect::new(
+            sqlc_core::geo_types::coord! { x: 10., y: 20. },
+            sqlc_core::geo_types::coord! { x: 30., y: 10. },
         )),
         geo_path: Some(line_string![
         (x: -21.95156, y: 64.1446),
@@ -81,10 +84,10 @@ fn main() -> Result<()> {
         (x: -21.95044, y: 64.14527),
         (x: -21.951445, y: 64.145508),
         ]),
-        bit_a: Some(bit_vec::BitVec::from_elem(3, false)),
-        varbit_a: Some(bit_vec::BitVec::from_elem(4, false)),
-        created_at: time::OffsetDateTime::now_utc(),
-        updated_at: time::OffsetDateTime::now_utc(),
+        bit_a: Some(sqlc_core::bit_vec::BitVec::from_elem(3, false)),
+        varbit_a: Some(sqlc_core::bit_vec::BitVec::from_elem(4, false)),
+        created_at: sqlc_core::time::OffsetDateTime::now_utc(),
+        updated_at: sqlc_core::time::OffsetDateTime::now_utc(),
     };
 
     let author_full_res = db::create_author_full(&mut client, author_full_req.clone()).unwrap();

@@ -29,6 +29,7 @@ pub enum PgType {
     BigInt,      // `i64`
     Real,        // `f32`
     Float,       // `f64`
+    Numeric,     // `rust_decimal::prelude::Decimal`
     Boolean,     // `bool`
     Json,        // `serde_json::Value`
     Bytea,       // `Vec<u8>`
@@ -65,6 +66,7 @@ impl PgType {
             | "pg_catalog.serial8" => PgType::BigInt,
             "real" | "float4" | "pg_catalog.float4" => PgType::Real,
             "float" | "double precision" | "float8" | "pg_catalog.float8" => PgType::Float,
+            "numeric" | "pg_catalog.numeric" | "money" => PgType::Numeric,
             "boolean" | "bool" | "pg_catalog.bool" => PgType::Boolean,
             "json" | "jsonb" => PgType::Json,
             "bytea" | "blob" | "pg_catalog.bytea" => PgType::Bytea,
@@ -99,24 +101,25 @@ impl PgType {
             PgType::BigInt => "i64".to_string(),
             PgType::Real => "f32".to_string(),
             PgType::Float => "f64".to_string(),
+            PgType::Numeric => "sqlc_core::rust_decimal::Decimal".to_string(),
             PgType::Boolean => "bool".to_string(),
-            PgType::Json => "serde_json::Value".to_string(),
+            PgType::Json => "sqlc_core::serde_json::Value".to_string(),
             PgType::Bytea => "Vec<u8>".to_string(),
-            PgType::Date => "time::Date".to_string(),
-            PgType::Time => "time::Time".to_string(),
-            PgType::Timestamp => "time::PrimitiveDateTime".to_string(),
-            PgType::Timestamptz => "time::OffsetDateTime".to_string(),
+            PgType::Date => "sqlc_core::time::Date".to_string(),
+            PgType::Time => "sqlc_core::time::Time".to_string(),
+            PgType::Timestamp => "sqlc_core::time::PrimitiveDateTime".to_string(),
+            PgType::Timestamptz => "sqlc_core::time::OffsetDateTime".to_string(),
             PgType::Interval => "i64".to_string(),
             PgType::Text => "String".to_string(),
-            PgType::Uuid => "uuid::Uuid".to_string(),
-            PgType::Inet => "cidr::IpInet".to_string(),
-            PgType::Cidr => "cidr::IpCidr".to_string(),
-            PgType::MacAddr => "eui48::MacAddress".to_string(),
+            PgType::Uuid => "sqlc_core::uuid::Uuid".to_string(),
+            PgType::Inet => "sqlc_core::cidr::IpInet".to_string(),
+            PgType::Cidr => "sqlc_core::cidr::IpCidr".to_string(),
+            PgType::MacAddr => "sqlc_core::eui48::MacAddress".to_string(),
             PgType::Hstore => "std::collections::HashMap<String, Option<String>>".to_string(),
-            PgType::BitVec => "bit_vec::BitVec".to_string(),
-            PgType::Point => "geo_types::Point<f64>".to_string(),
-            PgType::Box => "geo_types::Rect<f64>".to_string(),
-            PgType::Path => "geo_types::LineString<f64>".to_string(),
+            PgType::BitVec => "sqlc_core::bit_vec::BitVec".to_string(),
+            PgType::Point => "sqlc_core::geo_types::Point<f64>".to_string(),
+            PgType::Box => "sqlc_core::geo_types::Rect<f64>".to_string(),
+            PgType::Path => "sqlc_core::geo_types::LineString<f64>".to_string(),
             PgType::Unknown => "String".to_string(), // Fallback for unknown types
         }
     }

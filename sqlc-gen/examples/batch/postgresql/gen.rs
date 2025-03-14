@@ -16,7 +16,7 @@ pub enum BookType {
 pub struct Author {
     pub author_id: i32,
     pub name: String,
-    pub biography: Option<serde_json::Value>,
+    pub biography: Option<sqlc_core::serde_json::Value>,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub struct Book {
@@ -26,7 +26,7 @@ pub struct Book {
     pub book_type: BookType,
     pub title: String,
     pub year: i32,
-    pub available: time::OffsetDateTime,
+    pub available: sqlc_core::time::OffsetDateTime,
     pub tags: Vec<String>,
 }
 pub async fn delete_book<'a, C, I>(

@@ -6,7 +6,7 @@ INSERT INTO authors (
 ) VALUES (
   $1, $2
 )
-RETURNING id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at, updated_at
+RETURNING id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at_1, created_at, updated_at
 "#;
 pub(crate) const CREATE_AUTHOR_FULL: &str = r#"
 INSERT INTO authors (
@@ -28,20 +28,20 @@ INSERT INTO authors (
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 )
-RETURNING id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at, updated_at
+RETURNING id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at_1, created_at, updated_at
 "#;
 pub(crate) const DELETE_AUTHOR: &str = r#"
 delete from authors
 where id = $1
 "#;
 pub(crate) const GET_AUTHOR: &str = r#"
-select id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at, updated_at
+select id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at_1, created_at, updated_at
 from authors
 where id = $1
 limit 1
 "#;
 pub(crate) const LIST_AUTHORS: &str = r#"
-select id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at, updated_at
+select id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at_1, created_at, updated_at
 from authors
 order by name
 "#;
@@ -60,40 +60,41 @@ pub enum TypeGenre {
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams, Debug, PartialEq, Clone)]
 pub struct Author {
     pub id: i64,
-    pub uuid: Option<uuid::Uuid>,
+    pub uuid: Option<sqlc_core::uuid::Uuid>,
     pub name: String,
     pub genre: TypeGenre,
     pub bio: Option<String>,
-    pub data: Option<serde_json::Value>,
+    pub data: Option<sqlc_core::serde_json::Value>,
     pub attrs: Option<std::collections::HashMap<String, Option<String>>>,
-    pub ip_inet: cidr::IpInet,
-    pub ip_cidr: cidr::IpCidr,
-    pub mac_address: eui48::MacAddress,
-    pub geo_point: Option<geo_types::Point<f64>>,
-    pub geo_rect: Option<geo_types::Rect<f64>>,
-    pub geo_path: Option<geo_types::LineString<f64>>,
-    pub bit_a: Option<bit_vec::BitVec>,
-    pub varbit_a: Option<bit_vec::BitVec>,
-    pub created_at: time::OffsetDateTime,
-    pub updated_at: time::OffsetDateTime,
+    pub ip_inet: sqlc_core::cidr::IpInet,
+    pub ip_cidr: sqlc_core::cidr::IpCidr,
+    pub mac_address: sqlc_core::eui48::MacAddress,
+    pub geo_point: Option<sqlc_core::geo_types::Point<f64>>,
+    pub geo_rect: Option<sqlc_core::geo_types::Rect<f64>>,
+    pub geo_path: Option<sqlc_core::geo_types::LineString<f64>>,
+    pub bit_a: Option<sqlc_core::bit_vec::BitVec>,
+    pub varbit_a: Option<sqlc_core::bit_vec::BitVec>,
+    pub created_at_1: sqlc_core::time::PrimitiveDateTime,
+    pub created_at: sqlc_core::time::OffsetDateTime,
+    pub updated_at: sqlc_core::time::OffsetDateTime,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams, Debug, PartialEq, Clone)]
 pub struct CreateAuthorFullParams {
     pub name: String,
     pub bio: Option<String>,
-    pub data: Option<serde_json::Value>,
+    pub data: Option<sqlc_core::serde_json::Value>,
     pub genre: TypeGenre,
     pub attrs: Option<std::collections::HashMap<String, Option<String>>>,
-    pub ip_inet: cidr::IpInet,
-    pub ip_cidr: cidr::IpCidr,
-    pub mac_address: eui48::MacAddress,
-    pub geo_point: Option<geo_types::Point<f64>>,
-    pub geo_rect: Option<geo_types::Rect<f64>>,
-    pub geo_path: Option<geo_types::LineString<f64>>,
-    pub bit_a: Option<bit_vec::BitVec>,
-    pub varbit_a: Option<bit_vec::BitVec>,
-    pub created_at: time::OffsetDateTime,
-    pub updated_at: time::OffsetDateTime,
+    pub ip_inet: sqlc_core::cidr::IpInet,
+    pub ip_cidr: sqlc_core::cidr::IpCidr,
+    pub mac_address: sqlc_core::eui48::MacAddress,
+    pub geo_point: Option<sqlc_core::geo_types::Point<f64>>,
+    pub geo_rect: Option<sqlc_core::geo_types::Rect<f64>>,
+    pub geo_path: Option<sqlc_core::geo_types::LineString<f64>>,
+    pub bit_a: Option<sqlc_core::bit_vec::BitVec>,
+    pub varbit_a: Option<sqlc_core::bit_vec::BitVec>,
+    pub created_at: sqlc_core::time::OffsetDateTime,
+    pub updated_at: sqlc_core::time::OffsetDateTime,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams, Debug, PartialEq, Clone)]
 pub struct CreateAuthorParams {

@@ -84,7 +84,7 @@ pub struct Book {
     pub book_type: BookType,
     pub title: String,
     pub year: i32,
-    pub available: time::OffsetDateTime,
+    pub available: sqlc_core::time::OffsetDateTime,
     pub tags: Vec<String>,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
@@ -107,7 +107,7 @@ pub struct CreateBookParams {
     pub book_type: BookType,
     pub title: String,
     pub year: i32,
-    pub available: time::OffsetDateTime,
+    pub available: sqlc_core::time::OffsetDateTime,
     pub tags: Vec<String>,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]

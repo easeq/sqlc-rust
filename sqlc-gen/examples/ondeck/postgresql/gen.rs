@@ -135,7 +135,7 @@ pub struct Venue {
     pub spotify_playlist: String,
     pub songkick_id: Option<String>,
     pub tags: Option<Vec<String>>,
-    pub created_at: time::PrimitiveDateTime,
+    pub created_at: sqlc_core::time::PrimitiveDateTime,
 }
 #[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams)]
 pub struct VenueCountByCityRow {
