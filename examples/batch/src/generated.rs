@@ -19,7 +19,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
             title: "my book title".to_string(),
             book_type: db::BookType::Fiction,
             year: 2016,
-            available: time::OffsetDateTime::now_utc(),
+            available: sqlc_core::time::OffsetDateTime::now_utc(),
             tags: vec![],
         },
         db::CreateBookParams {
@@ -28,7 +28,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
             title: "the second book".to_string(),
             book_type: db::BookType::Fiction,
             year: 2016,
-            available: time::OffsetDateTime::now_utc(),
+            available: sqlc_core::time::OffsetDateTime::now_utc(),
             tags: vec!["cool".to_string(), "unique".to_string()],
         },
         db::CreateBookParams {
@@ -37,7 +37,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
             title: "the third book".to_string(),
             book_type: db::BookType::Fiction,
             year: 2001,
-            available: time::OffsetDateTime::now_utc(),
+            available: sqlc_core::time::OffsetDateTime::now_utc(),
             tags: vec!["cool".to_string()],
         },
         db::CreateBookParams {
@@ -46,7 +46,7 @@ pub async fn execute(pool: deadpool_postgres::Pool) {
             title: "4th place finisher".to_string(),
             book_type: db::BookType::Fiction,
             year: 2011,
-            available: time::OffsetDateTime::now_utc(),
+            available: sqlc_core::time::OffsetDateTime::now_utc(),
             tags: vec!["other".to_string()],
         },
     ];

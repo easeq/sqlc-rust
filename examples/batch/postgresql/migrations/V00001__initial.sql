@@ -16,6 +16,7 @@ CREATE TABLE books (
   book_type book_type NOT NULL DEFAULT 'FICTION',
   title text NOT NULL DEFAULT '',
   year integer NOT NULL DEFAULT 2000,
+  price decimal(10, 2) NOT NULL DEFAULT 20.0,
   available timestamp with time zone NOT NULL DEFAULT 'NOW()',
   tags varchar[] NOT NULL DEFAULT '{}'
 );
