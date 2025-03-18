@@ -30,6 +30,8 @@ pin-project = "1.1.7"
 async-trait = "0.1.83"
 deadpool = "0.12.1"
 sqlc-derive = { version = "0.5.0", path = "../sqlc-derive" }
+rust_decimal-postgres = { version = "1.36.0", package = "rust_decimal", optional = true, features = ["db-postgres"] }
+rust_decimal-tokio-postgres = { version = "1.36.0", package = "rust_decimal", optional = true, features = ["db-tokio-postgres"] }
 
 [features]
 default = ["with-postgres"]
@@ -48,4 +50,6 @@ with-uuid-0_8 = ["uuid-08", "postgres/with-uuid-0_8", "tokio-postgres/with-uuid-
 with-uuid-1 = ["uuid-1", "postgres/with-uuid-1", "tokio-postgres/with-uuid-1"]
 with-time-0_2 = ["time-02", "postgres/with-time-0_2", "tokio-postgres/with-time-0_2"]
 with-time-0_3 = ["time-03", "postgres/with-time-0_3", "tokio-postgres/with-time-0_3"]
+with-rust_decimal-postgres = ["rust_decimal-postgres"]
+with-rust_decimal-tokio-postgres = ["rust_decimal-tokio-postgres"]
 futures = ["dep:futures"]

@@ -96,6 +96,7 @@ async fn main() -> Result<()> {
         (x: -21.951445, y: 64.145508),
         ]),
         bit_a: Some(bit_vec::BitVec::from_elem(3, false)),
+        price: rust_decimal::dec!(2.0754),
         varbit_a: Some(bit_vec::BitVec::from_elem(4, false)),
         created_at: time::OffsetDateTime::now_utc(),
         updated_at: time::OffsetDateTime::now_utc(),
@@ -117,6 +118,7 @@ async fn main() -> Result<()> {
     assert_eq!(author_full_res.geo_path, author_full_req.geo_path);
     assert_eq!(author_full_res.bit_a, author_full_req.bit_a);
     assert_eq!(author_full_res.varbit_a, author_full_req.varbit_a);
+    assert_eq!(author_full_res.price, author_full_req.price.round_dp(2));
     assert_eq!(
         author_full_res.created_at.to_hms_milli(),
         author_full_req.created_at.to_hms_milli()

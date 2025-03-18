@@ -47,6 +47,12 @@ from_primitive!(eui48_1::MacAddress);
 #[cfg(feature = "with-serde_json-1")]
 from_primitive!(serde_json_1::Value);
 
+#[cfg(feature = "with-rust_decimal-postgres")]
+from_primitive!(rust_decimal_postgres::prelude::Decimal);
+
+#[cfg(feature = "with-rust_decimal-tokio-postgres")]
+from_primitive!(rust_decimal_tokio_postgres::prelude::Decimal);
+
 cfg_block! {
     #[cfg(feature = "with-cidr-0_2")] {
         from_primitive!(cidr_02::IpInet);

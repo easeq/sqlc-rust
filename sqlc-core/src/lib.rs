@@ -8,6 +8,12 @@ compile_error!(
 #[cfg(all(not(feature = "with-postgres"), not(feature = "with-tokio-postgres")))]
 compile_error!("one of with-postgres and with-tokio-postgres features needs to be enabled");
 
+#[cfg(all(
+    feature = "with-rust_decimal-postgres",
+    feature = "with-rust_decimal-tokio-postgres"
+))]
+compile_error!("features with-rust_decimal-postgres and with-rust_decimal-tokio-postgres mutually exclusive and cannot be enabled together");
+
 mod dbtx;
 mod error;
 mod postgres_params;

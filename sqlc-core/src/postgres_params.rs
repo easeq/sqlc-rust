@@ -56,6 +56,12 @@ as_params!(eui48_1::MacAddress);
 #[cfg(feature = "with-serde_json-1")]
 as_params!(serde_json_1::Value);
 
+#[cfg(feature = "with-rust_decimal-postgres")]
+as_params!(rust_decimal_postgres::prelude::Decimal);
+
+#[cfg(feature = "with-rust_decimal-tokio-postgres")]
+as_params!(rust_decimal_tokio_postgres::prelude::Decimal);
+
 cfg_block! {
     #[cfg(feature = "with-cidr-0_2")] {
         pub use cidr_02::{IpInet, IpCidr};

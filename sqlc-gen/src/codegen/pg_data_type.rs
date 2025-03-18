@@ -29,6 +29,7 @@ pub enum PgType {
     BigInt,      // `i64`
     Real,        // `f32`
     Float,       // `f64`
+    Numeric,     // `rust_decimal::prelude::Decimal`
     Boolean,     // `bool`
     Json,        // `serde_json::Value`
     Bytea,       // `Vec<u8>`
@@ -65,6 +66,7 @@ impl PgType {
             | "pg_catalog.serial8" => PgType::BigInt,
             "real" | "float4" | "pg_catalog.float4" => PgType::Real,
             "float" | "double precision" | "float8" | "pg_catalog.float8" => PgType::Float,
+            "numeric" | "pg_catalog.numeric" | "money" => PgType::Numeric,
             "boolean" | "bool" | "pg_catalog.bool" => PgType::Boolean,
             "json" | "jsonb" => PgType::Json,
             "bytea" | "blob" | "pg_catalog.bytea" => PgType::Bytea,
@@ -99,6 +101,7 @@ impl PgType {
             PgType::BigInt => "i64".to_string(),
             PgType::Real => "f32".to_string(),
             PgType::Float => "f64".to_string(),
+            PgType::Numeric => "rust_decimal::prelude::Decimal".to_string(),
             PgType::Boolean => "bool".to_string(),
             PgType::Json => "serde_json::Value".to_string(),
             PgType::Bytea => "Vec<u8>".to_string(),

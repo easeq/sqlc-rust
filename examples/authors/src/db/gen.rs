@@ -6,7 +6,7 @@ INSERT INTO authors (
 ) VALUES (
   $1, $2
 )
-RETURNING id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at, updated_at
+RETURNING id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, price, created_at_1, created_at, updated_at
 "#;
 pub(crate) const CREATE_AUTHOR_FULL: &str = r#"
 INSERT INTO authors (
@@ -23,25 +23,26 @@ INSERT INTO authors (
   geo_path,
   bit_a,
   varbit_a,
+  price,
   created_at,
   updated_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 )
-RETURNING id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at, updated_at
+RETURNING id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, price, created_at_1, created_at, updated_at
 "#;
 pub(crate) const DELETE_AUTHOR: &str = r#"
 delete from authors
 where id = $1
 "#;
 pub(crate) const GET_AUTHOR: &str = r#"
-select id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at, updated_at
+select id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, price, created_at_1, created_at, updated_at
 from authors
 where id = $1
 limit 1
 "#;
 pub(crate) const LIST_AUTHORS: &str = r#"
-select id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, created_at, updated_at
+select id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, price, created_at_1, created_at, updated_at
 from authors
 order by name
 "#;
@@ -74,6 +75,8 @@ pub struct Author {
     pub geo_path: Option<geo_types::LineString<f64>>,
     pub bit_a: Option<bit_vec::BitVec>,
     pub varbit_a: Option<bit_vec::BitVec>,
+    pub price: rust_decimal::prelude::Decimal,
+    pub created_at_1: time::PrimitiveDateTime,
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
 }
@@ -92,6 +95,7 @@ pub struct CreateAuthorFullParams {
     pub geo_path: Option<geo_types::LineString<f64>>,
     pub bit_a: Option<bit_vec::BitVec>,
     pub varbit_a: Option<bit_vec::BitVec>,
+    pub price: rust_decimal::prelude::Decimal,
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
 }
