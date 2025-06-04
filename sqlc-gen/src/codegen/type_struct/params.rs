@@ -1,7 +1,7 @@
 use super::{Struct, StructField};
 use crate::codegen::plugin;
 use convert_case::{Case, Casing};
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 /// Represents a struct containing parameters, which could be used for code generation.
 pub(crate) struct StructParams<'a> {
@@ -41,20 +41,28 @@ impl<'a> Struct<'a> for StructParams<'a> {
     /// Generates a list of fields corresponding to the struct's parameters.
     ///
     /// This method converts the parameters into `StructField` instances, using the provided
-    /// schema, options, and default schema.
+    /// schema, options, and default schema. If a field name is duplicated or empty,
+    /// a numeric suffix is added to make it unique.
     fn fields(&self) -> Vec<StructField> {
-        let mut seen = HashSet::new();
+        let mut name_counts: HashMap<String, usize> = HashMap::new();
 
         self.params
             .iter()
             .filter_map(|param| {
                 let mut field = self.create_struct_field(param)?;
 
-                if field.name.is_empty() || seen.contains(&field.name) {
-                    field.name = format!("{}_{}", field.name, field.number);
+                // Increment count if the name has been seen before
+                let count = name_counts.entry(field.name.clone()).or_insert(0);
+                if *count > 0 || field.name.is_empty() {
+                    let base_name = if field.name.is_empty() {
+                        "field".to_string()
+                    } else {
+                        field.name.clone()
+                    };
+                    field.name = format!("{}_{}", base_name, *count + 1);
                 }
+                *count += 1;
 
-                seen.insert(field.name.clone());
                 Some(field)
             })
             .collect()
