@@ -1,6 +1,7 @@
 use super::{Struct, StructField};
 use crate::codegen::plugin;
 use convert_case::{Case, Casing};
+use std::collections::HashSet;
 
 /// Represents a struct containing parameters, which could be used for code generation.
 pub(crate) struct StructParams<'a> {
@@ -42,9 +43,20 @@ impl<'a> Struct<'a> for StructParams<'a> {
     /// This method converts the parameters into `StructField` instances, using the provided
     /// schema, options, and default schema.
     fn fields(&self) -> Vec<StructField> {
+        let mut seen = HashSet::new();
+
         self.params
             .iter()
-            .filter_map(|param| self.create_struct_field(param))
+            .filter_map(|param| {
+                let mut field = self.create_struct_field(param)?;
+
+                if field.name.is_empty() || seen.contains(&field.name) {
+                    field.name = format!("{}_{}", field.name, field.number);
+                }
+
+                seen.insert(field.name.clone());
+                Some(field)
+            })
             .collect()
     }
 }
