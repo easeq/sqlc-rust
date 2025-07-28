@@ -114,7 +114,7 @@ pub async fn books_by_year<'a, C, I>(
     client: &'a C,
     year_list: I,
 ) -> sqlc_core::Result<
-    sqlc_core::BatchStream<sqlc_core::BoxStream<sqlc_core::Result<Book>>>,
+    sqlc_core::BatchStream<'a, sqlc_core::BoxStream<'a, sqlc_core::Result<Book>>>,
 >
 where
     C: sqlc_core::DBTX,
@@ -134,7 +134,7 @@ pub async fn create_author(
 pub async fn create_book<'a, C, I>(
     client: &'a C,
     arg_list: I,
-) -> sqlc_core::Result<sqlc_core::BatchStream<Book>>
+) -> sqlc_core::Result<sqlc_core::BatchStream<'a, Book>>
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
@@ -147,7 +147,7 @@ where
 pub async fn delete_book<'a, C, I>(
     client: &'a C,
     book_id_list: I,
-) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
+) -> sqlc_core::Result<sqlc_core::BatchStream<'a, ()>>
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
@@ -166,7 +166,7 @@ pub async fn delete_book_exec_result(
 pub async fn delete_book_named_func<'a, C, I>(
     client: &'a C,
     book_id_list: I,
-) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
+) -> sqlc_core::Result<sqlc_core::BatchStream<'a, ()>>
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
@@ -179,7 +179,7 @@ where
 pub async fn delete_book_named_sign<'a, C, I>(
     client: &'a C,
     book_id_list: I,
-) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
+) -> sqlc_core::Result<sqlc_core::BatchStream<'a, ()>>
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
@@ -198,7 +198,7 @@ pub async fn get_author(
 pub async fn get_biography<'a, C, I>(
     client: &'a C,
     author_id_list: I,
-) -> sqlc_core::Result<sqlc_core::BatchStream<serde_json::Value>>
+) -> sqlc_core::Result<sqlc_core::BatchStream<'a, serde_json::Value>>
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
@@ -211,7 +211,7 @@ where
 pub async fn update_book<'a, C, I>(
     client: &'a C,
     arg_list: I,
-) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
+) -> sqlc_core::Result<sqlc_core::BatchStream<'a, ()>>
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,

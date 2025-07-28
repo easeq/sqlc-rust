@@ -11,6 +11,13 @@ from authors
 order by name
 ;
 
+-- name: ListAuthorsByPriceRange :many
+select *
+from authors
+where name = $2 and price < $1 and price >= $3
+order by name
+;
+
 -- name: CreateAuthor :one
 INSERT INTO authors (
   name, bio

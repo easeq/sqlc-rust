@@ -46,6 +46,12 @@ select id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, g
 from authors
 order by name
 "#;
+pub(crate) const LIST_AUTHORS_BY_PRICE_RANGE: &str = r#"
+select id, uuid, name, genre, bio, data, attrs, ip_inet, ip_cidr, mac_address, geo_point, geo_rect, geo_path, bit_a, varbit_a, price, created_at_1, created_at, updated_at
+from authors
+where name = $2 and price < $1 and price >= $3
+order by name
+"#;
 #[derive(postgres_derive::ToSql, postgres_derive::FromSql, Debug, PartialEq, Clone)]
 #[postgres(name = "type_genre")]
 pub enum TypeGenre {
@@ -104,6 +110,12 @@ pub struct CreateAuthorParams {
     pub name: String,
     pub bio: Option<String>,
 }
+#[derive(sqlc_core::PostgresRow, sqlc_core::PostgresParams, Debug, PartialEq, Clone)]
+pub struct ListAuthorsByPriceRangeParams {
+    pub price: rust_decimal::prelude::Decimal,
+    pub name: String,
+    pub price_2: rust_decimal::prelude::Decimal,
+}
 pub async fn create_author(
     client: &impl sqlc_core::DBTX,
     arg: CreateAuthorParams,
@@ -132,4 +144,10 @@ pub async fn list_authors(
     client: &impl sqlc_core::DBTX,
 ) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Author>>> {
     client.query(LIST_AUTHORS, ()).await
+}
+pub async fn list_authors_by_price_range(
+    client: &impl sqlc_core::DBTX,
+    arg: ListAuthorsByPriceRangeParams,
+) -> sqlc_core::Result<impl std::iter::Iterator<Item = sqlc_core::Result<Author>>> {
+    client.query(LIST_AUTHORS_BY_PRICE_RANGE, arg).await
 }

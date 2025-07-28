@@ -487,14 +487,14 @@ impl TypeQuery {
         let ret = self.ret.clone().unwrap_or_default();
         let fut_ret = match self.command() {
             QueryCommand::BatchOne => quote!(#ret),
-            QueryCommand::BatchMany => quote!(sqlc_core::BoxStream<sqlc_core::Result<#ret>>),
+            QueryCommand::BatchMany => quote!(sqlc_core::BoxStream<'a, sqlc_core::Result<#ret>>),
             QueryCommand::BatchExec => quote!(()),
             _ => unimplemented!(),
         };
 
         quote! {
             fn #ident_name<'a, C, I>(client: &'a C, #arg) -> sqlc_core::Result<
-                sqlc_core::BatchStream<#fut_ret>
+                sqlc_core::BatchStream<'a, #fut_ret>
             >
             where
                 C: sqlc_core::DBTX,

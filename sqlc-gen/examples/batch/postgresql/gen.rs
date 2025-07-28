@@ -32,7 +32,7 @@ pub struct Book {
 pub async fn delete_book<'a, C, I>(
     client: &'a C,
     book_id_list: I,
-) -> sqlc_core::Result<sqlc_core::BatchStream<()>>
+) -> sqlc_core::Result<sqlc_core::BatchStream<'a, ()>>
 where
     C: sqlc_core::DBTX,
     I: IntoIterator + Send + 'a,
